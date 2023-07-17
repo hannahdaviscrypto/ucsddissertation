@@ -1,0 +1,1152 @@
+\section{Tighter Security Proof for SIGMA-I}
+\label{sec:sigma-proof}
+
+We now come to our first main result, a tighter security proof for the \SIGMAI protocol.
+Note that by omitting message encryption our proof similarly applies to the basic \SIGMA protocol.
+
+%%% old, non-parameterized version
+% {\color{gray}
+% \begin{theorem}
+% 	Let $\advA$ be a key exchange security adversary against the \SIGMAI protocol as specified in Figure~\ref{fig:sigma-formal},
+% 	and let~$\RO$ in the protocol be modeled as a random oracle.
+% 	Then there exist algorithms~$\advB_1$, $\advB_2$, $\advB_3$, and $\advB_4$ with running time close to that of $\advA$, given in the proof, such that
+% 	\begin{align*}
+% 		\Adv^{\KESEC}_{\KE,\advA} \leq
+% 			~&\frac{q_{\Send}^2}{2^{\nl+1}} + \frac{q_{\Send}^2}{2q}	% Game 2
+% 			+ \genAdv{stDH}{\group}{\advB_1}				% Game 6
+% 			+ \genAdv{mu{\minus}PRF}{\PRF}{\advB_2}\\			% Game 7
+% 			&+ \genAdv{mu{\minus}EUF{\minus}CMA}{\SIGScheme}{\advB_3}	% Game 9
+% 			+ \genAdv{mu{\minus}EUF{\minus}CMA}{\MACScheme}{\advB_4},	% Game 11
+% 	\end{align*}
+% 	where
+% 	$\nl$ is the nonce length in \SIGMAI,
+% 	$\group$ is the used Diffie--Hellman group of prime order~$p$,
+% 	and $\advA$ makes at most $q_{\Send}$ queries to its $\Send$ oracle.
+% \end{theorem}
+% }
+
+\begin{theorem}
+	\label{thm:SIGMAI}
+	Let the \SIGMAI protocol be as specified in Figure~\fullelse{\ref{fig:sigma-formal}}{\ref{fig:sigma-protocol}} based on a group~$\group$ of prime order~$p$, a PRF~$\PRF$, a signature scheme~$\SIGScheme$, and a MAC~$\MACScheme$, and let $\RO$ in the protocol be modeled as a random oracle.
+	For any $(t\cab \qNewUser\cab \qSend\cab \qRevSessionKey\cab \qRevLongTermKey\cab \qTest)$-$\KESEC$-adversary against~\SIGMAI making at most $\qRO$ queries to $\RO$,
+	we give algorithms~$\advB_1$, $\advB_2$, $\advB_3$, and $\advB_4$ in the proof,
+	with running times~$t_{\advB_1} \approx t + 2\qRO \log_2 p$ and $t_{\advB_i}\approx~t$ (for $i = 2,\dots,4$) close to that of~$\advA$,
+	such that
+	\begin{collectinmacro}{\SIGMABound}{}{} %%% ===== COLLECT BEGIN =====
+	\begin{align*}
+		\Adv&^{\KESEC}_{\mSIGMAI}(t, \qNewUser, \qSend, \qRevSessionKey, \qRevLongTermKey, \qTest)\\
+			\leq
+% 			&~\frac{\qSend^2}{2^{\nl+1}} + \frac{\qSend^2}{2p}	+ \frac{\qSend^2}{2^{\nl}\cdot p}	% Game 2 -- old sid collision bounds
+			&~\frac{3\qSend^2}{2^{\nl+1}\cdot p}								% Game 2
+			+ \Adv^{\strongDH}_{\group}(t_{\advB_1}, \qRO)							% Game 6
+			+ \Adv^{\muPRFSEC}_{\PRF}(t_{\advB_2}, \qSend, 3\qSend,3) \\					% Game 7
+			&+ \Adv^{\muEUFCMA}_{\SIGScheme}(t_{\advB_3}, \qNewUser, \qSend, \qSend, \qRevLongTermKey)	% Game 9
+			+ \Adv^{\muEUFCMA}_{\MACScheme}(t_{\advB_4}, \qSend, \qSend,1, \qSend,1, 0).			% Game 11 
+	\end{align*}
+	\end{collectinmacro}
+	\SIGMABound
+	Here,
+	$\nl$ is the nonce length in \SIGMAI
+	and $\group$ is the used Diffie--Hellman group of prime order~$p$.
+\end{theorem}
+
+In terms of multi-user security for the employed primitives,
+multi-user PRF and MAC security can be obtained tightly, e.g., via the efficient AMAC construction~\cite{EC:BelBerTes16},
+and multi-user signature security can be generically reduced to single-user security of any signature scheme with a loss in the number of users, here parties (not sessions) in the key exchange game.
+
+\iffull
+
+\begin{proof}
+\startproof{SIGMA}
+
+Our proof of key exchange security for \SIGMAI proceeds via a sequence of code-based games~\cite{EC:BelRog06}.
+\iffull\else
+Due to space limitations, we will refer to Appendix~\ref{apx:sigma} for some of the game hops' detailed code description.
+\fi
+For the first half, the proof conceptually follows the strategy put forward by Cohn-Gordon et al.~\cite{C:CCGJJ19}.
+
+
+\proofngame[initial]
+The initial game, $\curGm$, is the key exchange security game played by~$\advA$ (cf.\ Figure~\ref{fig:AKE-security}),
+using the $\KEKGen$, $\KEActivate$, and $\KERun$ routines of \SIGMAI defined in Figure~\ref{fig:sigma-formal}.
+Therefore,
+\shortlongeqn[.]{
+	\Pr[ \curGm* \Rightarrow 1 ] = \Pr[ \Gm^{\KESEC}_{\KE,\advA} \Rightarrow 1 ]
+}
+
+\proofngame[tracking]
+Between $\prevGm$ and $\curGm$ (Figure~\ref{fig:SIGMAI-proof:game:tracking}\iffull\else{ in the appendix on page~\pageref{apxfig:SIGMAI-proof:tracking--collisions}}\fi), we make internal changes to the record-keeping of the game, namely we track the nonces and group elements chosen and received by honest sessions.
+Whenever two honest sessions pick the same nonce or group element, we set a flag~$\bad[C]$.
+Whenever an honest responder session picks a nonce and group element that has already been received by an initiator session, we set a flag~$\bad[O]$. 
+This change is unobservable by the adversary, hence
+\shortlongeqn[.]{
+	\Pr[ \prevGm* \Rightarrow 1 ] = \Pr[ \curGm* \Rightarrow 1]
+}
+
+
+\begin{collectinmacro}{\SIGMIProofTrackingCollisions}{}{} %%% ===== COLLECT BEGIN =====
+\begin{figure}[tp]
+	\begin{minipage}[t]{0.49\textwidth}
+	\NewExperiment[$\lblGm{tracking}$, \frame{$\lblGm{collisions}$}]
+
+	\begin{oracle}{$\RunInitI(\id, \sk,\st)$}
+		\item $\nonce_I \sample \bits^{\nl}$
+		\item $\x \sample \ZZ_p$
+		\item $\X \gets g^{\x}$
+		\item \gamechange{if $(\nonce_I, \X) \in \N$ then $\bad[C] \gets \true$} \frame{; abort}
+		\item \gamechange{$\N \gets \N \cup \{(\nonce_I, \X)\}$}
+		\item $\st'.\state \gets (\nonce_I,\X,\x)$
+		\item $m' \gets (\nonce_I, \X)$
+		\item return $(\st',m')$
+	\end{oracle}
+
+	\ExptSepSpace
+\begin{oracle}{$\RunInit(\id, \sk, \st, \peerpk, m)$}
+	\item $(\nonce_R,\Y,\ciph) \gets m$
+	\item \gamechange{$\Recv \gets \Recv \cup \{(\nonce_R,\Y)\}$}
+	\item $(\nonce_I,\X,\x) \gets \st.\state$
+	%		\item $\st'.\sid \gets (\nonce_I,\nonce_R,\X,\Y)$
+	%		
+	%		\item $\mk \gets \RO(\nonce_I\|\nonce_R\|\X\|\Y\|\Y^{\x})$
+	%		\item $\ks \gets \PRF(\mk,0)$
+	%		\item $\kt \gets \PRF(\mk,1)$
+	%		\item $\ke \gets \PRF(\mk,2)$
+	%		
+	%		\item $(\peerid,\sigma,\tau) \gets \ENCDec(\ke,\ciph)$
+	%		\item $\st'.\peerid \gets \peerid$
+	\item \ldots
+\end{oracle}
+	\end{minipage}
+	%
+	\begin{minipage}[t]{0.49\textwidth}
+	\ExptSepSpace
+	\begin{oracle}{$\RunRespI(\id,\sk,\st,\peerpk,m)$}
+		\item $(\nonce_I,\X) \gets m$
+		\item $\nonce_R \sample \bits^{\nl}$
+		\item $\y \sample \ZZ_p$
+		\item $\Y \gets g^{\x}$
+		\item \gamechange{if $(\nonce_R,\Y) \in \Recv$ then $\bad[O] \gets\true$} \frame{; abort}
+		\item \gamechange{if $(\nonce_R,\Y) \in \N$ then $\bad[C] \gets \true$}\frame{; abort}
+		\item \gamechange{$\N \gets \N \cup \{ (\nonce_R, \Y) \}$}
+		\item $\st'.\sid \gets (\nonce_I, \nonce_R,\X,\Y)$
+		\item \ldots
+%		\item $\sigma \gets \SIGScheme.\SIGSign(\sk,\labelrs\|\nonce_I\|\nonce_R\|\X\|\Y)$
+%		\item $\mk \gets \RO(\nonce_I\|\nonce_R\|\X\|\Y\|\X^{\y})$
+%		\item $\ks \gets \PRF(mk,0)$
+%		\item $\kt \gets \PRF(\mk,1)$
+%		\item $\ke \gets \PRF(\mk,2)$
+%		\item $\tau \gets \MACScheme.\MACTag(\kt, \labelrm\|\nonce_I\|\nonce_R\|\id)$
+%		\item $\st'.\state \gets (\nonce_I,\nonce_R,\X,\Y,\ks,\kt, \ke)$
+%		\item $m' \gets (\nonce_R, \Y, \id, \sigma, \tau)$
+	\end{oracle}
+	\ExptSepSpace
+
+\begin{algorithm}[start=101]{$\RO(m)$}
+	\item if $H[m] = \bot$ then $H[m] \sample \bits^{\kl}$
+	\item return $H[m]$
+\end{algorithm}
+	\end{minipage}
+
+	\caption[]{%
+		Games $\lblGm{tracking}$ (changes highlighted in \gamechange{gray}) and $\lblGm{collisions}$ (changes highlighted in \frame{frames}) of the \SIGMAI proof;
+		with the explicit (lazy-sampled) random oracle~$\RO$.
+	}
+	\label{fig:SIGMAI-proof:game:tracking}
+	\label{fig:SIGMAI-proof:game:collisions}
+
+  	\iffull\else %% appendix label if deferred to appendix
+	\label{apxfig:SIGMAI-proof:tracking--collisions}
+	\fi
+\end{figure}
+\end{collectinmacro}
+
+\iffull %% deferred to appendix in non-full version
+\SIGMIProofTrackingCollisions
+\fi
+
+
+\proofngame[collisions]
+
+In Game~$\curGm$ (Figure~\ref{fig:SIGMAI-proof:game:collisions}\iffull\else{ in the appendix on page~\pageref{apxfig:SIGMAI-proof:tracking--collisions}}\fi), we abort whenever nonces and group elements collide among honest sessions (i.e., the~$\bad[C]$ flag is set), or whenever an honest responder session chooses a nonce and group element already submitted by the adversary to an initiator (i.e., the~$\bad[O]$ flag is set).
+By the identical-until-bad lemma~\cite{EC:BelRog06},
+\shortlongeqn[.]{
+	\Pr[ \prevGm* \Rightarrow 1] - \Pr[ \curGm* \Rightarrow 1] \leq \Pr[ \bad[C]\text{ or }\bad[O] \gets \true \text{ in } \prevGm* ]
+}
+In all of the calls to $\RunInitI$ and $\RunRespI$, up to $\qSend$ pairs of nonces and group elements are chosen uniformly at random. By the birthday bound, the probability of a collision between two of these pairs setting the $\bad[C]$ flag is at most $\frac{\qSend^2}{2^{\nl+1}\cdot p}$ (where $\nl$ is the nonce length and $p$ the order of the Diffie--Hellman group).
+There are at most $\qSend$ pairs received by initiator sessions, so the probability that a responder session randomly chooses one of these pairs is at most $\frac{\qSend}{2^{\nl}\cdot p}$; then by the union bound we have that 
+$\Pr[\bad[O] \gets \true \text{ in } \prevGm*] \leq \frac{\qSend^2}{2^{\nl}\cdot p}$.
+Since each of $\RunInitI$ and $\RunRespI$ is called at most once per $\Send$ query, if an adversary makes $\qSend$ queries to its $\Send$ oracle, then 
+\shortlongeqn[.]{
+	\Pr[ \prevGm* \Rightarrow 1] - \Pr[ \curGm* \Rightarrow 1] \leq \frac{3\qSend^2}{2^{\nl+1}\cdot p}
+}
+In all subsequent games, we are now sure that each honest session chooses a unique nonce and group element.
+Since the session identifier~$\sid = (\nonce_I, \nonce_R, \X, \Y)$ contains exactly one initiator and one responder nonce,
+this furthermore implies that when two honest sessions are partnered, they must have different roles.
+
+
+\begin{collectinmacro}{\SIGMIProofRecordKeysInitiatorsCopy}{}{} %%% ===== COLLECT BEGIN =====
+\begin{figure}[tp]
+  \begin{minipage}[t]{0.49\textwidth}
+    \NewExperiment[$\lblGm{record-keys}$, \frame{$\lblGm{initiators-copy}$}]
+
+    \begin{oracle}{$\RunInitI(\id, \sk, \st)$}
+      \item $\nonce_I \sample \bits^{\nl}$
+      \item $x \sample \ZZ_p$
+      \item $\X \gets g^{\x}$
+      \item if $(\nonce_I, \X) \in \N$ then abort
+      \item $\N \gets \N \cup \{(\nonce_I,\X)\}$
+      \item $\st'.\state \gets (\nonce_I,\X,x)$
+      \item $m' \gets (\nonce_I, \X)$
+      \item \gamechange{$\Sent \gets \Sent \cup {m'}$}
+      \item return $(\st',m')$
+    \end{oracle}
+    \ExptSepSpace
+    \begin{oracle}{$\RunInit(\id,\sk,\st,\peerpk,m)$}
+      \item $(\nonce_R,\Y,\ciph) \gets m$
+      \item $\Recv \gets \Recv \cup \{(\nonce_R,\Y)\}$
+      \item $(\nonce_I,\X,x) \gets \st.\state$
+      \item $\st'.\sid \gets (\nonce_I,\nonce_R,\X,\Y)$
+      \item \gamechange{if $\S[\st'.\sid] \neq \bot$ then }
+      \item \hindent $\mk \gets \RO(\nonce_I\|\nonce_R\|\X\|\Y\|\Y^{\x})$
+      \item \hindent $\ks \gets \PRF(\mk,0)$
+      \item \hindent $\kt \gets \PRF(\mk,1)$
+      \item \hindent $\ke \gets \PRF(\mk,2)$
+      \item \hindent \frame{$\ks,\kt,\ke \gets \S[\st'.\sid]$}
+      \item \gamechange{else }
+      \item \hindent $\mk \gets \RO(\nonce_I\|\nonce_R\|\X\|\Y\|\Y^{\x})$
+      \item \hindent $\ks \gets \PRF(\mk,0)$
+      \item \hindent $\kt \gets \PRF(\mk,1)$
+      \item \hindent $\ke \gets \PRF(\mk,2)$
+      \item $(\peerid,\sigma, \tau) \gets \ENCDec(\ke,\ciph)$
+      \item $\st'.\peerid \gets \peerid$
+      \item \ldots
+%      \item if $\SIGScheme.\SIGVerify(\labelrs\|\nonce_I\|\nonce_R\|\X\|\Y, \sigma, \pk_{\peerid})$ and $\MACScheme.\MACVerify(\kt, \labelrm\|\nonce_I\|\nonce_R\|\peerid)$ then
+%      \item \hindent $\st'.\status \gets \accepted$
+%      \item \hindent $\st'.\skey \gets \ks$
+%      \item \hindent $\sigma' \gets \SIGScheme.\SIGSign(\sk, \labelis\|\nonce_I\|\nonce_R\|\X\|\Y)$
+%      \item \hindent $\tau' \gets \MACScheme.\MACTag(\kt, \labelim\|\nonce_I\|\nonce_R\|\id)$
+%      \item \hindent $m' \gets (\id, \sigma', \tau')$
+%      \item else
+%      \item \hindent $m' \gets \bot$
+%      \item \hindent $\st'.\status \gets \rejected$
+    \end{oracle}
+    \end{minipage}
+    \begin{minipage}[t]{0.49\textwidth}
+    \ExptSepSpace
+    \begin{oracle}{$\RunRespI(\id,\sk,\st,\peerpk,m)$}
+      \item $(\nonce_I,\X) \gets m$
+      \item $\nonce_R \sample \bits^{\nl}$
+      \item $\y \sample \ZZ_p$
+      \item $\Y \gets g^{\x}$
+      \item if $(\nonce_R,\Y) \in \Recv$ then abort
+      \item if $(\nonce_R, \Y) \in \N$ then abort
+      \item $\N \gets \N \cup \{(\nonce_R,\Y)\}$
+      \item $\st'.\sid \gets (\nonce_I, \nonce_R,\X,\Y)$
+      \item $\sigma \gets \SIGScheme.\SIGSign(\sk,\labelrs\|\nonce_I\|\nonce_R\|\X\|\Y)$
+      \item $\mk \gets \RO(\nonce_I\|\nonce_R\|\X\|\Y\|\X^{\y})$
+      \item $\ks \gets \PRF(\mk,0)$
+      \item $\kt \gets \PRF(\mk,1)$
+      \item $\ke \gets \PRF(\mk,2)$
+      \item \gamechange{if $m \in \Sent$ then }
+      \item \hindent \gamechange{$\S[\st'.\sid] \gets (\ks,\kt,\ke)$}
+      \item $\tau \gets \MACScheme.\MACTag(\kt, \labelrm\|\nonce_I\|\nonce_R\|\id)$
+      \item $\st'.\state \gets (\nonce_I,\nonce_R,\X,\Y,\ks,\kt)$
+      \item $m' \gets (\nonce_R, \Y, \ENCEnc(\ke,(\id,\sigma,\tau)))$
+      \item return $(\st',m')$
+    \end{oracle}
+  \end{minipage}
+	\caption[]{%
+		Games $\lblGm{record-keys}$ (changes highlighted in \gamechange{gray}) and $\lblGm{initiators-copy}$ (changes highlighted in \frame{frames}) of the \SIGMAI proof.
+	}
+	\label{fig:SIGMAI-proof:game:record-keys}
+	\label{fig:SIGMAI-proof:game:initiators-copy}
+
+  	\iffull\else %% appendix label if deferred to appendix
+	\label{apxfig:SIGMAI-proof:record-keys--initiators-copy}
+	\fi
+\end{figure}
+\end{collectinmacro}
+
+
+\proofngame[record-keys]
+
+In Game~$\curGm$ (Figure~\ref{fig:SIGMAI-proof:game:record-keys}\iffull\else{ in the appendix on page~\pageref{apxfig:SIGMAI-proof:record-keys--initiators-copy}}\fi), we remove the now superfluous collision flags~$\bad[C]$ and~$\bad[O]$ and add additional bookkeeping.
+All honest initiator sessions now log their outgoing messages in an internal table $\Sent$. 
+Honest responder sessions use this table to check if the message they received was sent by an honest initiator session. 
+If so, they log their keys $\kt$, $\ke$, and $\ks$ in a second internal table, $\S$, indexed by their session identifier. 
+These changes are unobservable by the adversary, so
+\shortlongeqn[.]{
+	\Pr[ \prevGm* \Rightarrow 1 ] = \Pr[ \curGm* \Rightarrow 1]
+}
+
+
+\proofngame[initiators-copy]
+
+In Game~$\curGm$ (Figure~\ref{fig:SIGMAI-proof:game:initiators-copy}\iffull\else{ in the appendix on page~\pageref{apxfig:SIGMAI-proof:record-keys--initiators-copy}}\fi), we require that initiator sessions whose key material has already been computed by an honest partner session simply copy their partners' key material.
+When an honest initiator session $\pi_u^i$ with nonce $n$ and group element $\X$ receives a message $m~\gets~(\nonce_R,\Y, \ciph)$, it sets its session identifier $\sid \gets (\nonce_I,\nonce_R,\X,\Y)$. 
+It then checks if $\S[\sid] \neq \bot$ (which is only the case if $\pi_u^i$ has an honest partner),
+and if so uses the stored key material~$\ks,\kt,\ke \gets \S[\st'.\sid]$. 
+
+Recall that both partnered sessions agree on the DH shares~$\X$ and~$\Y$ as components of $\sid$.
+They hence also agree on the shared DH secret $Z = g^{\x\y}$ and thus on the master key derived as~$\RO(\nonce_I \conc \nonce_R \conc \X \conc \Y \conc Z)$ as well as the derived key~$\ks$, $\kt$, and~$\ke$.
+For the adversary~$\advA$ it is hence unobservable if initiators with honest partner actually compute their keys themselves or copy their partners' key material in Game~$\curGm$, so
+\shortlongeqn[.]{
+	\Pr[ \prevGm* \Rightarrow 1 ] = \Pr[ \curGm* \Rightarrow 1]
+}
+
+\iffull %% deferred to appendix in non-full version
+\SIGMIProofRecordKeysInitiatorsCopy
+\fi
+
+
+\proofngame[uniform-mk]
+
+In Game~$\curGm$ (Figure~\ref{fig:SIGMAI-proof:game:uniform-mk}),
+all honest sessions sample their master keys uniformly at random (as long as the random oracle has not been been queried on the corresponding input) and program the random oracle to that value (through $\RO$'s internal table~$H[\nonce_I\|\nonce_R\|\X\|\Y\|\Y^{\x}] \gets \mk$).
+This is equivalent to $\RO$ performing the same checks and uniform sampling, and hence undetectable for~$\advA$:
+\shortlongeqn[.]{
+	\Pr[ \prevGm* \Rightarrow 1 ] = \Pr[ \curGm* \Rightarrow 1]
+}
+
+
+\proofngame[responders-stop-programming]
+
+In Game~$\curGm$ (Figure~\ref{fig:SIGMAI-proof:game:uniform-mk}), responder sessions whose first message came from an honest initiator stop programming the random oracle on their uniformly chosen master key~$\mk$.
+This is undetectable for adversary~$\advA$ unless it makes a query $\RO(\nonce_I\|\nonce_R\|\X\|\Y\|\Zz)$,
+where $\sid = (\nonce_I,\nonce_R,\X,\Y)$ is the session identifier shared by two honest partnered sessions, and $\Zz$ is the Diffie--Hellman secret corresponding to the pair $(\X,\Y)$.
+We call this event~$F$, and bound the probability of $F$ by giving a reduction~$\advB_1$ (specified in Figure~\ref{fig:SIGMAI-proof:game:advB1}) to the strong Diffie--Hellman assumption in the DH group~$\group$. The reduction makes at most as many queries to its $\stDH$ oracle as $\advA$ makes to its~$\RO$ oracle, as follows.
+
+Given its strong DH challenge $(A = g^a, B = g^b)$ and having access to an oracle~$\stDH_a(U, V)$ which outputs~1 if $U^a = V$ and 0 otherwise,
+$\advB_1$ simulates $\curGm$ for an adversary $\advA$ as follows.
+In all honest initiator sessions, $\advB_1$ embeds its challenge into the sent DH value as~$\X \gets A \cdot g^\r$, where~$\r \in \ZZ_p$ is sampled uniformly at random for each session.
+Furthermore, in all responder sessions receiving their first message from an honest initiator, $\advB_1$ embeds its challenge as $\Y \gets B \cdot g^{\r'}$, where~$\r' \in \ZZ_p$ is sampled uniformly at random for each session.
+
+Let us first observe that if event~$F$ occurs, then the value~$\Zz$ in the random oracle query $\RO(\nonce_I\|\nonce_R\|\X\|\Y\|\Zz)$ will equal $g^{(a+\r)(b+\r')}$ for some  $\r, \r' \in \ZZ_p$ chosen by $\advB_1$, and consequently
+\shortlongeqn[.]{
+	\Zz \cdot \Y^{-\r} = g^{(a+\r)(b+\r')-(b+\r') \cdot \r} = g^{a(b+\r')} = \Y^a
+}
+This equality can be tested for by~$\advB_1$ by calling its~$\stDH_a$ oracle on the pair $(\Y, \Zz \cdot \Y^{-\r})$.
+We let $\advB_1$ do so whenever $\advA$ queries~$\RO$ on some value~$(\nonce_I\|\nonce_R\|\X\|\Y\|\Zz)$ where $(\nonce_I, \X = A \cdot g^\r)$ was output by an honest initiator session and $(\nonce_R, \Y = g^{(b+\r')})$ was output by a responder session with an honest initiator; the responder stores $(\nonce_I,\nonce_R,\X,\Y)$ in a look-up table $\Q$ so this can be checked efficiently.
+If $\stDH_a(\Y, \Zz \cdot \Y^{-\r}) = 1$ on such occasion, i.e., event~$F$ occurs,
+$\advB_1$ stops with output $\Zz \cdot \Y^{-\r} \cdot A^{-\r'} = g^{(a+\r)(b+\r')} \cdot g^{-(b + \r') \cdot \r} \cdot g^{-a\r'} = g^{ab}$ and wins.
+Therefore,
+\shortlongeqn[.]{
+	\Pr[F] \leq \genAdv{stDH}{\group}{\advB_1}
+}
+
+One subtlety in this step is ensuring that~$\advB_1$ can correctly simulate answers to $\RevSessionKey$ queries to any initiator or responder session.
+We do so by accordingly programming the random oracle on the sampled master key, where needed.
+First of all observe that responder sessions without honest initiator keep picking their own~$\Y$ share and compute $\mk$ regularly.
+Initiator and responder sessions with honest partner have the challenge embedded and sample an independent master key which is not programmed to the random oracle.
+However, $\advB_1$ stops and wins (as described above) if~$\advA$ ever queries the random oracle on the correct DH secret;
+i.e., $\advA$ never sees the (inconsistent) random oracle output for these master keys.
+The interesting case is when an initiator session (which always embeds the challenge in its DH share as $\X = A \cdot g^r$) obtains a message~$(\nonce_R, \Y, \ciph)$ \emph{not} originating from an honest responder:
+Here, $\Y$ may well have been picked by the adversary who could furthermore have corrupted the initiator's peer and hence make the initiator accept---with a master key it cannot compute itself.
+
+We therefore let $\advB_1$ attempt to copy the adversary's master key, if it has been computed.
+The $\RO$ oracle logs all queries it receives by their putative session id $(\nonce_I,\nonce_R,\X,\Y)$ in a look-up table~$H'$, so $\advB_1$ can efficiently access all $\Zz$ such that $(\nonce_I,\nonce_R,\X,\Y,\Zz)$ has been queried to $\RO$. 
+Since the DH secret corresponding to the pair $(\X,\Y)$ equals $\Y^{a+r}$, if $\Zz$ is this DH secret, then 
+\shortlongeqn[.]{
+	\Zz \cdot \Y^{-r} = \Y^{(a+r)-r} = \Y^a
+}
+The reduction can check this equality using its $\stDH_a$ oracle and in that case use the response to $\RO(\nonce_I,\nonce_R,\X,\Y,\Zz)$ as~$\mk$.
+Otherwise, $\advB_1$ samples~$\mk$ at random and stores it in the table~$\Q$ (Line~\ref{line:SIGMA-proof:game:advB1:initiator-remember-Q-mk} of Figure~\ref{fig:SIGMAI-proof:game:advB1}), indicating it should be programmed in the random oracle later if queried on a matching~$\Zz$ value (Line~\ref{line:SIGMA-proof:game:advB1:program-Q-mk}).
+This ensures all responses to $\RevSessionKey$ queries are consistent with $\advA$'s queries to the random oracle~$\RO$.
+
+\begin{figure}[tp]
+    \begin{minipage}[t]{0.49\textwidth}
+      \NewExperiment[$\lblGm{uniform-mk}$, \frame{$\lblGm{responders-stop-programming}$}]
+
+        \begin{oracle}{$\RunInit(\id,\sk,\st,\peerpk,m)$}
+        \iffull
+          \item $(\nonce_R,\Y,\ciph) \gets m$
+          \item $\Recv \gets \Recv \cup \{(\nonce_R,\Y)\}$
+          \item $(\nonce_I,\X,\x) \gets st.\state$
+          \item $\st'.\sid \gets (\nonce_I,\nonce_R,\X,\Y)$
+        \else
+          \item \dots
+        \fi
+          \item if $\S[\st'.\sid] \neq \bot$ then
+          \item \hindent $\ks,\kt,\ke \gets \S[\st'.\sid]$
+          \item else
+          \item \hindent \gamechange{$\mk\sample \bits^{\kl}$}
+          \item \hindent \gamechange{if $H[\nonce_I\|\nonce_R\|\X\|\Y\|\Y^{\x}]\neq \bot$}
+          \item \hindent \hindent \gamechange{$\mk \gets H[\nonce_I\|\nonce_R\|\X\|\Y\|\Y^{\x}]$}
+          \item \hindent \gamechange{$H[\nonce_I\|\nonce_R\|\X\|\Y\|\Y^{\x}] \gets \mk$}
+          \item \hindent $\ks \gets \PRF(\mk,0)$
+          \item \hindent $\kt \gets \PRF(\mk,1)$
+          \item \hindent $\ke \gets \PRF(\mk,2)$
+        \iffull
+          \item $(\peerid,\sigma, \tau) \gets \ENCDec(\ke,\ciph)$
+          \item $\st'.\peerid \gets \peerid$
+          \item if $\SIGScheme.\SIGVerify(\peerpk[\peerid], \labelrs\|\nonce_I\|\nonce_R\|\X\|\Y, \sigma)$\\
+		and $\MACScheme.\MACVerify(\kt, \labelrm\|\nonce_I\|\nonce_R\|\peerid)$ then
+          \item \hindent $\st'.\status \gets \accepted$
+          \item \hindent $\st'.\skey \gets \ks$
+          \item \hindent $\sigma' \gets \SIGScheme.\SIGSign(\sk, \labelis\|\nonce_I\|\nonce_R\|\X\|\Y)$
+          \item \hindent $\tau' \gets \MACScheme.\MACTag(\kt, \labelim\|\nonce_I\|\nonce_R\|\id)$
+          \item \hindent $m' \gets \ENCEnc(\ke,(\id, \sigma', \tau'))$
+          \item else
+          \item \hindent $m' \gets \bot$
+%           \item \hindent 
+          ; $\st'.\status \gets \rejected$
+          \item return $(\st', m')$
+        \else
+          \item \dots
+        \fi
+        \end{oracle}
+        \end{minipage}
+        \begin{minipage}[t]{0.49\textwidth}
+          \ExptSepSpace
+        \begin{oracle}{$\RunRespI(\id,\sk,\st,\peerpk,m)$}
+        \iffull
+          \item $(\nonce_I,\X) \gets m$
+          \item $\nonce_R \sample \bits^{\nl}$
+          \item $\y \sample \ZZ_p$
+          \item $\Y \gets g^{\x}$
+          \item if $(\nonce_R, \Y) \in \Recv$ then abort
+          \item if $(\nonce_R, \Y) \in \N$ then abort
+          \item $\N \gets \N \cup \{(\nonce_R,\Y)\}$
+          \item $\st'.\sid \gets (\nonce_I, \nonce_R,\X,\Y)$
+          \item $\sigma \gets \SIGScheme.\SIGSign(\sk,\labelrs\|\nonce_I\|\nonce_R\|\X\|\Y)$
+        \else
+          \item \dots
+        \fi
+          \item \gamechange{$\mk\sample \bits^{\kl}$}
+          \item \frame{if $m \not\in \Sent$ then}
+          \item \hindent \gamechange{if $H[\nonce_I\|\nonce_R\|\X\|\Y\|\X^{\y}]\neq \bot$}
+          \item \hindent \hindent \gamechange{$\mk \gets H[\nonce_I\|\nonce_R\|\X\|\Y\|\X^{\y}]$}
+          \item \hindent \gamechange{$H[\nonce_I\|\nonce_R\|\X\|\Y\|\X^{\y}] \gets  \mk$}
+          \item $\ks \gets \PRF(\mk,0)$
+          \item $\kt \gets \PRF(\mk,1)$
+          \item $\ke \gets \PRF(\mk,2)$
+          \item if $m \in \Sent$ then
+          \item \hindent $\S[\st'.\sid] \gets (\ks,\kt,\ke)$
+        \iffull
+          \item $\tau \gets \MACScheme.\MACTag(\kt, \labelrm\|\nonce_I\|\nonce_R\|\id)$
+          \item $\st'.\state \gets (\nonce_I,\nonce_R,\X,\Y,\ks,\kt)$
+          \item $m' \gets (\nonce_R, \Y, \id, \sigma, \tau)$
+          \item return $(\st', m')$
+        \else
+          \item \dots
+        \fi
+        \end{oracle}
+    \end{minipage}
+  	\caption[]{%
+		Games $\lblGm{uniform-mk}$ (changes highlighted in \gamechange{gray}) and $\lblGm{responders-stop-programming}$ (changes highlighted in \frame{frames}) of the \SIGMAI proof.
+  	}
+  	\label{fig:SIGMAI-proof:game:uniform-mk}
+  	\label{fig:SIGMAI-proof:game:responders-stop-programming}
+\end{figure}
+
+\begin{figure}[tp]
+  \centering
+  \scalebox{0.9}{
+  \begin{minipage}[t]{0.49\textwidth}
+    \NewExperiment[$\advB_1(A,B)^{\stDH_a(\cdot,\cdot)}$]
+
+      \begin{oracle}{$\RunInitI(\id, \sk, \st)$}
+        \item $\nonce_I \sample \bits^{\nl}$
+        \item \gamechange{$\r \sample \ZZ_p$}
+        \item \gamechange{$\X \gets A \cdot g^{\r}$}
+        \item if $(\nonce_I, \X) \in \N$ then abort
+        \item $\N \gets \N \cup \{(\nonce_I,\X)\}$
+        \item \gamechange{$\st'.\state \gets (\nonce_I,\X,\r)$}
+        \item $m' \gets (\nonce_I, \X)$
+        \item \gamechange{$\Sent[m'] \gets x$}
+        \item return $(\st',m')$
+      \end{oracle}
+
+    \ExptSepSpace
+
+      \begin{oracle}{$\RunInit(\id,\sk,\st,\peerpk,m)$}
+      \iffull
+        \item $(\nonce_R,\Y,\ciph) \gets m$
+        \item $\Recv \gets \Recv \cup \{(\nonce_R,\Y)\}$
+        \item $(\nonce_I,\X,\r) \gets \st.\state$
+        \item $\st'.\sid \gets (\nonce_I,\nonce_R,\X,\Y)$
+      \else
+        \item \dots
+      \fi
+        \item if $\S[\st'.\sid] \neq \bot$ then
+        \item \hindent $\ks,\kt,\ke \gets \S[\st'.\sid]$
+        \item else
+        \item \hindent $\mk\sample \bits^{\kl}$
+        \item \hindent \gamechange{for each $\Zz \in H'[\nonce_I\|\nonce_R\|\X\|\Y]$}
+        \item \hindent \hindent \gamechange{if $\stDH_a(\Y,\Zz \cdot \Y^{-\r}) = 1$ then}
+        \item \hindent \hindent \hindent \gamechange{$\mk \gets H[\nonce_I\|\nonce_R\|\X\|\Y\|\Zz]$}
+        \item \hindent \gamechange{$\Q[\st'.\sid] \gets (\r,\bot,\mk)$}
+        \item \hindent $\ks \gets \PRF(\mk,0)$
+        \item \hindent $\kt \gets \PRF(\mk,1)$
+        \item \hindent $\ke \gets \PRF(\mk,2)$
+      \iffull
+        \item $(\peerid,\sigma, \tau) \gets \ENCDec(\ke, \ciph)$ 
+        \item $\st'.\peerid \gets \peerid$
+        \item if $\SIGScheme.\SIGVerify(\labelrs\|\nonce_I\|\nonce_R\|\X\|\Y, \sigma, \pk_{\peerid})$\\
+		and $\MACScheme.\MACVerify(\kt, \labelrm\|\nonce_I\|\nonce_R\|\peerid)$ then
+        \item \hindent $\st'.\status \gets \accepted$
+        \item \hindent $\st'.\skey \gets \ks$
+        \item \hindent $\sigma' \gets \SIGScheme.\SIGSign(\sk, \labelis\|\nonce_I\|\nonce_R\|R\|W)$
+        \item \hindent $\tau' \gets \MACScheme.\MACTag(\kt, \labelim\|\nonce_I\|\nonce_R\|\id)$
+        \item \hindent $m' \gets \ENCEnc(\ke,(\id, \sigma', \tau'))$
+        \item else
+        \item \hindent $m' \gets \bot$
+        \item \hindent $\st'.\status \gets \rejected$
+        \item return $(\st', m')$
+      \else
+        \item \dots
+      \fi
+      \end{oracle}
+
+    \end{minipage}
+    \begin{minipage}[t]{0.49\textwidth}
+      \begin{oracle}{$\RunRespI(\id,\sk,\st,\peerpk,m)$}
+        \item $(\nonce_I,\X) \gets m$
+        \item $\nonce_R \sample \bits^{\nl}$
+        \item \gamechange{$\r' \sample \ZZ_p$}
+        \item $\mk\sample \bits^{\kl}$
+        \item \gamechange{if $m \in \Sent$ then}
+        \item \hindent \gamechange{$\r \gets \Sent[m]$}
+        \item \hindent \gamechange{$\Y \gets B \cdot g^{r'}$}
+        \item \hindent \gamechange{$\st'.\sid \gets (\nonce_I,\nonce_R,\X,\Y)$}
+        \item \hindent \gamechange{for each $\Zz \in H'[\nonce_I\|\nonce_R\|\X\|\Y]$}
+        \item \hindent \hindent \gamechange{if $\stDH_a(\Y,\Zz \cdot \Y^{-\r}) = 1$ then}
+        \item \hindent \hindent \hindent \gamechange{$\procfont{Finalize}(\Zz \cdot \Y^{-\r} \cdot A^{-\r'}$)}
+        \item \hindent \gamechange{$\Q[\st'.\sid] \gets (\r,\r',\mk)$}
+		\label{line:SIGMA-proof:game:advB1:initiator-remember-Q-mk}
+        \item else 
+        \item \hindent $\Y \gets g^{\r'}$
+        \item \hindent $\st'.\sid \gets (\nonce_I, \nonce_R,\X,\Y)$
+        \item \hindent if $H[\nonce_I\|\nonce_R\|\X\|\Y\|\X^\y]\neq \bot$
+        \item \hindent \hindent$\mk \gets H[\nonce_I\|\nonce_R\|\X\|\Y\|\X^{\r'}]$
+        \item \hindent $H[\nonce_I\|\nonce_R\|\X\|\Y\|\X^\y] \gets \mk$
+        \item if $(\nonce_R, \Y) \in \Recv$ then abort
+        \item if $(\nonce_R, \Y) \in \N$ then abort
+        \item $\N \gets \N \cup \{(\nonce_R,\Y)\}$
+        \item $\sigma \gets \SIGScheme.\SIGSign(\sk,\labelrs\|\nonce_I\|\nonce_R\|\X\|\Y)$
+        \item $\ks \gets \PRF(\mk,0)$
+        \item $\kt \gets \PRF(\mk,1)$
+        \item $\ke \gets \PRF(\mk,2)$
+        \item if $m \in \Sent$ then
+        \item \hindent $\S[\st'.\sid] \gets (\ks,\kt,\ke)$
+        \item $\tau \gets \MACScheme.\MACTag(\kt, \labelrm\|\nonce_I\|\nonce_R\|\id)$
+        \item $\st'.\state \gets (\nonce_I,\nonce_R,\X,\Y,\ks,\kt, \ke)$
+        \item $m' \gets (\nonce_R, \Y, \ENCEnc(\ke,(\id, \sigma, \tau))$
+        \item return $(\st', m')$
+      \end{oracle}
+      
+      \ExptSepSpace
+      
+      \begin{oracle}{$\RO(m)$}
+      \item if $H[m] = \bot$ then
+      \item \hindent $H[m] \sample \bits^{\kl}$
+      \item \hindent \gamechange{parse $\nonce_I \conc \nonce_R \conc \X \conc \Y \conc \Zz \gets m$}
+      \item \hindent \gamechange{$H'[\nonce_I\|\nonce_R\|\X\|\Y] \gets H'[\nonce_I\|\nonce_R\|\X\|\Y] \cup \{\Zz\}$}
+      \item \hindent \gamechange{if $\Q[(\nonce_I,\nonce_R,\X,\Y)] \neq \bot$ then}
+      \item \hindent \hindent \gamechange{$(\r,\r',\mk)\gets \Q[\nonce_I,\nonce_R,\X,\Y]$}
+      \item \hindent \hindent \gamechange{if $\stDH_a(\Y,\Zz \cdot \Y^{-\r}) = 1$ then}
+      \item \hindent \hindent \hindent \gamechange{if $\r' = \bot$ then $H[m] \gets \mk$}
+	\label{line:SIGMA-proof:game:advB1:program-Q-mk}
+      \item \hindent \hindent \hindent \gamechange{else $\procfont{Finalize}(\Zz \cdot \Y^{-\r} \cdot A^{-\r'})$}
+      \item return $H[m]$
+    \end{oracle}
+  \end{minipage}
+  }
+
+  \caption[]{%
+      		Reduction~$\advB_1$ to the strong Diffie--Hellman assumption of the \SIGMAI proof.
+      		Sections highlighted in \gamechange{gray} have been significantly altered compared to Game~$\lblGm{responders-stop-programming}$.
+  }
+  \label{fig:SIGMAI-proof:game:advB1}
+\end{figure}
+
+Observe that, in all this, $\advB_1$ calls its $\stDH$ oracle at most once for each entry~$H[\nonce_I \conc \nonce_R \conc \X \conc \Y \conc \Zz] = \mk$ in the $\RO$ table~$H$. 
+In $\RO$, $\stDH$ is called (once) only for entries that were not present when $\Q[(\nonce_I, \nonce_R, \X, \Y)]$ was set, then~$H'$ is set.
+In $\RunInit$ and $\RunRespI$, $\stDH$ is called only for matching $H'$ entries established prior to setting~$\Q$.
+Therefore, if $\stDH$ is called in $\RO$ for an entry, it was not called in either $\RunInit$ or $\RunRespI$. 
+If $\stDH$ is called on an entry in $\RunRespI$, then the responder session is partnered, so its partner will copy its keys in $\RunInit$ and not call $\stDH$. Furthermore, due to uniqueness of nonces and DH shares (by Game~$\lblGm{collisions}$), no $\RunInit$ or $\RunRespI$ call makes $\stDH$ be invoked twice for the same $H'$ entry. 
+
+Since the total time to iterate through the for loops over all $\KERun$ and $\RO$ queries is at most $O(\qRO)$, the running time of $\advB_1$ is roughly that of $\advA$, plus the time needed to compute the arguments of the $\stDH$ queries. 
+Each of these arguments requires one group operation and one exponentiation. (All other operations performed by $\advB_1$ add only a small constant amount of time per $\Send$ query, which is dominated by the runtime of $\advA$.) The exponentiation can be computed using $2\log_2 p$ group operations using the square-and-multiply (or double-and-add) algorithm, so $t_{\advB_1} \approx t + 2\qRO\log_2 p$. The runtime $t$ of $\advA$ already includes the computation of $2\qSend\log_2 p$ group operations, so this is a significant but not prohibitive increase in runtime.
+
+Having $\advB_1$ perfectly simulate Game~$\prevGm$ for~$\advA$ up to the point when~$F$ happens,
+and $\curGm$ and~$\prevGm$ differing only when~$F$ happens,
+we have
+\shortlongeqn[,]{
+	\Pr[ \prevGm* \Rightarrow 1 ]
+	= \Pr[ \curGm* \Rightarrow 1] + \Pr[F]
+	\leq \Pr[ \curGm* \Rightarrow 1] + \genAdv{\stDH}{\group}{}(t_{\advB_1}, \qRO)
+}
+and $t_{\advB_1} \approx t+2\qRO \log_2 p$. 
+
+
+\proofngame[random-prf]
+
+In Game~$\curGm$ (Figure~\ref{fig:SIGMAI-proof:game:random-prf}\iffull\else{ in the appendix on page~\pageref{apxfig:SIGMAI-proof:PRF}}\fi), responder oracles responding to honest messages samples session, MAC, and encryption keys~$\ks$, $\kt$, and~$\ke$ randomly instead of computing them through a PRF.
+(Initiator oracles partnered with an honest responder will continue to copy those, now randomly sampled keys.)
+
+\begin{collectinmacro}{\SIGMIProofPRF}{}{} %%% ===== COLLECT BEGIN =====
+\begin{figure}[t]
+    \begin{minipage}[t]{0.49\textwidth}
+      \NewExperiment[$\lblGm{random-prf}$]
+
+      \begin{oracle}{$\RunRespI(\id,\sk,\st,\peerpk,m)$}
+          \item $(\nonce_I,\X) \gets m$
+          \item $\nonce_R \sample \bits^{\nl}$
+          \item $\y \sample \ZZ_p$
+          \item $\Y \gets g^{\y}$
+          \item if $(\nonce_R, \Y) \in \Recv$ then abort
+          \item if $(\nonce_R, \Y) \in \N$ then abort
+		  \item $\N \gets \N \cup \{(\nonce_R,\Y)\}$
+          \item $\st'.\sid \gets (\nonce_I, \nonce_R,\X,\Y)$
+          \item $\sigma \gets \SIGScheme.\SIGSign(\sk,\labelrs\|\nonce_I\|\nonce_R\|\X\|\Y)$
+          \item $\mk\sample \bits^{\kl}$
+          \item if $m \not\in \Sent$ then
+          \item \hindent if $H[\Y^{\x}\|\nonce_I\|\nonce_R\|\X\|\Y]\neq \bot$
+          \item \hindent \hindent$\mk \gets H[\Y^{\x}\|\nonce_I\|\nonce_R\|\X\|\Y]$
+          \item $\ks \gets \PRF(\mk,0)$
+          \item $\kt \gets \PRF(\mk,1)$
+          \item $\ke \gets \PRF(\mk,2)$
+          \item \gamechange{if $m \in \Sent$}
+          \item \hindent \gamechange{$\ks \sample \bits^{kl}$}
+          \item \hindent \gamechange{$\kt \sample \bits^{kl}$}
+          \item \hindent \gamechange{$\ke \sample \bits^{kl}$}
+	      \item \hindent $\S[\st'.\sid] \gets (\ks,\kt,\ke)$
+          \item $\tau \gets \MACScheme.\MACTag(\kt, \labelrm\|\nonce_I\|\nonce_R\|\id)$
+          \item $\st'.\state \gets (\nonce_I,\nonce_R,\X,\Y,\ks,\kt)$
+          \item $m' \gets (\nonce_R, \Y, \ENCEnc(\ke,(\id, \sigma, \tau))$
+          \item return $(\st', m')$
+      \end{oracle}
+    \end{minipage}
+    \begin{minipage}[t]{0.49\textwidth}
+      \NewExperiment[$\advB_2^{\PRFfn(\cdot,\cdot)}$]
+
+
+      \begin{oracle}{$\RunRespI(\id,\sk,\st,\peerpk,m)$}
+        \item $(\nonce_I,\X) \gets m$
+        \item $\nonce_R \sample \bits^{\nl}$
+        \item $\y \sample \ZZ_p$
+        \item $\Y \gets g^{\y}$
+        \item if $(\nonce_R, \Y) \in \Recv$ then abort
+        \item if $(\nonce_R, \Y) \in \N$ then abort
+        \item $\N \gets \N \cup \{(\nonce_R,\Y)\}$
+        \item $\st'.\sid \gets (\nonce_I, \nonce_R,\X,\Y)$
+        \item $\sigma \gets \SIGScheme.\SIGSign(\sk,\labelrs\|\nonce_I\|\nonce_R\|\X\|\Y)$
+        \item $\mk\sample \bits^{\kl}$
+        \item if $m \not\in \Sent$ then
+        \item \hindent if $H[\nonce_I\|\nonce_R\|\X\|\Y\|\X^{\y}]\neq \bot$
+        \item \hindent \hindent$\mk \gets H[\nonce_I\|\nonce_R\|\X\|\Y\|\X^{\y}]$
+        \item $\ks \gets \PRF(\mk,0)$
+        \item $\kt \gets \PRF(\mk,1)$
+        \item $\ke \gets \PRF(\mk,2)$. 
+        \item if $m \in \Sent$
+        \item \hindent \gamechange{$\procfont{New}()$; $i++$}
+        \item \hindent \gamechange{$\ks \gets \procfont{Fn}(i,0)$}
+        \item \hindent \gamechange{$\kt \gets \procfont{Fn}(i,1)$}
+        \item \hindent \gamechange{$\ke \gets \procfont{Fn}(i,2)$}
+        \item \hindent $\S[\st'.\sid] \gets (\ks,\kt,\ke)$
+        \item $\tau \gets \MACScheme.\MACTag(\kt, \labelrm\|\nonce_I\|\nonce_R\|\id)$
+        \item $\st'.\state \gets (\nonce_I,\nonce_R,\X,\Y,\ks,\kt)$
+        \item $m' \gets (\nonce_R, \Y,  \ENCEnc(\ke,(\id, \sigma, \tau))$
+        \item return $(\st', m')$
+        \end{oracle}
+    \end{minipage}
+  	\caption[]{%
+		Game $\lblGm{random-prf}$ and reduction~$\advB_2$ to PRF security of the \SIGMAI proof.
+		Changes from~$\lblGm{responders-stop-programming}$ resp. compared to~$\lblGm{random-prf}$ highlighted in \gamechange{gray}.
+  	}
+  	\label{fig:SIGMAI-proof:game:random-prf}
+  	\label{fig:SIGMAI-proof:game:advB2}
+  	
+  	\iffull\else %% appendix label if deferred to appendix
+	\label{apxfig:SIGMAI-proof:PRF}
+	\fi
+\end{figure}
+\end{collectinmacro}
+
+\iffull %% deferred to appendix in non-full version
+\SIGMIProofPRF
+\fi
+
+Since the PRF key~$\mk$ in this case is sampled independently of the random oracle and the rest of the game,
+this reduces straightforwardly to the multi-user security
+% \footnote{While generically, multi-user security of PRFs reduces to single-user security of PRFs with a factor in the number of users via a hybrid argument~\cite{FOCS:BelCanKra96},
+% simple and efficient constructions like AMAC~\cite{EC:BelBerTes16} achieve tight multi-user security.}
+of the PRF via the reduction~$\advB_2$ we give in Figure~\ref{fig:SIGMAI-proof:game:advB2}.
+The adversary $\advB_2$ makes one $\New$ and two $\FUNC$ queries for each $\RunRespI$ query, or three $\FUNC$ queries in $\SIGMAI$. Notably, it makes at most three $\FUNC$ queries per user, and no $\Corrupt$ queries because $\mk$ is never revealed to the adversary. Outside of the oracle calls, its running time exactly equals that of $\advA$ in Game $~\prevGm$, as their pseudocode is identical, so $t_{\advB_2}\approx t$. 
+Using its~$\procfont{Fn}$ oracle of the PRF game, $\advB_2$ perfectly simulates~$\prevGm$ if the oracle gives real-PRF answers and $\curGm$ if it returns uniformly random values.
+Therefore,
+\shortlongeqn[.]{
+	\Pr[ \prevGm* \Rightarrow 1 ]
+	\leq \Pr[ \curGm* \Rightarrow 1] + \genAdv{mu{\minus}PRF}{\PRF}{}(t_{\advB_2},\qSend,3\qSend,3,0)
+}
+
+Observe that from now on, session and MAC keys of responder oracles that received honest initiator's messages are chosen independently at random,
+and that initiator oracles with matching~$\sid$ will copy those keys.
+Notably, this is the case even for sessions whose (own or peer's) long-term secret have been revealed to the adversary.
+We will use these properties in the following to argue authentication of sessions
+as well as forward security of the session keys.
+
+\medskip
+
+Our final game hops are concerned with the explicit authentication performed through signatures and MACs in the \SIGMAI protocol,
+and as such extend those proof steps for implicit authentication of the main protocols in~\cite{C:CCGJJ19}.
+\iffull\else
+Due to space limitations, we give the code-based game hops for the remaining four games in the appendix in Figure~\ref{apxfig:SIGMAI-proof:signature-mac-games} on page~\pageref{apxfig:SIGMAI-proof:signature-mac-games}.
+\fi
+
+
+\proofngame[signature-bookkeeping]
+
+In Game~$\curGm$ (Figure~\ref{fig:SIGMAI-proof:game:signature-bookkeeping}), we log all messages for which signatures are generated by an honest session,
+and set a bad flag~$\bad[S]$ if the adversary submits a valid signature under an uncorrupted signing key for a message which was not produced by an honest session.
+This internal bookkeeping does not affect the adversary's advantage, so
+\shortlongeqn[.]{
+	\Pr[ \prevGm* \Rightarrow 1 ] = \Pr[ \curGm* \Rightarrow 1]
+}
+
+
+\proofngame[signature-forgeries]
+
+In Game~$\curGm$ (Figure~\ref{fig:SIGMAI-proof:game:signature-forgeries}), we abort if the $\bad[S]$ flag is set.
+By the identical-until-bad lemma, the difference in advantage between $\prevGm$ and $\curGm$ is bounded by the probability that this event occurs,
+which we reduce via an algorithm~$\advB_3$ to the multi-user security of the digital signature scheme~$\SIGScheme$.%
+% \footnote{%
+% Multi-user EUF-CMA security of signature schemes (with adaptive corruptions) can be reduced to classical, single-user EUF-CMA security by a hybrid argument~\cite{TCC:BHJKL15,DCC:MenSma04}, losing a factor of number of users, which correspond to the number of parties (not sessions) in our setting.
+% In many cases, such loss is indeed unavoidable~\cite{EC:BJLS16}.
+% }
+
+
+\begin{collectinmacro}{\SIGMIProofSignatureMAC}{}{} %%% ===== COLLECT BEGIN =====
+\begin{figure}[tp]
+	\begin{minipage}[t]{0.49\textwidth}
+		\NewExperiment[$\lblGm{signature-bookkeeping}$, \frame{$\lblGm{signature-forgeries}$}]
+
+		\begin{oracle}{$\RunInit(\id,\sk,\st,\peerpk,m)$}
+% 			\item $(\nonce_R,\Y,\peerid,\sigma, \tau) \gets m$
+% 			\item $(\nonce_I,\X,x) \gets st.\state$
+% 			\item $\st'.sid \gets (\nonce_I,\nonce_R,\X,\Y)$
+% 			\item $\st'.\peerid \gets \peerid$
+% 			\item if $S[\st'.sid] \neq \bot$ then
+% 			\item \hindent $\ks,\kt,\ke \gets S[\st'.sid]$
+% 			\item else
+% 			\item \hindent $\mk\sample \bits^{hl}$
+% 			\item \hindent if $H[\nonce_I\|\nonce_R\|\X\|\Y\|\Y^{\x}]\neq \bot$
+% 			\item \hindent \hindent $\mk \gets H[\nonce_I\|\nonce_R\|\X\|\Y\|\Y^{\x}]$
+% 			\item \hindent $H[\nonce_I\|\nonce_R\|\X\|\Y\|\Y^{\x}] \gets mk$
+% 			\item \hindent $\ks \gets \PRF_{\mk}(0)$
+% 			\item \hindent $\kt \gets \PRF_{\mk}(1)$
+%			\item \hindent $\ke \gets \PRF_{\mk}(2)$
+			\item \dots
+			\item if $\SIGScheme.\SIGVerify(\peerpk[\peerid], \labelrs\|\nonce_I\|\nonce_R\|\X\|\Y, \sigma)$\\
+				and $\MACScheme.\MACVerify(\kt, \labelrm\|\nonce_I\|\nonce_R\|\peerid, \tau)$ then
+			\item \hindent \gamechange{if $\revltk_{\peerid} = \infty$ and}\newline
+				\null \hindent\hindent \gamechange{$(\peerid, \labelrs\|\nonce_I\|\nonce_R\|\X\|\Y) \notin \Q_{S}$ then}
+			\item \hindent \hindent \gamechange{$\bad[S] \gets \true$} \frame{; abort}
+			\skipline
+			\item[]
+			\skipline
+			\item \hindent $\st'.\status \gets \accepted$
+			\item \hindent $\st'.\skey \gets \ks$
+			\item \hindent $\sigma' \gets \SIGScheme.\SIGSign(\sk, \labelis\|\nonce_I\|\nonce_R\|\X\|\Y)$
+			\item \hindent \gamechange{$\Q_{S} \gets \Q_{S} \cup \{(\id, \labelis\|\nonce_I\|\nonce_R\|\X\|\Y)\}$}
+			\item \hindent $\tau' \gets \MACScheme.\MACTag(\kt, \labelim\|\nonce_I\|\nonce_R\|\id)$
+			\skipline
+			\skipline
+			\item \dots
+% 			\item \hindent $m' \gets (\id, \sigma', \tau')$
+% 			\item else
+% 			\item \hindent $m' \gets \bot$
+% 			\item \hindent $\st'.\status \gets \rejected$
+		\end{oracle}
+
+		\ExptSepSpace
+
+		\begin{oracle}{$\RunRespI(\id,\sk,\st,\peerpk,m)$}
+% 			\item $(\nonce_I,\X) \gets m$
+% 			\item $\nonce_R \sample \bits^{nl}$
+% 			\item if $\nonce_I \in \N$ then $\bad \gets \true $; abort
+% 			\item $N \gets N \cup \{\nonce_I\}$
+% 			\item $y \sample \ZZ_p$
+% 			\item $\Y \gets g^{\x}$
+% 			\item if $\Y \in E$ then $\bad \gets \true$; abort
+% 			\item $E \gets E \cup \{\Y\}$
+%           \item if $\nonce_R,\Y \in \Recv$ then abort
+% 			\item $\st'.sid \gets (\nonce_I, \nonce_R,\X,\Y)$
+			\item \dots
+			\item $\sigma \gets \SIGScheme.\SIGSign(\sk,\labelrs\|\nonce_I\|\nonce_R\|\X\|\Y)$
+			\item \gamechange{$\Q_{S} \gets \Q_{S} \cup \{(\id, \labelrs\|\nonce_I\|\nonce_R\|\X\|\Y)\}$}
+			\item \dots
+% 			\item $mk\sample \bits^{hl}$
+% 			\item if $m \not\in Sent$ then
+% 			\item \hindent if $H[\Y^{\x}\|\nonce_I\|\nonce_R\|\X\|\Y]\neq \bot$
+% 			\item \hindent \hindent$mk \gets H[\Y^{\x}\|\nonce_I\|\nonce_R\|\X\|\Y]$
+% 			\item \hindent $Q[\st'.sid] \gets {\X^y, mk}$
+% 			\item \hindent $\ks \gets \PRF_{mk}(0)$
+% 			\item \hindent $\kt \gets \PRF_{mk}(1)$
+% 			\item else
+% 			\item \hindent $\ks \sample \bits^{kl}$
+% 			\item \hindent $\kt \sample \bits^{kl}$
+			\item $\tau \gets \MACScheme.\MACTag(\kt, \labelrm\|\nonce_I\|\nonce_R\|\id)$
+			\skipline
+			\item \dots
+% 			\item $\st'.\state \gets (\nonce_I,\nonce_R,\X,\Y,\ks,\kt)$
+% 			\item $m' \gets (\nonce_R, \Y, \id, \sigma, \tau)$
+% 			\item if $m \in Sent$ then
+% 			\item \hindent $S[\st'.sid] \gets (\ks,\kt)$
+			\item[] %% for alignment
+		\end{oracle}
+
+		\ExptSepSpace
+
+		\begin{oracle}{$\RunRespII(\id,\sk,\st,\peerpk,m)$}
+% 			\item $(\nonce_I,\nonce_R,\X,\Y,\ks,\kt,\ke) \gets \st.\state$
+% 			\item $(\peerid,sigma',\tau')\gets \ENCDec(\ke,m)$
+% 			\item $\st'.\peerid\gets \peerid$
+			\item \dots
+			\item if $\SIGScheme.\SIGVerify(\peerpk[\peerid], \labelis\|\nonce_I\|\nonce_R\|\X\|\Y, \sigma')$\\
+				and $\MACScheme.\MACVerify(\kt, \labelim\|\nonce_I\|\nonce_R\|\peerid, \tau')$ then
+			\item \hindent \gamechange{if $\revltk_{\peerid} = \infty$ and}\newline
+				\null \hindent\hindent \gamechange{$(\peerid, \labelrs\|\nonce_I\|\nonce_R\|\X\|\Y) \notin \Q_{S}$ then}
+			\item \hindent \hindent \gamechange{$\bad[S] \gets \true$} \frame{; abort}
+			\skipline
+			\item[]
+			\skipline
+			\item \hindent $\st'.\status \gets \accepted$
+			\item \hindent $\st'.\skey \gets \ks$
+			\item else $\st'.\status \gets \rejected$
+			\item return $(\st', m')$
+		\end{oracle}
+	\end{minipage}
+	\begin{minipage}[t]{0.49\textwidth}
+		\NewExperiment[$\lblGm{mac-bookkeeping}$, \frame{$\lblGm{mac-forgeries}$}]
+
+		\begin{oracle}{$\RunInit(\id,\sk,\st,\peerpk,m)$}
+% 			\item $(\nonce_R,\Y,\peerid,\sigma, \tau) \gets m$
+% 			\item $(\nonce_I,\X,x) \gets st.\state$
+% 			\item $\st'.sid \gets (\nonce_I,\nonce_R,\X,\Y)$
+% 			\item $\st'.\peerid \gets \peerid$
+% 			\item if $S[\st'.sid] \neq \bot$ then
+% 			\item \hindent $\ks,\kt \gets S[\st'.sid]$
+% 			\item else
+% 			\item \hindent $mk\sample \bits^{hl}$
+% 			\item \hindent if $H[\nonce_I\|\nonce_R\|\X\|\Y\|\Y^{\x}]\neq \bot$
+% 			\item \hindent \hindent $mk \gets H[\nonce_I\|\nonce_R\|\X\|\Y\|\Y^{\x}]$
+% 			\item \hindent $H[\nonce_I\|\nonce_R\|\X\|\Y\|\Y^{\x}] \gets mk$
+% 			\item \hindent $\ks \gets \PRF_{mk}(0)$
+% 			\item \hindent $\kt \gets \PRF_{mk}(1)$
+			\item \dots
+			\item if $\SIGScheme.\SIGVerify(\peerpk[\peerid], \labelrs\|\nonce_I\|\nonce_R\|\X\|\Y, \sigma)$\\
+				and $\MACScheme.\MACVerify(\kt, \labelrm\|\nonce_I\|\nonce_R\|\peerid)$ then
+			\item \hindent if $\revltk_{\peerid} = \infty$ and \newline
+				\null \hindent \hindent $(\peerid, \labelrs\|\nonce_I\|\nonce_R\|\X\|\Y) \notin \Q_{S}$ then
+			\item \hindent \hindent abort
+			\item \hindent \gamechange{if $\S[\st'.\sid] \neq \bot$ and}\newline
+				\null \hindent \hindent \gamechange{$(\st'.\sid, \labelrm\|\nonce_I\|\nonce_R\|\peerid) \notin \Q_M$ then}
+			\item \hindent \hindent \gamechange{$\bad[M] \gets \true$} \frame{; abort}
+			\item \hindent $\st'.\status \gets \accepted$
+			\item \hindent $\st'.\skey \gets \ks$
+			\item \hindent $\sigma' \gets \SIGScheme.\SIGSign(\sk, \labelis\|\nonce_I\|\nonce_R\|\X\|\Y)$
+			\item \hindent $\Q_{S} \gets \Q_{S} \cup \{(\id, \labelis\|\nonce_I\|\nonce_R\|\X\|\Y)\}$
+			\item \hindent $\tau' \gets \MACScheme.\MACTag(\kt, \labelim\|\nonce_I\|\nonce_R\|\id)$
+			\item \hindent \gamechange{if $\S[\st'.\sid] \neq \bot$ then}
+			\item \hindent \hindent \gamechange{$\Q_M \gets \Q_M \cup \{(\st'.\sid, \labelim\|\nonce_I\|\nonce_R\|\id)\}$}
+			\item \dots
+% 			\item \hindent $m' \gets (\id, \sigma', \tau')$
+% 			\item else
+% 			\item \hindent $m' \gets \bot$
+% 			\item \hindent $\st'.\status \gets \rejected$
+		\end{oracle}
+
+		\ExptSepSpace
+
+		\begin{oracle}{$\RunRespI(\id,\sk,\st,\peerpk,m)$}
+% 			\item $(\nonce_I,\X) \gets m$
+% 			\item $\nonce_R \sample \bits^{nl}$
+% 			\item if $\nonce_I \in \N$ then $\bad \gets \true $; abort
+% 			\item $N \gets N \cup \{\nonce_I\}$
+% 			\item $y \sample \ZZ_p$
+% 			\item $\Y \gets g^{\x}$
+% 			\item if $\Y \in E$ then $\bad \gets \true$; abort
+% 			\item $E \gets E \cup \{\Y\}$
+% 			\item $\st'.sid \gets (\nonce_I, \nonce_R,\X,\Y)$
+			\item \dots
+			\item $\sigma \gets \SIGScheme.\SIGSign(\sk,\labelrs\|\nonce_I\|\nonce_R\|\X\|\Y)$
+			\item $\Q_{S} \gets \Q_{S} \cup \{(\id, \labelrs\|\nonce_I\|\nonce_R\|\X\|\Y)\}$
+			\item \dots
+% 			\item $mk\sample \bits^{hl}$
+% 			\item if $m \not\in Sent$ then
+% 			\item \hindent if $H[\Y^{\x}\|\nonce_I\|\nonce_R\|\X\|\Y]\neq \bot$
+% 			\item \hindent \hindent$mk \gets H[\Y^{\x}\|\nonce_I\|\nonce_R\|\X\|\Y]$
+% 			\item \hindent $Q[\st'.sid] \gets {\X^y, mk}$
+% 			\item \hindent $\ks \gets \PRF_{mk}(0)$
+% 			\item \hindent $\kt \gets \PRF_{mk}(1)$
+% 			\item else
+% 			\item \hindent $\ks \sample \bits^{kl}$
+% 			\item \hindent $\kt \sample \bits^{kl}$
+			\item $\tau \gets \MACScheme.\MACTag(\kt, \labelrm\|\nonce_I\|\nonce_R\|\id)$
+			\item \gamechange{if $\S[\st'.\sid] \neq \bot$ then}
+			\item \hindent \gamechange{$\Q_M \gets \Q_M \cup \{(\st'.\sid, \labelrm\|\nonce_I\|\nonce_R\|\id)\}$}
+			\item \dots
+% 			\item $\st'.\state \gets (\nonce_I,\nonce_R,\X,\Y,\ks,\kt)$
+% 			\item $m' \gets (\nonce_R, \Y, \id, \sigma, \tau)$
+% 			\item if $m \in Sent$ then
+% 			\item \hindent $S[\st'.sid] \gets (\ks,\kt)$
+		\end{oracle}
+
+		\ExptSepSpace
+
+		\begin{oracle}{$\RunRespII(\id,\sk,\st,\peerpk,m)$}
+% 			\item $(\nonce_I,\nonce_R,\X,\Y,\ks,\kt,\ke) \gets \st.\state$
+% 			\item $(\peerid,sigma',\tau')\gets \ENCDec(\ke,m)$
+% 			\item $\st'.\peerid\gets \peerid$
+			\item \dots
+			\item if $\SIGScheme.\SIGVerify(\peerpk[\peerid], \labelis\|\nonce_I\|\nonce_R\|\X\|\Y, \sigma')$\\
+				and $\MACScheme.\MACVerify(\kt, \labelim\|\nonce_I\|\nonce_R\|\peerid, \tau')$ then
+			\item \hindent if $\revltk_{\peerid} = \infty$ and \newline
+				\null \hindent \hindent \hindent $(\peerid, \labelis\|\nonce_I\|\nonce_R\|\X\|\Y) \notin \Q_{S}$ then
+			\item \hindent \hindent abort
+			\item \hindent \gamechange{if $S[\st'.\sid] \neq \bot$ and}\newline
+				\null \hindent \hindent \gamechange{$(\st'.\sid, (\peerid, \labelim\|\nonce_I\|\nonce_R\|\peerid) \notin \Q_M$ then}
+			\item \hindent \hindent \gamechange{$\bad[M] \gets \true$} \frame{; abort}
+			\item \hindent $\st'.\status \gets \accepted$
+			\item \hindent $\st'.\skey \gets \ks$
+			\item else $\st'.\status \gets \rejected$
+			\item return $(\st', m')$
+		\end{oracle}
+	\end{minipage}
+
+	\caption[]{%
+		Games $\lblGm{signature-bookkeeping}$, $\lblGm{signature-forgeries}$, $\lblGm{mac-bookkeeping}$, and~$\lblGm{mac-forgeries}$ of the \SIGMAI proof.
+		Changes in $\lblGm{signature-bookkeeping}$ and $\lblGm{mac-bookkeeping}$ are highlighted in \gamechange{gray},
+		changes in $\lblGm{signature-forgeries}$ and $\lblGm{mac-forgeries}$ are highlighted in \frame{frames}.
+	}
+	\label{fig:SIGMAI-proof:game:signature-bookkeeping}
+	\label{fig:SIGMAI-proof:game:signature-forgeries}
+	\label{fig:SIGMAI-proof:game:mac-bookkeeping}
+	\label{fig:SIGMAI-proof:game:mac-forgeries}
+	
+	\iffull\else %% appendix label if deferred to appendix
+	\label{apxfig:SIGMAI-proof:signature-mac-games}
+	\fi
+\end{figure}
+\end{collectinmacro}
+
+\iffull %% deferred to appendix in non-full version
+\SIGMIProofSignatureMAC
+\fi
+
+In the reduction, $\advB_3$ obtains all long-term public keys from the multi-user signature game and uses its signing oracles for any honest signature to be produced. It therefore makes $\qNewUser$ queries to $\New$ and one $\SIGSign$ query for each call to $\RunRespI$ or $\RunInit$, for at most $\qSend$ such queries.
+It relays $\RevLongTermKey$ queries as corruptions in its multi-user game, making $\qRevLongTermKey$ corruption queries in total. 
+When $\bad[S]$ is triggered, $\advB_3$ submits the triggering message and signature under the targeted (uncorrupted) public key as its forgery.
+As the triggering message was not signed before under the corresponding secret key (and hence not queried to the signing oracle by~$\advB_3$), the forgery is valid and $\advB_3$ wins if $\bad[S]$ is set.
+It follows that
+\shortlongeqn[.]{
+	\Pr[ \prevGm* \Rightarrow 1 ]
+	\leq \Pr[ \curGm* \Rightarrow 1] + \genAdv{mu{\minus}EUF{\minus}CMA}{\SIGScheme}{\advB_3}(t_{\advB_3},\qNewUser,\qSend,\qSend,\qRevLongTermKey)
+}
+Except for the replacement of key generation, signatures, corruptions with oracle queries, the pseudocode of $\advB_3$ is identical to that of $\advA$ in game $\prevGm*$, so $t_{\advB_3} \approx t$. 
+
+\proofngame[mac-bookkeeping]
+
+In Game~$\curGm$ (Figure~\ref{fig:SIGMAI-proof:game:mac-bookkeeping}), we remove the now redundant $\bad[S]$ flag again,
+and log all MAC tags generated by honest sessions with honest partners in a list $\Q_{M}$ (using, as before, the table $\S$ to determine whether a session has an honest partner).
+We set a flag~$\bad[M]$ if a session with an honest partner receives a valid MAC tag which was not computed by any honest oracle. 
+This bookkeeping is similar to the changes from $\lblGm{random-prf}$ to $\lblGm{signature-bookkeeping}$, but noting MAC tags instead of signatures.
+As before, the bookkeeping itself does not affect the adversary's advantage:
+\shortlongeqn[.]{
+	\Pr[ \prevGm* \Rightarrow 1 ] = \Pr[ \curGm* \Rightarrow 1]
+}
+
+
+\proofngame[mac-forgeries]
+
+In Game~$\curGm$ (Figure~\ref{fig:SIGMAI-proof:game:mac-forgeries}), we abort if the $\bad[M]$ flag is set to true.
+Again applying the identical-until-bad lemma, we need to bound the probability of $\bad[M]$ being set in $\prevGm$,
+which we do via the following reduction~$\advB_4$ to the multi-user EUF-CMA security of the MAC scheme~$\MACScheme$.%
+% \footnote{%
+% As for PRF security, multi-user EUF-CMA security for MACs reduces via a hybrid argument to the single-user setting,
+% but specific constructions (like AMAC~\cite{EC:BelBerTes16}) achieve tight multi-user security.}
+
+The reduction $\advB_4$ simulates~$\prevGm$ truthfully, except that for any session with honest origin partner (i.e., session with state~$\st$ where $\S[\st.\sid] \neq \bot$), $\advB_4$ does not compute~$\kt$ itself, but instead assigns an incremented user identifier~$i$ to this session's $\sid$ and computes any calls to $\MACTag$ or $\MACVerify$ using its corresponding oracles for user~$i$.
+There is at most one query to $\NewUser$, and one each to $\MACTag$ and $\MACVerify$ for each of $\advA$'s queries to $\Send$. Hence $\advB_4$ makes at most $\qSend$ queries to each of these three oracles, and at most one query to $\MACTag$ and $\MACVerify$ per user in the mu-EUF-CMA game.
+When $\bad[M]$ is triggered, $\advB_4$ submits the triggering message and MAC tag under user identifier~$i$ as its forgery.
+In the simulation, sessions will share a user identifier $i$ if and only if they are partnered and would share keys in Game~$\prevGm$.
+These keys are furthermore unique to one initiator and one responder session only, so consistency is maintained.
+Furthermore, $\kt$ cannot be exposed (by $\RevLongTermKey$ or $\RevSessionKey$) to adversary~$\advA$, hence implicitly replacing it with the MAC game's oracles is sound, and $\advB_4$ makes no $\Corrupt$ queries. 
+Except for oracle replacements, the pseudocode of $\advB_4$ is identical to that of $\advA$ in $\prevGm*$, so $t_{\advB_4}\approx t$.
+
+If $\bad[M]$ is triggered, then $S[\st'.\sid]\neq \bot$, so $\st'.\sid$ corresponds to some user identifier~$i$ in the multi-user EUF-CMA game.
+Additionally, a tag $\tau$ for message $m$ was verified under identity~$i$, and $(\st'.\sid,m)$ was not logged in $\Q_M$. Since $\advB_4$ logs $(\st'.\sid,m)$ every time it calls its $\MACTag$ oracle on the pair $(i,m)$, this call cannot have occurred.
+Then $\tau$ is a valid forgery on $m$, which $\advB_4$ will output for user~$i$ to win the EUF-CMA game.
+Thus,
+\shortlongeqn[.]{
+	\Pr[ \prevGm* \Rightarrow 1 ]
+	\leq \Pr[ \curGm* \Rightarrow 1] + \genAdv{mu{\minus}EUF{\minus}CMA}{\MACScheme}{}(t_{\advB_4},\qSend,\qSend,1,\qSend,1,0)
+}
+
+\medskip
+
+% ===========================================================================
+% ===========================================================================
+%
+% Proof steps for explicit authentication
+%
+% ===========================================================================
+% ===========================================================================
+We can now consider the final advantage of an adversary playing Game~$\curGm$.
+Adversary~$\advA$ has a non-zero advantage if in the final oracle query~$\Finalize(b')$%
+\iffull
+\begin{enumerate}
+	\item $\Sound$ is false,
+	\item $\ExplicitAuth$ is false, or
+	%   \item $\Fresh$ is false, and $b = 0$.
+	\item $\Fresh$ is true and $b' = b$.%
+	\footnote{If $\Fresh$ is false, $b = b' = 0$ happens with probability~$\frac{1}{2}$, so $\advA$'s advantage is~$0$.}
+\end{enumerate}
+\else
+,	$\Sound$ is false,
+	$\ExplicitAuth$ is false, or
+	$\Fresh$ is true and $b' = b$.%
+	\footnote{If $\Fresh$ is false, $b = b' = 0$ happens with probability~$\frac{1}{2}$, so $\advA$'s advantage is~$0$.}
+\fi
+
+\paragraph{Soundness}
+The flag $\Sound$ is set if (1) three honest sessions hold the same session identifier,
+or if (2) two partnered sessions hold different session keys.
+
+For (1):
+No three honest sessions can share the same session identifiers,
+as this would require a collision in either the contained initiator or responder nonce,
+which is excluded by Game~$\lblGm{collisions}$.
+
+For (2):
+The session identifier includes both nonces~$\nonce$ and~$\nonce_R$ and DH shares~$\X$ and~$\Y$,
+which together determine the derived master key~$\mk = \RO(\nonce_I \| \nonce_R \| \X \| \Y \| \Zz)$ (where $\Zz$ is the DH secret from $\X$ and $\Y$) and thus the session key.
+Agreement on the session identifier hence implies deriving the same session key.
+
+Hence, in Game~$\curGm$, $\Sound$ is always true.
+
+
+\paragraph{Explicit authentication}
+The predicate $\ExplicitAuth$ requires that for any session~$\pi_u^i$ accepting with a non-compromised peer~$v$,
+there exists a partnered session~$\pi_v^j$ of user~$v$ with opposite role
+which, if it accepts, has $u$ set as its peer.
+
+The session $\pi_u^i$, prior to accepting, obtained a valid signature on $\pi^i_u.\sid$ and a label corresponding to a role $r \neq \pi_u^i.\role$. Due to Game~$\lblGm{signature-forgeries}$,  this signature must have been issued by an honest session~$\pi_v^j$ (since~$v$ was not compromised at this point).
+All honest sessions sign their own~$\sid$ and a label corresponding to their own role, so $\pi_u^i.\sid = \pi_v^j.\sid$ and $\pi_u^i.\role = r \neq \pi_v^j.\role$ are satisfied.
+
+Furthermore, when $\pi_v^j$ accepts, it must have received a valid MAC tag~$\tau$ on a label identifying an opposite-role session and that session's user identity, as well as their shared nonces.
+Due to Game~$\lblGm{mac-forgeries}$, this MAC value must have been computed by an honest session holding the same nonces, as $\pi_v^j$ has an honest partner session and therefore $\S[\pi_v^j.\sid] \neq \bot$. 
+Furthermore, by Game~$\lblGm{collisions}$, nonces do not collide and hence that session must have been~$\pi_u^i$, thus computing the MAC on user identity~$u$, which $\pi_v^j$ accordingly sets as peer identity.
+
+Therefore $\ExplicitAuth$ is always true in $\curGm$.
+Note that we did not require that the long-term key of user $u$ was uncorrupted, and we allow the adversary to continue interacting with sessions after compromise; hence covering key compromise impersonation attacks.
+
+
+\paragraph{Guessing the challenge bit}
+
+Finally, we have to consider $\advA$'s chance of guessing the challenge bit~$b$,
+which it may only learn through~$\Test$ queries such that all tested sessions are fresh (i.e., $\Fresh$ is true).
+
+The $\Fresh$ predicate being true ensures that all tested sessions (those in~$T$) accepted prior to their respective partner being corrupt.
+Then, as $\ExplicitAuth$ is true, we have that for each tested session there exists an honest session with the same $\sid$ and different roles.
+This session, by $\Fresh$, was not tested or revealed.
+Being partnered, the first message~$(\nonce_I, \X)$ between these two honest sessions was not tampered with,
+so in the responder session, whether it was the tested session or its partner, the master and session keys are sampled uniformly at random (due to Games~$\lblGm{responders-stop-programming}$ and~$\lblGm{random-prf}$).
+Since the initiator session holds the same~$\sid$, it copied the responder's random session key (due to Game~$\lblGm{initiators-copy}$).
+This random session key was not revealed in either of the two sessions (by $\Fresh$),
+and hence from $\advA$'s perspective is a uniformly random and independent value.
+In all $\Test$ oracle responses, $k_0$ and $k_1$ are hence identically distributed and so $\curGm$ is fully independent of~$b$.
+It follows that the adversary~$\advA$ has no better than a $\frac{1}{2}$ probability of choosing $b'$ equal to $b$,
+so
+\shortlongeqn[,]{
+	\Pr[\curGm\Rightarrow 1] = \frac{1}{2}
+}
+which concludes the proof.
+\end{proof}
+
+\else
+
+%%%
+%%% Proof sketch for non-full version
+%%%
+
+\begin{proof}[Proof outline]
+We defer the detailed game-based description of the proof to the full version~\cite{EPRINT:DavGun20} and only outline its core and novel technical steps here.
+We give a more detailed proof for our TLS~1.3 bound in Section~\ref{sec:tls-proof} which requires careful handling of the more complex key schedule, but is still structurally close.
+
+The heart of the proof is the reduction to the strong DH problem.
+In prior analyses of SIGMA and TLS~1.3, this reduction embeds a DH challenge into a single tested session.
+This technique incurs a loss in the number of sessions because the reduction must guess in advance which session will be tested.
+Translating techniques from Cohn-Gordon et al.~\cite{C:CCGJJ19}, we instead use the random self-reducibility of DH to embed a single challenge into every session which could possibly accept and be tested without violating the $\Fresh$ predicate.
+
+We can divide all sessions into two categories:
+(A) those who receive nonces or DH shares that have been tampered with by an adversary and
+(B) those who receive unaltered nonces and DH shares from an honest peer.
+Embedding a DH challenge into each of these types of sessions must be addressed differently.
+
+If an adversary controls the DH share received by an honest session (category~(A)), it can compute that session's DH secret, from which are derived master key, session key, and MAC key.
+If such a session has an embedded challenge, the simulator cannot honestly produce the proper master key.
+Instead, it uses the strong DH oracle to detect if the adversary ever makes an RO query containing the session's nonces, DH shares, and the corresponding DH secret, and it programs the response to this query to maintain consistency.
+The reduction also cannot produce the proper master key for sessions in category~(B); however, it can again use the strong DH oracle to detect RO queries containing a valid DH secret that would output the proper master key.
+This secret can be used to extract the challenge secret and hence win the strong DH game.
+One particular nuance here is that checking each RO query for every session's DH secret would lead to a quadratic loss in the number of strong DH oracle queries.
+We maintain tightness by instead using the nonces and group elements in the RO query to identify the relevant sessions and efficiently program responses.
+
+For sessions in category~(B), the master key is now chosen uniformly at random.
+Invoking PRF security allows the session, traffic encryption, and MAC keys to be selected at random as well.
+Each accepting session must receive a valid signature and MAC tag on its nonces and group elements.
+Excluding the small probability that nonces and group elements collide between honest sessions, the adversary can only produce these by corrupting a long-term key or by forgery.
+The former approach violates the $\Fresh$ predicate; the latter violates the EUF-CMA security of either the signature or MAC scheme.
+Therefore, these sessions will accept only if they complete an entire protocol execution without tampering with an honest peer holding the same master key and thus same session key.
+
+For sessions in category~(A), the master key may be known to the adversary.
+However, these sessions still must receive a valid signature to accept.
+Since the nonces and group elements were tampered with, no honest session will produce this signature.
+Again, the adversary must resort to either corruption or forgery, hence violating either freshness or signature EUF-CMA security.
+\end{proof}
+\fi
+
+% The game sequence of the proof is as follows:
+% \begin{enumerate}
+% \item Ensure no honest \nonces or group elements collide. (birthday attack probability)
+% \item Initiator oracles copy their partner's session key if one exists instead of
+% generating the key themselves. (this is undetectable).
+% \item Responder oracles set the PRF key at random instead of $RO(g^{\x}y)$, unless $RO(g^{\x}y)$
+% has already been queried. The H oracle then programs later $RO(g^{\x}y)$ queries to respond
+% with the chosen PRF key. (this is undetectable)
+% \item Initiator oracles with no partner set the PRF key at random if that is consistent
+%  and program later $RO(g^{\x}y)$ queries as in step 3.
+% \item Responder oracles with honest initiatiors choose the PRF key at random, without
+%  programming. This is undetectable unless H receives a query with the correct DH value of
+%  an honest initiator/responder pair. Call this event $F$.
+%
+%
+% We can limit the probability of $F$ with an adversary against the strong DH assumption.
+% The adversary, which we call B, given a challenge (\X,\Y) runs this simulation faithfully, except that every
+% initiator sends a first message $\X*g^p$, where $g$ is the generator and $p$ is randomly
+% chosen, and every initator responds with $\Y*g^q$, where $q$ is randomly chosen. If an
+% initiator run by B receives a message $g^r$ from the adversary against the KE protocol, the adversary can derive the
+% correct DH value and B cannot. However, B can still program the oracle by recognizing
+%  queries RO(z) using the strong DH oracle. If the query $stDH_x(g^r,z*(g^r)^{-p})$ returns \true, then
+%  $z$ is the DH value that the initiator with first message $X*g^p$ should have derived,
+%  and B can return the PRF key chosen by $k$.
+%
+%  Then, if event $F$ occurs, and $RO(z)$ is queried, where
+%  $z=g^{(x+p)(y+q)}$, B can recognize this using the strong DH oracle.
+%  B queries $stDH_x(Y*g^q, z*Y^{-p} *g^{-pq})$, and the former equality holds if and only if this query returns \true.
+%  Then the probability of $F$ is limited by the advan\taue of $B$.
+%  \item Responders to honest initiators choose all of their intermediate keys (session keys, MAC keys)
+%  at random instead of using a randomly-keyed PRF. This can be reduced directly to the multi-user security of the PRF, \hd{Is there a good source for multi-user PRF security?}
+%
+%  \end{enumerate}
+%
+%  For SIGMA-I, only the last step changes, where the encryption key is also chosen at random instead of
+%  using a PRF. \hd{Do we need a separate game for the confidentiality of identities? We probably do.}
+
+
+
+%%%% put out all figures
+% \TODO{solve figure placement without \texttt{\textbackslash{}clearpage}.}
+% \clearpage

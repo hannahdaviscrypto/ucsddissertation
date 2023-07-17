@@ -1,0 +1,298 @@
+We want the tuple of functions returned by a functor $\construct{F}: \FuncSp{SS} \to \FuncSp{ES}$ to be able to ``replace" a tuple drawn directly from some oracle space $\FuncSp{TS}$. 
+Indifferentiability is a way of defining what this means.  
+We extend the original MRH definition of indifferentiability~\cite{TCC:MauRenHol04} to cover seeded oracle spaces. 
+Consider the indifferentiability game $\Gindiff_{\construct{F},\simulator,\FuncSp{TS}}$ in Figure~\ref{fig-gm-indiff}, where $\simulator$ is a simulator algorithm, and $\FuncSp{TS}$ is an oracle space that we call the target oracle space.
+We assume for simplicity's sake that $\FuncSp{SS}$ is a seedless oracle space, and we require that $\FuncSp{TS}.\PrivS = \FuncSp{ES}.\PrivS$ and $\FuncSp{TS}.\PubS = \FuncSp{ES}.\PubS$. 
+Additionally, the sets $\FuncSp{TS}.\Sg$ and $\FuncSp{ES}.\Sg$ should be identical. The advantage of an adversary $\advA$ against the indifferentiability of functor $\construct{F}$ with respect to simulator $\simulator$ and target space $\FuncSp{TS}$ is defined to be 
+\[\genAdv{\indiff}{\construct{F},\simulator,\FuncSp{TS}}{\advA} := 2\Pr[\Gindiff_{\construct{F},\simulator,\FuncSp{TS}}(\advA) \Rightarrow 1] - 1.\]
+
+\begin{figure}
+	
+	\twoCols{0.45}{0.45}{
+		\ExperimentHeader{Game $\Gindiff_{\construct{F}, \simulator,\FuncSp{TS}}$}
+		
+		\begin{algorithm}{$\Initialize()$}
+			\item $b \getsr \bits$
+			\item $\oseed \getsr \FuncSp{TS}.\Sg$
+			\item $\hh \getsr \FuncSp{SS}$
+			\item $\HH \getsr \FuncSp{TS}$
+			\item $\simstate \getsr \emptystring$
+		\end{algorithm}
+		\ExptSepSpace
+			\begin{algorithm}{$\PubO(i,\Y)$}
+			\item if $b = 0$ then
+			\item \quad  $(z,\simstate) \gets \simulator[\PrivO_{\PubS}] (i,\Y,\simstate)$
+			\item \quad return $z$
+			\item else return $\hh(i,\Y)$
+		\end{algorithm}
+	
+	}
+	{	\ExptSepSpace
+		\begin{algorithm}{$\PrivO_{\PubS}(i,\X)$}
+			\item if $i \not\in \FuncSp{TS}.\PubS$ then return $\bot$
+			\item if $b = 0$ then return $\HH(i,\oseed, \X)$
+			\item else return $\construct{F}[\hh](i,\oseed, \X)$
+		\end{algorithm}	
+		\ExptSepSpace
+		\begin{algorithm}{$\PrivO_{\PrivS}(i,\X)$}
+			\item if $i \not\in \FuncSp{TS}.\PrivS$ then return $\bot$
+			\item if $b = 0$ then return $\HH(i,\oseed, \X)$
+			\item else return $\construct{F}[\hh](i,\oseed, \X)$
+		\end{algorithm}
+		\ExptSepSpace
+		\begin{algorithm}{$\Finalize(b')$}
+			\item return $[[b = b']]$
+		\end{algorithm}
+	}
+	\vspace{5pt}
+	\caption{The game  $\Gindiff_{\construct{F}, \simulator, \FuncSp{TS}}$ measuring indifferentiability of a functor $\construct{F}$ with respect to simulator $\simulator$ and target oracle space $\FuncSp{TS}$}
+	\label{fig-gm-indiff}
+\end{figure}
+
+
+The game differs from the standard indifferentiability definition in two ways. First, the functions in tuple $\HH$,  drawn from the target oracle space, require a seed $\oseed$. This seed is sampled by the $\Initialize$ oracle and kept secret from the simulator and adversary. Second, we separate access to the ``internal" functions indexed by set $\FuncSp{TS}.\PrivS$ and ``external" functions indexed by set $\FuncSp{TS}.\PubS$ and grant the simulator $\simulator$ access only to the ``external" functions.
+
+Standard indifferentiability can be expressed in this framework with respect to a seedles target oracle space $\roSp$ such that $\roSp.\PubS = [\roSp.\arity]$ and $\roSp.\PrivS = \emptyset$. 
+
+\headingu{Merkle-Damgard Transform}
+Next, we'll prove indifferentiability for a form of the Merkle-Damgard transform.
+The EDDSA signature scheme uses a Merkle-Damgard hash function in two ways. 
+It applies $\SHA512$ directly to produce secret keys and when signing it interprets $\SHA512$ digests as integers and reduces them modulo the group order $\Prime$.
+We will formalize this construction as a functor $\construct{F}$. 
+To provide generality beyond EDDSA, we parameterize $\construct{F}$ by a set $\S$ of bitstrings and an \textit{output function} $\Out: \bits^{2k}, \S$. 
+
+Let $k$ be an integer, and let functor $\construct{F}$ have starting space  $\roSp_1 := \AllFuncs(\bits^*,\bits^{2k})$. For the ending space of $\construct{F}$, we define the arity-2 random oracle space $\roSp_2$ as follows: its seed generation algorithm $\roSp_2.\Sg$ samples a uniformly random bitstring of length $k$, and the set of tuples $\roSp.\Funcs$ is the set of all $\HH = (\HH_1, \HH_2)$ such that $\HH_1 \in \AllFuncs(\bits^k \times \{\emptystring\}, \bits^{2k})$ and $\HH_2 \in \AllFuncs(\bits^k \times \bits^*, \S)$ with the condition that $\HH_2(\oseed, \X) = \HH_2(0^k, \X)$ for all $(\oseed, \X) \in \bits^k \times \bits^*$. 
+We also define $\roSp_2.\PrivS = \{1\}$ and $\roSp_2.\PubS = \{2\}$.
+When $\construct{F}_{\S, \Out}$ is given oracle access to a tuple of functions $\hh \in \roSp_1$, it returns a tuple containing the following two functions:
+
+\[\construct{F}_{\S,\Out}[\hh](1, \oseed,\emptystring) := \construct{MD}[\hh](\oseed).\]
+\[\construct{F}_{\S,\Out}[\hh](2, \oseed,\X) := \Out(\construct{MD}[\hh](X)).\]
+
+We would like to show that for a some simulator $\simulator$, $\construct{F}_{\S,\Out}$ is indifferentiable with respect to simulator $\simulator$ and target oracle space $\FuncSp{TS}_{k,\Prime}$.
+This is not true for all choices of $\S$ and $\Out$: if $\S = \bits^{2k}$ and $\Out$ were the identity function on $\S$, then length extension attacks would be possible on $\construct{F}_{\S, \Out}[\hh]$.
+We give a general condition for choices of $\Out$ which produce an indifferentiable construct. We call this condition $\gamma,\epsilon$-sampleability.
+
+A function $\Out: \bits^{2k} \to \S$ is $\gamma,\epsilon$-sampleable if there exists an (efficient) probabilistic function $\Sample$ taking input $x \in \S$ such that
+\begin{enumerate}
+	\item $\Pr[\Out(\Sample(x)) = x] = 1$, where the probability is over the uniform choice of $x$ from $\S$ and the randomness of $\Sample$
+	\item for all $x \in \S$ and $y \in \bits^{2k}$,
+	\[\Pr[ y = y' | y' \getsr \Sample(x)]< 2^{-\gamma}.\]
+	\item Let $\advD$ be any algorithm outputting a single bit. Then 
+	\begin{multline*}
+|\Pr[\advD(y_1,y_2, \cdots y_q) \Rightarrow 1 | y_i \getsr \bits^{2k}] -\\ \Pr[\advD(y_1, y_2, \cdots y_q) \Rightarrow 1 |x_i \getsr \S; y_i \gets \Sample(x_i)]| \leq q^2\cdot\epsilon.
+	\end{multline*}|
+\end{enumerate}
+
+
+
+\begin{theorem}
+	\label{th-md-indiff}
+	Let $k$ be an integer and $\S$ a set of bitstrings. Let $\Out:\bits^{2k} \to S$ be an $\gamma, \varepsilon$-sampleable output-function and $\Sample$ be its sampling function. Let $\roSp_1 = \AllFuncs(\bits^{3k},\bits^{2k})$, and let $\roSp_2$ be as defined above. Let $\construct{F}_{\S, \Out}$ be the functor described in the prior paragraph. Then there exists an algorithm $\simulator$ such that for any adversary $\advA$ making $q_s$ queries to $\PubO$, one query to $\PrivO_{\PrivS}$, and $q_r$ queries of length at most $k\cdot q_l$ bits to $\PrivO_{\PubS}$ then
+	\[\genAdv{\indiff}{\construct{F},\simulator,\roSp_2}{\advA} \leq \frac{q_s^2 + (q_s+q_r \cdot q_l)^2}{2^{\gamma}} + \frac{q_s}{2^k}.\]
+\end{theorem}
+\begin{proof}
+	First, we define in Figure~\ref{fig-lemma-sim} a simulator algorithm $\simulator$, following the work of Mittelbach and Fischlin's proof of the indifferentiability of the chop-MD construction~\cite{hfrobook}, Figure 17.4. 
+	
+	\begin{figure}
+		
+		\twoCols{0.45}{0.45}{
+			\ExperimentHeader{Game $Gm_0:=\Gindiff_{\construct{F}, \Simulator',\roSp_2} | b = 0$}
+			
+			\begin{algorithm}{$\Initialize()$}
+				\item $b \gets 0$
+				\item $\HH \getsr \roSp_2$
+				\item $\graph \gets \emptyset$
+			\end{algorithm}
+			\ExptSepSpace
+			\begin{algorithm}{$\PrivO_{\PubS}(2, \X)$}
+				\item return $\HH(2, 0^k, \X)$
+			\end{algorithm}	
+			
+		}
+		{	\ExptSepSpace
+			\begin{algorithm}{$\PubO(2,\Y)$}
+				\item $(m, y) \gets \Y$
+				\item if $\exists z$ such that $(y, z, m) \in \graph.\edges$
+				\item \quad return $z$
+				\item $\ppath \gets \graph.\ppathO(\IV, y)$
+				\item if $\ppath \neq \bot$ then 
+				\item \quad $z \gets \Sample(\HH(2, 0^k, \ppath\concat m))$
+				\item else $z \getsr \bits^{2k}$
+				\item add $(y, z, m)$ to $\graph.\edges$
+				\item return $z$
+			\end{algorithm}
+			\ExptSepSpace
+			\begin{algorithm}{$\Finalize(b')$}
+				\item return $[[b' = 0]]$
+			\end{algorithm}
+		}
+		\vspace{5pt}
+		\caption{The game  $\Gindiff_{\construct{F}, \simulator, \FuncSp{TS}}$ measuring indifferentiability of a functor $\construct{F}$ with respect to simulator $\simulator$ and target oracle space $\FuncSp{TS}$}
+		\label{fig-lemma-gm0}
+	\end{figure}
+	
+	Our simulator, like theirs, maintains a graph $\graph$ whose nodes and edges are labeled by $k$-bit strings. A path through this graph corresponds to an execution of the construction $\construct{F}[\simulator]$ on some input $\msg$. The node labels represent intermediate states during the execution, and the edge labels are the blocks of message $\msg$. Our simulator uses $\Out$ and $\Sample$ where the simulator of~\cite{hfrobook} would use truncation and sampling a random suffix; in this way, Mittelbach and Fischlin's simulator can be seen as an instantiation of ours for appropriate choices of $\Out$ and $\Sample$. 
+
+	We also define a second simulator $\Simulator'$ which extends $\simulator$ to accommodate an arity-$2$ oracle space:		 
+	
+	\underline{$\Simulator'(i, \oseed, \X)$}
+	\begin{enumerate}
+		\item $(m, y) \gets X[0\ldots k], X[k+1\ldots 2k]$
+		\item return $\mathsf{simulator}[\PrivO_{\PubS}(2,\cdot)](m,y)$
+	\end{enumerate}
+
+	Next, we will establish a lemma adapted from Theorem 17.13 of~\cite{hfrobook}, which is itself an adaptation of a result in~cite{C:CDMP05}.
+	\begin{lemma}~\cite{hfrobook}\label{th-chop-md-lemma} Let $\Simulator'$ be the above algorithm, and let $k$, $\S$, $\Out$, $\roSp_1$, $\roSp_2$, and $\construct{F}_{\S, \Out}$ be as in Theorem~\ref{th-md-indiff}. If $\advB$ makes $q_s$ queries to $\PubO$, $0$ queries to $\PrivO_{\PrivS}$, and $q_r$ queries of length at most $q_l \cdot k$ to $\PrivO_{\PubS}$, then 
+		\[\genAdv{\indiff}{\construct{F},\Simulator',\roSp_2}{\advB} \leq \frac{q_s^2 + (q_s+q_r \cdot q_l)^2}{2^{\gamma}}.\]
+	\end{lemma}
+	\begin{proof}
+		We define our initial game $\Gm_0$ as $\Gindiff_{\construct{F}, \simulator, \roSp_2}$, but fix bit $b\gets 0$. This is the `ideal" world, where $\PubO$ queries are answered by $\simulator$ and $\PrivO$ queries by $\HH\getsr \roSp_2$. For convenience, we present pseudocode for this game with $\Simulator'$ unrolled in Figure~\ref{fig-lem-gm0}.
+		
+		In game $\Gm_1$, we set a bad flag $\bad_C$ if $\simulator$ generates a response $z$ that is already a node label in our graph $\graph$. In $\Gm_2$, the $\Finalize$ oracle returns $0$ if the $\bad_C$ flag is set. It is easy to see that $\Pr[\Gm_0] = \Pr[\Gm_1]$. The change to $\Finalize$ makes it strictly less likely that $\Finalize$ will return $1$, so $\Pr[\Gm_2] \leq \Pr[\Gm_1]$. Therefore we have
+		\[Pr[\Gm_2] \leq \Pr[\Gm_0].\]
+		
+		In game $\Gm_3$, we add a private random oracle $\hh$ drawn from function space $\FuncSp{SS} = \AllFuncs(\bits^{3k}, \bits^{2k})$. We use this oracle to generate the simulator's random coins. Since each query has a distinct input $\Y$, this just changes internal notation and $\Pr[\Gm_3] = \Pr[\Gm_2].$ We give pseudocode for $\Gm_3$ in Figure~\ref{fig-lemma-gm3}. {\color{red} This requires that $\Sample$ uses at most $2k$ coins; we can generalize this by giving $\FuncSp{SS}$ a different domain.} 
+		
+			\begin{figure}
+			
+			\twoCols{0.44}{0.47}{
+				\ExperimentHeader{Game $Gm_3$}
+				
+				\begin{algorithm}{$\Initialize()$}
+					\item $b \gets 0$
+					\item $\HH \getsr \roSp_2$
+					\item \gamechange{$\hh \getsr \FuncSp{SS}$}
+					\item $\graph \gets \emptyset$
+				\end{algorithm}
+				\ExptSepSpace
+			\begin{algorithm}{$\Finalize(b')$}
+				\item \gamechange{if $\bad_C$ then return $0$}
+				\item return $[[b' = 0]]$
+			\end{algorithm}
+		\begin{algorithm}{$\PrivO_{\PubS}(2, \X)$}
+			\item return $\HH(2, 0^k, \X)$
+		\end{algorithm}	
+				
+			}
+			{	\ExptSepSpace
+				\begin{algorithm}{$\PubO(2,\Y)$}
+					\item $(m, y) \gets \Y$
+					\item if $\exists z$ such that $(y, z, m) \in \graph.\edges$
+					\item \quad return $z$
+					\item $\ppath \gets \graph.\ppathO(\IV, y)$
+					\item $\ppath_2 \gets \graph_2.\ppathO(\IV, y)$
+					\item if $\ppath \neq \bot$ then 
+					\item \quad \gamechange{$z \gets \Sample(\HH(2, 0^k, \ppath\concat m); \hh(\Y))$}
+					\item else  \gamechange{$z \getsr \hh(\Y)$}
+					\item \gamechange{if $z \in \graph.\nodes$ then}
+					\item \quad \gamechange{$\bad_C \gets \true$}
+					\item add $(y, z, m)$ to $\graph.\edges$
+					\item return $z$
+				\end{algorithm}
+			}
+			\vspace{5pt}
+			\caption{The game  $\Gindiff_{\construct{F}, \simulator, \FuncSp{TS}}$ measuring indifferentiability of a functor $\construct{F}$ with respect to simulator $\simulator$ and target oracle space $\FuncSp{TS}$}
+			\label{fig-lemma-gm3}
+		\end{figure}
+		
+		
+		The crucial step of the proof occurs in $\Gm_4$. In this game, we construct a new simulator, $\simulator_2$. This simulator is identical to $\simulator$, but it updates its own graph $\graph_2$. Additionally, we adapt $\simulator$ to add edges to both $\graph$ and $\graph_2$. 
+		
+		In the $\PrivO$ query, we run $\construct{F}[\simulator_2[\HH]](2,\X)$ on every query, but we discard the result of this computation. Since $\simulator_2$ alters only its own graph, the query-response behavior of $\Gm_4$ is identical to that of $\Gm_3$. However, the new queries to $\simulator_2$ can set the $\bad_C$ flag where it would not have been set in $\Gm_3$. For this reason, 
+		\[ \Pr[\Gm_4] \leq \Pr[\Gm_3].\]
+		
+		In $\Gm_5$, we set a second $\bad$ flag, $\bad_O$ when $\PubO$ receives a query $\Y = (m, y)$ such that $\graph.\ppathO(IV, y) = \bot$ but $\graph_2.\ppathO(IV, y) \neq bot$. This corresponds to the situation where the adversary queries $\PrivO(X)$, then correctly guesses an intermediate state of $\construct{F}[\simulator](X)$. When the adversary makes this type of guess, the simulator cannot consistently simulate a random oracle, and it returns an inconsistent random string.
+	
+		In $\Gm_6$, when the $\bad_O$ flag is set, we instead return a consistent random string by computing $z \gets \Sample(\HH(2, 0^k, \ppath\concat m))$, where $\ppath$ is the path in $\graph_2$. We also adapt the $\Finalize$ oracle to return $0$ if $\bad_O$ has been set. The input-output behavior of $\Gm_6$ only differs from that of $\Gm_5$ when $\bad_O$ has been set, in which case the game returns $0$ anyway. Therefore $\Pr[\Gm_6] \leq \Pr[\Gm_5]$. 
+		
+		In game $\Gm_7$, we drop the query to $\HH$ from $\PrivO$ and instead respond to query $\X$ with $\construct{F}[\simulator_2](\X)$. We argue that $\construct{F}[\simulator_2[\HH]](\X) = \HH(\X)$ except when the $\bad$ flags would be set. {\color{red} explain this, relying on property $1$}
+		 
+%		
+\begin{figure}
+			\twoCols{0.49}{0.44}{
+				\ExperimentHeader{Game $Gm_7$}
+				
+				\begin{algorithm}{$\Initialize()$}
+					\item $b \gets 0$
+					\item $\HH \getsr \roSp_2$
+					\item $\hh \getsr \FuncSp{SS}$
+					\item $\graph$, \gamechange{$\graph_2$} $\gets \emptyset$
+				\end{algorithm}
+						
+				\ExptSepSpace
+				\begin{algorithm}{$\PubO(2,\Y)$}
+					\item $(m, y) \gets \Y$
+					\item if $\exists z$ such that $(y, z, m) \in \graph.\edges$
+					\item \quad return $z$
+					\item $\ppath \gets \graph.\ppathO(\IV, y)$
+					\item $\ppath_2 \gets \graph_2.\ppathO(\IV, y)$
+					\item if $\ppath \neq \bot$ then 
+					\item \quad $z \gets \Sample(\HH(2, 0^k, \ppath\concat m; \hh(\Y))$
+					\item \gamechange{ else if $\ppath_2 \neq \bot$ then }
+					\item \quad \gamechange{$\bad_O \gets \true$}
+					\item \quad \gamechange{$z \gets \Sample(\HH(2, 0^k, \ppath_2\concat m; \hh(\Y))$}
+					\item else  $z \getsr \hh(\Y)$
+					\item if $z \in \graph.\nodes$ then
+					\item $\bad_C \gets \true$
+					\item add $(y, z, m)$ to $\graph.\edges$
+					\item \gamechange{add $(y, z, m)$ to $\graph_2.\edges$}
+					\item return $z$
+				\end{algorithm}
+				}
+		{
+			\ExptSepSpace
+			\begin{algorithm}{$\simulator_2(2,\Y)$}
+				\item $(m, y) \gets \Y$
+				\item if $\exists z$ such that $(y, z, m) \in \graph_2.\edges$
+				\item \quad return $z$
+			\item $\ppath_2 \gets \graph_2.\ppathO(\IV, y)$
+				\item if $\ppath_2 \neq \bot$ then 
+				\item \quad $z \gets \Sample(\HH(2, 0^k, \ppath_2\concat m))$
+				\item else 
+				\item if $z \in \graph.\nodes$ then
+				\item $\bad_C \gets \true$
+				\item add $(y, z, m)$ to $\graph.\edges$
+				\item \gamechange{add $(y, z, m)$ to $\graph_2.\edges$}
+				\item return $z$
+			\end{algorithm}
+		\ExptSepSpace
+		\begin{algorithm}{$\Finalize(b')$}
+			\item if $\bad_C$ \gamechange{or $\bad_O$} then return $0$
+			\item return $[[b' = 0]]$
+		\end{algorithm}
+		\begin{algorithm}{$\PrivO_{\PubS}(2, \X)$}
+			\item return \gamechange{$\construct{F}[\simulator_2](2, 0^k, \X)$}
+		\end{algorithm}	
+			}
+			\vspace{5pt}
+			\caption{The game  $\Gindiff_{\construct{F}, \simulator, \FuncSp{TS}}$ measuring indifferentiability of a functor $\construct{F}$ with respect to simulator $\simulator$ and target oracle space $\FuncSp{TS}$}
+			\label{fig-lemma-gm7}
+		\end{figure}
+	
+		At this point, random oracle $\HH$ is never called except within $\simulator$ or $\simulator_2$, and we are certain that inputs to $\HH$ are unique between $\simulator$ queries. Additionally, $\simulator$ and $\simulator_2$ do not make any duplicate queries to $\HH$ because they only generate new $z$ when $y$ is in neither $\graph$ or $\graph_2$.{\color{red} fix unclear wording} We therefore can safely replace $\HH$ with random sampling from $\bits^{2k}$ without changing the response distribution of any oracle. We do this in game $\Gm_8$. We also replace $\hh$ with random sampling. {\color{red} need to be more careful about this, $\simulator$ and $\simulator_2$ still use different graphs for caching}
+		
+		In game $\Gm_9$, we replace the $\Sample$ operation with $z \gets \bits^{2k}$ by relying on condition $3$ of $\gamma, \varepsilon$-sampleability. 
+		
+		In $\Gm_{10}$, we drop the redundant checks from $\PubO$ and the $\bad$ flag checks from the $\Finalize$ oracle. By the identical-until-bad lemma, the games differ by the probability that $\bad_C$ or $\bad_O$ is set in $\Gm_{10}$. We limit this using a birthday bound.  
+	\end{proof}
+	
+	We are now prepared to begin our game-based proof of Theorem~\ref{th-md-indiff}. We start with game $\Gm_0$, which is just $\Gindiff_{\construct{F}, \simulator, \roSp_2}$ with the secret bit $b$ fixed to $0$. Clearly, 
+	\[\Pr[\Gm_0(\advA)] = \Pr[\Gindiff_{\construct{F}, \simulator, \roSp_2}(\advA) | b = 0].\]
+	
+	In Game $\Gm_1$, we change the oracle $\PrivO_{\PrivS}$ so that it simply returns a random $2k$-bit string. Prior to this change, $\PrivO_{\PrivS}$ called $\HH_1$ on input $(\oseed$, $\emptystring)$. Since $\HH_1$ can only be called once, $\oseed$ is uniformly random, and $\HH_1$ is drawn uniformly from the set $\AllFuncs(\bits^k \times \{\emptystring\}, \bits^{2k})$, the output was already uniformly random and independent of all other oracles. Therefore this change is undetectable, and 
+	\[\Pr[\Gm_1(\advA)] = \Pr[\Gm_0(\advA)].\] 
+	
+	In Game $\Gm_2$, we answer queries to the $\PubO$ and $\PrivO_{\PubS}$ oracles as in $\Gindiff_{\construct{F}, \simulator, \roSp_2}$ when $b = 1$. We construct adversary $\advB$ against the indifferentiability of $\construct{F}$. This adversary simulates $\Gm_1$ for $\advA$ by forwarding all $\PubO$ and $\PrivO_{\PubS}$ queries to its own oracles. If $\advA$ makes a (solitary) query to $\PrivO_{\PrivS}$, adversary $\advB$ samples a uniform $2k$-bit response itself and does not call $\PrivO_{\PrivS}$. When $b=0$ in $\Gindiff_{\construct{F}, \simulator, \roSp_2}(\advB)$, the simulation of $\Gm_1$ is perfect; when $b=1$, $\advB$ simulates $\Gm_2$ perfectly. Therefore
+	\[Pr[\Gm_2(\advA)]-\Pr[\Gm_1(\advA)]\leq \genAdv{\indiff}{\construct{F},\simulator,\roSp_2}{\advB}.\]
+	
+	 We notice that $\advB$ makes zero queries to $\PrivO_{\PrivS}$; therefore we can apply Lemma~\ref{th-chop-md-lemma} to obtain 
+	 \[\Pr[\Gm_2(\advA)]-\Pr[\Gm_1(\advA)]\leq\frac{q_s^2 + (q_s+q_r \cdot q_l)^2}{2^{c*2k}}.\]
+	
+	Finally, in game $\Gm_3$, we answer $\PrivO_{\PrivS}$ with $\PubO(IV \| \oseed)$. Since $\oseed$ is uniformly random and $\PubO$ is now a random function drawn from $\AllFuncs(\bits^3k, \bits^2k)$, this change is detectable only if the adversary queries $\PubO$ on input $(IV \| \oseed)$. Since $\oseed$ is a uniformly random $k$-bit secret, this is likely to occur with probability at most $\frac{q_s}{2^k}$. Consequently 
+	\[\Pr[\Gm_3(\advA)]-\Pr[\Gm_2(\advA)] < \frac{q_s}{2^k}.\]
+	
+	Game $\Gm_3$ is equivalent to the indifferentiability game $\Gindiff_{\construct{F}, \simulator, \roSp_2}$ with the secret bit $b$ fixed to $1$, except that $\Finalize$ still returns $[[1 = b']]$. Therefore
+	\[\Pr[\Gm_3(\advA)] = \Pr[1-\Gindiff_{\construct{F}, \simulator, \roSp_2}(\advA) | b = 1]. \]
+	
+	Collecting bounds gives us the theorem.
+\end{proof}

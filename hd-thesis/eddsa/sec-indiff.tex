@@ -1,0 +1,104 @@
+\section{Secret Indifferentiability and SHA512}
+The EDDSA signature scheme uses SHA512 in three places. In two of those places, the output is reduced modulo a prime that is small relative to the output. This is a variant of the chop-MD construction, which has been proven indifferentiable from an RO. Unfortunately, in the third place the output is not reduced. Consequently, SHA512 as used by EDDSA is not indifferentiable from a random oracle; furthermore, it is not a PRF. 
+
+However, EDDSA is still secure when using SHA512 because the adversary never obtains an unreduced input-output pair. I would like to prove this formally. First, I will establish some definitions; then I will prove claims in relation to these definitions.
+
+Let $\domain$ be any set, let $\rangeSet\subseteq \Z$ be a subset of the integers, and let $\prime$. We define a particular oracle space, which we call the "$\prime$-protected oracle space from $\domain$ to $\rangeSet$" $\FuncSp{PS}_\prime$. The set $\FuncSp{PS}_\prime.\Funcs$ is $\{(\HH \mod \prime, \HH) : \HH\in \AllFuncs(\domain, \rangeSet) \}$. We can see that this oracle space has arity $2$. Furthermore, we define $\FuncSp{PS}_\prime.\PubS = \{1\}$, and $\FuncSp{PS}_\prime.\PrivS = \{2\}$. 
+
+
+
+Second, I define an access-restricted construction and give a specific example of such a construction.
+An access-restricted construction is a pair of functors $\construct{C}_{\pub}$ and $\construct{C}_{\priv}$ with the same starting space $\FuncSp{SS}$. For our proof of EDDSA, we will refer to an access-restricted construction $\construct{C}$. We set $\construct{C}^{\hh}_{\pub} = \chopMD_\prime^{\hh}$ and $\construct{C}^{\hh}_{\priv} \MD^{\hh}$.
+
+Second, I define secret indifferentiability. This is a variant of indifferentiability specialized for access-restricted constructions. In the secret indifferentiability game, a distinguisher $\advD$ is given access to three oracles $\PubO$, $\PrivO$, and $\SecO$, which behave differently according to the value of a secret bit $b$.  In the setting where $b=1$ (the ``real world"), the $\PubO$ oracle is a random oracle and the other two oracles are portals to the two constructions $\construct{C}^{\PubO}_{\pub}$ and $\construct{C}^{\PrivO}_{\priv}$. In the setting where $b=0$ (the ``ideal world"), $\PrivO$ and $\SecO$ are implemented using a protected random oracle, and the $\PubO$ oracle is a simulator. The distinctive feature of secret indifferentiability is that in both worlds, the $\SecO$ oracle takes no input. Instead, for each query it samples a string $\dd$ from a distribution $\distrib$ which is a parameter of the game. It uses $\dd$ as the input to $\construct{C}^{\PubO}_{\priv}$ or $\RO(\priv, \cdot)$ depending on the value of $b$ and returns the result. 
+
+\begin{figure}
+
+	\twoCols{0.45}{0.45}{
+	\ExperimentHeader{Game $\Gsecindiff_{\construct{C}, \simulator, \distrib}$}
+	\begin{algorithm}{$\Initialize()$}
+		\item $b \getsr \bits$
+		\item $\hh \getsr \construct{C}.\FuncSp{OS}$
+		\item $\HH \getsr \AllFuncs{\domain}{\rangeSet_2}$
+	\end{algorithm}
+	\ExptSepSpace
+		\begin{algorithm}{$\PubO(\X)$}
+		\item if $b = 0$ then return $\RO^{\HH}(\pub,\X)$
+		\item else return $\construct{C}^{\hh}_{\pub}(\X)$
+	\end{algorithm}
+}
+{
+	\begin{algorithm}{$\SecO()$}
+		\item $\dd \getsr \distrib$
+		\item if $b = 0$ then return $\RO^{\HH}(\priv, \dd)$
+		\item else return $\construct{C}^{\hh}_{\priv}(\dd)$
+	\end{algorithm}
+	\ExptSepSpace
+	\begin{algorithm}{$\PrivO(\Y)$}
+		\item if $b = 0$ then return $\simulator^{\HH}(\Y)$
+		\item else return $\hh(\Y)$
+	\end{algorithm}
+	\ExptSepSpace
+	\begin{algorithm}{$\Finalize(b')$}
+		\item return $[[b = b']]$
+	\end{algorithm}
+}
+	\vspace{5pt}
+	\caption{The game  $\Gsecindiff_{\construct{C}, \simulator, \distrib}$ measuring secret indifferentiability of a construct $\construct{C}$}
+	\label{fig-game-sec-indiff}
+\end{figure}
+
+The advantage function for secret indifferentiability is $\genAdv{\secindiff}{\construct{C}}{\advA} = 2\Pr[ \Gsecindiff_{\construct{C}, \simulator, \distrib}(\advA)] -1.$ 
+
+
+We prove the security of EDDSA using three claims.
+First, we claim and prove that the access-restricted construction $\construct{C}$ described above is secret indifferentiable.
+Second, we claim and prove that any single-stage scheme that is secure with a protected RO is secure with an access-restricted construction that is secret indifferentiable, as long as the scheme calls the $\priv$ interface only within a wrapper function that samples inputs from a set $\distrib$ and discards them.
+Third, we claim and prove that EDDSA with a protected RO is reducible to Schnorr signatures.
+
+Additionally, I state and prove a lemma that will be helpful for the first claim.
+
+Let the multi-target one-way security of a function $\func$ be defined by the game of Figure~\ref{fig-game-mt-ow}
+
+\begin{figure}
+		\twoCols{0.45}{0.45}{
+		\ExperimentHeader{Multi-target one-way security of function $\func$}
+		\begin{algorithm}{$\Initialize(N)$}
+			\item $\dd_1, \ldots, \dd_N \getsr \distrib$
+			\item $\HH \getsr \AllFuncs{\domain}{\rangeSet}$
+			\item for $i$ from $1$ to $N$
+			\item \quad $h_i \gets \HH(\dd_i)$
+			\item return $(h_1, \ldots, h_N)$
+		\end{algorithm}
+	}{
+		\begin{algorithm}{$\FnO(\X)$}
+			\item return $\func^{\HH}(\X)$
+		\end{algorithm}
+		\ExptSepSpace
+		\begin{algorithm}{$\Finalize(\tau)$}
+			\item return $[[\tau \cap \{\dd_1, \ldots, \dd_N\} \neq \emptyset]]$
+		\end{algorithm}
+	}
+	\vspace{5pt}
+	\caption{The game representing multi-target one-way security of function $\func$.}
+	\label{fig-game-mt-ow}
+\end{figure}
+
+The advantage function for multi-target one-way security of function $\func$ is $\genAdv{\mtow}{\func, \distrib}{\advA} = \Pr[\Gmtow](\advA)].$ 
+
+Lemma 1: Let $\func^{\HH}(\X) := \HH(X)$ for any random oracle $\HH$, and let $\distrib$ be a subset of the domain of $\HH$. For any adversary $\advA$ making $q$ queries to $\FnO$ and querying $\Finalize$ on a set $\tau$ of size at most $t$,
+
+\[\genAdv{\mtow}{\func, \distrib}{\advA} \leq \frac{qN}{|\distrib|} + \frac{tN}{|\distrib|}.\]
+
+\begin{proof}
+Select $h_1, \ldots, h_N$ randomly and program the random oracle $\FnO$ responses retroactively. Set a bad flag if any programming is necessary. In the next game, stop programming. The probability that the bad flag is set in this game is $\frac{qN}{\distrib|}$ because the $\FnO$ and $\Init$ return values are independent of $d_1, \ldots, d_N$ and the adversary gets $q$ guesses with $N$ targets in $\distrib$. For the same reason, the probability that any of $d_1, \ldots, d_N$ are in $\tau$ is at most $\frac{tN}{|\distrib|}$. 
+\end{proof}
+
+Thm 1: $\construct{C}$ is secret-indifferentiable.
+\begin{proof}
+Game 1: randomly sample responses to $\SecO$. Reduce to $\mtow$ security of $\HH$ and use Lemma 1.
+Game 2: Use indifferentiability of chop-md to replace $\PrivO$ and $\PubO$ responses.
+Game 3: Switch $\SecO$ responses to $\MD^{\hh}$. Reduce to $\mtow$ security of $\hh$ and use Lemma 1.
+\end{proof}
+
+

@@ -1,0 +1,13 @@
+\section{Proof of Lemma~\ref{lm-clamp}} \label{sec-lem7}
+\begin{proof}[Lemma~\ref{lm-clamp}] 
+	BCJZ established in~\cite{SP:BCJZ21} that there are $2^{k-5}$ valid clamped secret keys for $\EdDSA$.
+	Let $S\subset \Z_{\Prime}$ be the set of all such keys.
+	Following their technique we point out that $\SKS$ samples one of these keys with probability $\frac{2^{k-5}}{\Prime}$.
+	As we know that $\Prime > 2^{k-1}$, we can simplify this to $\frac{2^{k-5}}{\Prime} \leq \frac{2^{k-5}}{2^{k-1}} = \frac{1}{16}$.
+	In this event, $\advA_1$ will succeed in attacking $\DS_{\Schnorr}$ with probability $\ufAdv{\DS_1, \roSp}{\advA_1}$; thus
+	\begin{align*}
+		\ufAdv{\DS_{\Schnorr}, \roSp_3}{\advA_1} &\geq \Pr[\sk \in S] \cdot \ufAdv{\DS_1, \roSp_3}{\advA_1}\\
+		&\geq  \frac{2^{k-5}}{\Prime}  \cdot  \ufAdv{\DS_1, \roSp_3}{\advA_1}\\
+		& \geq \frac{1}{16}  \cdot  \ufAdv{\DS_1, \roSp_3}{\advA_1}.
+	\end{align*}
+\end{proof}

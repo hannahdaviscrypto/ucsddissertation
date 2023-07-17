@@ -1,0 +1,259 @@
+\section{Proof of Theorem~\ref{th-use-findiff}}\label{apx:comp}
+%\subsection{Proof of Lemma~\ref{th-flt-comp}}
+%\begin{proof}
+%		The proof of the lemma follows how Merkle-Damg{\aa}rd transform works. Given an adversary $\advA_4$ against the $\mUFCMA$ security of $\DS_3$, we construct adversary $\advA_3$ with same advantage but different number of queries to $\HASH(i, \cdot)$ in Figure~\ref{fig:A4}. 
+%		
+%		Instead of making queries to $\HASH(i,\cdot)$ for $i$ in $\{1,2\}$, $\advA_3$ unravels MD queries into consecutive queries to compression function $\HASH(3,\cdot)$. It keeps two $\IV$ for $\HASH(1,\cdot)$ and $\HASH(2,\cdot)$, separately, and breaks a padded input query into $2k$-bit inputs to $\HASH(3,\cdot)$. Since $\advA_3$ simulates $\advA_4$'s hash queries in the same way as the underlying Merkle-Damg{\aa}rd transform, two adversaries have the same advantage but different number of queries to $\HASH(i,\cdot)$. That is, given $\advA_4$ making $q_{i}$ queries to $\HASH(i,\cdot)$ for $i$ in $\{1,2,3\}$, $\advA_3$ makes $0$ queries to $\HASH(1, \cdot)$ and $\HASH(2, \cdot)$ and $q_3 + \ell \cdot (q_1 + q_2)$ queries to $\HASH(3, \cdot)$ and 
+%		\[\ufAdv{\DS_3}{\advA_4} \leq \ufAdv{\DS_3}{\advA_3}.\]
+%		\begin{figure}
+%		\oneCol{0.75}
+%		{
+%			\begin{algorithm-initial}{adversary $\advA_3[ \Filter_{k,\Out}](\vecPk)$}
+%				\item $(y_1[0], y_2[0]) \gets \bits^{2k}$
+%				\item $(\usr, \msg, \sigma) \gets \advA_4[\HH UFCMASim, \SignO_4 UFCMASim](\vecPk)$
+%				\item return $(\usr, \msg, \sigma)$
+%			\end{algorithm-initial}  \vspace{2pt}
+%			\begin{algorithm-subsequent}{$\HH UFCMASim(i, x)$}
+%				\item if $i \in \{1,2\}$ then
+%				\item \quad $(x[1], \ldots, x[\ell]) \gets x\|\padF(\ell)$ \comment{$|x_i|=2k$.}
+%				\item \quad For $j=1,\ldots,\ell$ do $y_i[j] \gets  \HH(3, x[j]\|y_i[j-1])$ 
+%				\item else return $ \HH(3,x)$
+%			\end{algorithm-subsequent}  
+%			\begin{algorithm-subsequent}{$\SignO_4 UFCMASim(\usr, \msg)$}
+%				\item $(\curvepoint{R},\z) \gets \SignO_3(\usr, \msg)$
+%				\item Return $(\curvepoint{R}, \z)$
+%			\end{algorithm-subsequent} 
+%		}
+%		\vspace{-5pt}
+%		\caption{Adversary $\advA_4$ against the $\mUFCMA$ security of $\DS_3$ which makes $q_{i}$ queries to $\HASH(i,\cdot)$ for $i$ in $\{1,2,3\}$ in the proof of Theorem~\ref{th-comp}.}
+%		\label{fig:A4}
+%		\hrulefill
+%		\vspace{-10pt}
+%	\end{figure}
+%	
+%\end{proof}
+
+\begin{proof}
+	To prove this theorem, we must define an $\FUFCMA$ adversary $\advB$ and an $\findiff$ distinguisher $\advD$. 
+	Our adversary $\advB$ plays game $\FUFCMA_{\fDS,\roSp_2, \Filter}$ and simulates game $\FUFCMA_{\fDS, \froSp_1,\Filter}$ for $\advA$ by redirecting $\advA$'s queries to $\Initialize$, $\SignO$, $\pHASH$, and $\Finalize$ to its own oracles of the same name. 
+	When $\advA$ begins the game by calling $\Initialize$, our adversary will additionally sample the simulator state: $\simstate \getsr \simulator.\Sg$. 
+	We do not need to simulate $\iHASH$, because this oracle is not accessible to $\advA$.
+	To answer queries of the form $\eHASH(X)$, adversary $\advB$ responds with the value $\simulator[\eHASH](\simstate \concat \pHASH(), X)$, where the oracle $\eHASH$ presented to $\simulator$ is $\advB$'s own $\eHASH$ oracle in the game $\FUFCMA_{\fDS,\froSp_2,\Filter}$).
+	Thus $\advB$ makes $\Queries{\advA}{\PubO}$ queries to $\pHASH$. 
+	
+	If the simulator $\simulator$ makes $\Queries{\simulator}{\HH}$ queries to its oracle in game $\Gfindiff_{\construct{MD},  \simulator, \Filter}$, then adversary $\advB$ likewise makes $\Queries{\simulator}{\HH}$ queries in total to $\PubO$.
+	We note that for the simulator of Lemma~\ref{th-md-wp-indiff},$\Queries{\simulator}{\HH} \leq \ell \cdot \Queries{\advD^{\prime}}{\PrivO} + \Queries{\advD^{\prime}}{\PubO}$.  
+	
+	We present our distinguisher $\advD$ in pseudocode on the right side of Figure~\ref{fig:gm-pf-th-comp-0-1}. 
+	On the left side of this figure, we give pseudocode for two games, $\Gm_0$ and $\Gm_1$. 
+	The intent is that when the challenge bit $b$ sampled by the game $\Gfindiff_{\construct{F},  \simulator, \Filter}$ equals $0$ then $\advD$ perfectly simulates $\Gm_0$ for $\advA$, and similarly $\advD$ perfectly simulates $\Gm_1(\advA)$ when $b=1$.
+	 This should be immediately visible in the side-by-side comparison of Figure~\ref{fig:gm-pf-th-comp-0-1}.
+	 It follows that $\findiffAdv{\construct{F},\simulator,\Filter}{\advD} = \Pr[\Gm_1(\advA)] - \Pr[\Gm_0(\advA)]$.
+	 
+	We make two claims about these games: 
+	\begin{enumerate}
+		\item[(1)] that $\Pr[\Gm_1(\advA)\Rightarrow 1] = \fufAdv{\fDS,\roSp_1,\Filter}{\advA}$, and 
+		\item[(2)] that $\Pr[\Gm_0(\advA)\Rightarrow 1] = \fufAdv{\fDS,\roSp_2,\Filter}{\advB}$.
+	\end{enumerate}
+	Claim (1) follows from the fact that the pairs of identically named oracles in $\Gm_1$ and the $\FUFCMA_{\fDS, \roSp_1,\Filter}$ game respond identically to all possible queries.
+	We can see straightaway that the $\SignO$, $\eHASH$, $\pHASH$, and $\Finalize$ oracles have identical pseudocode. 
+	The two	$\Initialize$  oracles differ only because $\Gm_1$ defines $\hh$, $\HH_0$, and $\HH_1$ instead of $\hg$ and $\HG$.
+	According to the definition of $\roSp_1$, $\hh = \hg$ and $\HH_1 = \HG = \construct{F}[\hh]$; the function $\HH_0$ is never called in $\Gm_1$. 
+	Thus the difference in naming and the existence of $\HH_0$ is undetectable to $\advA$.
+	The $\iHASH$ oracle of $\Gm_1$ maintains a list of queries in $\simstate$, but this can only be accessed in line 15, which is unreachable in $\Gm_1$, so this bookkeeping is solely internal.
+	The only remaining oracle is $\iHASH$, which $\advA$ cannot access directly.
+	The oracles differ only in that $\Gm_1$ queries $\HH_1$ instead of $\HG$; as we have already noted, these are both defined to be $\construct{F}[\hh]$.
+	Thus the oracles of both games are identical, and claim (1) must hold.
+	
+	Claim (2) is slightly more complicated to prove because the adversaries differ in the two games. 
+	We argue that when adversary $\advA$ is combined with the simulator run by $\Gm_0$ in the $\eHASH$ oracle and line $12$ of the $\iHASH$ oracle, it can be recast as identical to adversary $\advB$.  
+	As before, the two $\Initialize$ oracles behave identically in $\Gm_1$ and the $\FUFCMA$ game, though now it is $\hh$ and $\HH_1$ which are never called and thus undetectable, and $\HH_0 = \hg = \HG$. 
+	Again, the $\SignO$, $\pHASH$, and $\Finalize$ oracles are identical in pseudocode in both games.
+	The differences remain in the $\iHASH$ and $\eHASH$ oracles.
+	In $\Gm_1$, scheme oracles make queries to $\PrivO$, and receives a response $(Y,Q)$. 
+	The $\iHASH$ oracle then concatenates $Q$ into the simulator's state $\simstate$.
+	In the $\FUFCMA$ game, the $\iHASH$ oracle does not perform this bookkeeping. However, whenever the simulator is called, we still pass in the list $\QL$ of all prior public $\PrivO$ queries as part of $\simstate$.
+	So each time it is called in either game, the simulator's state will contain the entire list of prior public queries in both games. 
+	The time at which this list is compiled and included is not detectable by the advesary. 
+	The remaining change is the $\eHASH$ oracle, which is significantly different. 
+	In $\Gm_1$, $\PubO$ runs the simulator with access to $\HH_0$ to respond to queries by $\advA$; in the $\FUFCMA$ game with function space $\roSp_2$, $\PubO$ calls $\hg$ (which is $\HH_0$) directly. 
+	However, we note that $\advB$ queries $\PubO$ only when $\advA$ queries its own simulated $\PubO$ oracle, and $\advB$ runs the simulator itself with the same state and oracles.
+	Thus the $\PubO$ oracle of $\Gm_1$ behaves identically to the \emph{simulated} $\eHASH$ oracle of $\advB$ in the $\FUFCMA$ game; the underlying adversary $\advA$ in both games receives the same responses and will thus make the same final query to $\Finalize$ and win with the same probability.
+	
+	Substitution of claims (1) and (2) into the equation 
+	\[\findiffAdv{\construct{F},\simulator,\Filter}{\advD} = \Pr[\Gm_1(\advA)] - \Pr[\Gm_0(\advA)]\]
+	 gives the theorem statement. \qed
+	
+	\begin{figure}[t]
+		\twoCols{0.48}{0.50}
+		{
+			\ExperimentHeader{Games $\Gm_b$\comment{$b \in \bits$}}
+			
+			\ExptSepSpace
+				\begin{oracle}{$\Initialize$}
+				\item $\h \getsr \FuncSp{SS}$
+				\item $\HASH_0 \getsr \FuncSp{ES}$; $\HASH_1 \getsr \construct{F}[\h]$
+				\item $\oseed\getsr\Filter.\Sg$; $\simstate \getsr \simulator.\Sg$
+				\item $(\pk, \sk) \getsr \fDS.\Kg[\iHASH]$
+				\item $\QL \gets \emptyset$
+				\item Return $\pk$
+			\end{oracle}
+			\ExptSepSpace
+			
+			\begin{oracle}{$\SignOO(\msg)$}
+				\item $\sigma \getsr \fDS.\Sign[\iHASH](\sk, \vk, \msg)$
+				\item $S \gets S \cup \{\msg\}$
+				\item Return $\sigma$
+			\end{oracle}
+			\ExptSepSpace
+			
+			\begin{oracle}{$\iHASH(X)$}
+				\item $(Y;Q) \gets \Filter.\Eval[\HASH_b](\oseed,X)$
+				\item $\QL \gets \QL \concat \{Q\}$
+				\item $\simstate\gets\simstate\|Q$  
+				\item Return $Y$
+			\end{oracle}
+			\ExptSepSpace
+			
+			\begin{oracle}{$\eHASH(X)$}
+			\item If $b=1$ then  $Z\gets \hh(\X)$ \comment{$\Gm_1$ only}
+			\item Else $(\simstate,Z) \gets \simulator.\Eval[\HH_0, \pHASH] (\simstate,\X)$ \comment{$\Gm_0$ only}
+			\item return $Z$
+			\end{oracle}
+			\ExptSepSpace
+			
+			\begin{oracle}{$\pHASH$}
+				\item Return $\QL$
+			\end{oracle}
+			\ExptSepSpace
+			
+			\begin{oracle}{$\Finalize(\chmsg, \chsig)$}
+				\item If ($\chmsg\in S$) then return $\false$
+				\item Return $\fDS.\Vf[\iHASH](\pk, \chmsg, \chsig)$ \vspace{2pt}
+			\end{oracle}
+		}{
+		\ExperimentHeader{Distinguisher $\advD$}
+		\ExptSepSpace
+		\begin{oracle}{}
+			\item $\advA[\Initialize,\SignO,\eHASH,\pHASH,\Finalize]()$
+		\end{oracle}
+	\ExptSepSpace
+	\begin{oracle}{$\Initialize$}
+		\item $\Initialize()$ \comment{Samples $\oseed$, $\h$, $\HASH_0$, $\HASH_1$, and bit $b$}
+		\item $(\pk, \sk) \getsr \fDS.\Kg[\iHASH]$
+		\item $\QL \gets \emptyset$
+		\item Return $\pk$
+	\end{oracle}
+	\ExptSepSpace
+	
+	\begin{oracle}{$\SignOO(\msg)$}
+		\item $\sigma \getsr \fDS.\Sign[\iHASH](\sk, \vk, \msg)$
+		\item $S \gets S \cup \{\msg\}$
+		\item Return $\sigma$
+	\end{oracle}
+	\ExptSepSpace
+	
+	\begin{oracle}{$\iHASH(X)$}
+		\item $(Y, Q) \gets \iHASH(X)$ \comment{$\Filter[\HASH_b](\oseed, X)$}
+		\item $\QL \gets \QL \concat \{Q\}$
+		\item Return $Y$
+	\end{oracle}
+	\ExptSepSpace
+	
+	\begin{oracle}{$\eHASH(X)$}
+		\item Return $\eHASH(X)$ \comment{$\h(X)$ when $b=1$; $\simulator[\HASH_0](\simstate, X)$ otherwise}
+	\end{oracle}
+	\ExptSepSpace
+	
+	\begin{oracle}{$\pHASH$}
+		\item Return $\QL$
+	\end{oracle}
+	\ExptSepSpace
+	
+	\begin{oracle}{$\Finalize(\chmsg, \chsig)$}
+		\item If ($\chmsg\in S$) then return $\false$
+		\item Return $\fDS.\Vf[\iHASH](\pk, \chmsg, \chsig)$ \vspace{2pt}
+	\end{oracle}
+		}
+		\vspace{-5pt}
+		\caption{
+		Left: Game defining $\Gm_0$ or $\Gm_1$ depending on the random bit $b$ chosen. $\Gm_0$ is equivalent to $\FUFCMA_{\fDS,\froSp_2}(\advB)$ and $\Gm_1$ is equivalent to $\FUFCMA_{\fDS ,\froSp_1}(\advA)$ in the proof of Theorem~\ref{th-use-findiff}. Right: Distinguisher $\advD$ against the $\findiff$ security of functor $\construct{F}$, which simulates either $\Gm_0$ or $\Gm_1$.}
+		\label{fig:gm-pf-th-comp-0-1}
+		\hrulefill
+		\vspace{-10pt}
+	\end{figure}
+	
+		
+%	\begin{figure}
+%	\oneCol{0.75}
+%	{	
+%		\begin{algorithm-initial}{adversary $\advA_2[\simulator, \FltEDDSA](\vecPk)$}
+%			\item $\simstate \getsr \simulator.\Sg$
+%			\item $(\usr, \msg, (\curvepoint{R}, \z)) \gets \advA_3[\HH_3 UFCMASim, \SignO_3 UFCMASim](\vecPk)$
+%			\item return $(\usr, \msg, (\curvepoint{R}, \z))$
+%		\end{algorithm-initial}  \vspace{2pt}
+%		\begin{algorithm-subsequent}{$\HASH_3 UFCMASim(x)$}
+%			\item $(\simstate,Z) \gets \simulator.\Eval[\fHASH(2,\cdot)] (x)$
+%			\item return $Z$
+%		\end{algorithm-subsequent}  
+%		\begin{algorithm-subsequent}{$\SignO_3 UFCMASim(\usr, \msg)$}
+%			\item $(\curvepoint{R}, \z) \gets \SignO_2(\usr, \msg)$
+%			\item Return $(\curvepoint{R}, \z)$
+%		\end{algorithm-subsequent} 
+%	}
+%		\vspace{-5pt}
+%		\caption{Adversary $\advA_2$ for $\FUFCMA_{\DS_2,\FltEDDSA}$ given adversary $\advA_3$ for $\FCMA_{\DS_3}$ in the proof of Theorem~\ref{th-use-findiff}.}
+%		\label{fig:th-use-findiff-advB}
+%		\hrulefill
+%		\vspace{-10pt}
+%	\end{figure}
+
+%	We construct the distinguisher in the filter indifferentiability game with $\roSp_3$ in the real world and $\roSp_2$ in the ideal world. The oracles of the distinguisher are $(\PrivO, \PubO) = (\Filter_{k,\Out}^{\HH}, \hh)$ for the real world or  $(\PrivO, \PubO) = (\Filter_{k,\Out}^{\HH}, \simulator^{\Filter_{k,\Out}^{\HH}})$ for the ideal world. 
+%	
+%	If $\advD$ is in the real world, then adversary $\advA_3$ is playing $\Gm_0$. Otherwise, adversary $\advA_3$ is playing $\Gm_1$ in the ideal world. The distinguisher wraps out of the games by generating keys and signatures for $\advA_3$. The hash queries are simulated with $\PubO$ which just returns answers to $\HASH$ oracle. The distinguisher also returns whatever the $\Finalize$ should return. Thus, the distinguisher is set such that
+%	\[\Pr[\Gm_0(\advA_3)] - \Pr[\Gm_1(\advA_3)] \leq \findiffAdv{\construct{2MD},\simulator,\Filter_{k,\Out}}{\advD}. \]
+%
+%	Therefore, we get the bound 
+%	\begin{align*}
+%		\Pr[\UFCMA_{\DS_3}(\advA_3)] &\leq \Pr[\mFUFCMA_{\DS_2,\Filter_{k,\Out}}(\advA_2)] + (\Pr[\UFCMA_{\DS_3}(\advA_3)] - \Pr[\mFUFCMA_{\DS_2,\Filter_{k,\Out}}(\advA_2)])\\
+%		&\leq \Pr[\mFUFCMA_{\DS_2,\Filter_{k,\Out}}(\advA_2)] + \findiffAdv{\construct{2MD},\simulator,\Filter_{k,\Out}}{\advD}
+%	\end{align*}
+%	in the theorem as expected.
+
+%	\begin{figure}
+%		\oneCol{0.75}
+%		{
+%			\begin{algorithm-initial}{adversary $\advD[\simulator, \FltEDDSA](1^\lambda)$}
+%				\item $S \gets \emptyset$
+%				\item For $\usr=1$ to $\numUsers$ do:
+%				\item \quad $\e_{\usr} \gets \PrivO(1,\usr)$ 
+				%\comment{In $\Gm_0$ only}
+%				\item \quad $\e_{\usr, 1} \gets \e_{\usr}[0..k-1]$ 
+%				\item \quad $\s \gets \CF(\e_1)$ ; $\vecPk[\usr] \gets \s\cdot \generator$
+%				\item $(\usr, \msg, \sigma) \gets \advA_3[\HASH UFCMASim, \SignO_3 UFCMASim](\vecPk)$
+%				\item return ($(\usr,\msg) \not\in S$) and $\DS_3.\Vf[\HASH](\vecPk[\usr], \msg, \sigma)$
+%			\end{algorithm-initial}  \vspace{2pt}
+%			\begin{algorithm-subsequent}{$\HASH UFCMASim(x)$}
+%				\item return $ \PubO(x)$
+%			\end{algorithm-subsequent}  
+%			\begin{algorithm-subsequent}{$\SignO_3 UFCMASim(\usr, \msg)$}
+%				\item $\e_{\usr, 1} \gets  \e_{\usr}[0..k-1]$ ; $\e_{\usr, 2} \gets  \e_{\usr}[k..2k-1]$ 
+%				\item $\s \gets \CF(\e_{\usr, 1})$ ; $\curvepoint{A} \gets \s\cdot \generator$
+%				\item $\littler \gets
+%				\PrivO(2,\e_{\usr, 2}\|\msg)$; $\curvepoint{R} \gets \littler\cdot \generator$
+%				\item $c \gets 
+%				\PrivO(2,\curvepoint{R}\|\curvepoint{A}\|\msg)$
+%				\item $\z \gets (\s c + \littler) \mod \Prime$
+%				\item $\sigma \gets (\curvepoint{R},\z)$
+%				\item $S \gets \{(\usr, \msg)\}$
+%				\item Return $(\curvepoint{R}, \z)$
+%			\end{algorithm-subsequent} 
+%		}
+%		\vspace{-5pt}
+%		\caption{Adversary $\advD$ for $\Gindiff_{\construct{2MD}, \simulator, \FltEDDSA}$ in the proof of Theorem~\ref{th-comp}.}
+%		\label{fig:D}
+%		\hrulefill
+%		\vspace{-10pt}
+%	\end{figure}
+
+\end{proof}

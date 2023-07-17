@@ -1,0 +1,571 @@
+\documentclass[11pt]{ucsddissertation}
+% mathptmx is a Times Roman look-alike (don't use the times package)
+% It isn't clear if Times is required. The OGS manual lists several
+% "standard fonts" but never says they need to be used.
+\newcommand\hmmax{0}
+\newcommand\bmmax{2}
+\usepackage{mathptmx}
+\usepackage[NoDate]{currvita}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{ragged2e}
+\usepackage{microtype}
+\usepackage{multirow}
+\usepackage{setspace}
+\usepackage{xspace}
+\usepackage{stmaryrd}
+\usepackage[usenames,dvipsnames,table,x11names]{xcolor}
+%\usepackage{color}
+\PassOptionsToPackage{hyphens}{url}
+
+%%% DOMSEP PACKAGES%%%%%%%%%%%%%%%%
+\usepackage{cryptocode}
+\usepackage{breakcites}
+\usepackage{latexsym}
+\usepackage{amscd,amsmath}
+\usepackage{amsfonts}
+\usepackage{float}
+\usepackage{longtable}
+%
+%
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.9}
+\renewcommand{\textfraction}{0.1}
+%
+\usepackage{enumitem}
+\setlist[itemize]{noitemsep, topsep=0pt}
+\setlist[enumerate,itemize,description]{labelindent=1em,leftmargin=2em}
+%
+%%added by Yi
+%\usepackage{mathtools}
+%
+%%added by Felix
+\usepackage{crypto-environments}
+\usepackage[normalem]{ulem}
+\usepackage{lmodern}
+%
+%%added by Hannah
+\usepackage{dsfont}
+\usepackage{scrextend}
+
+%%%%%%%%%%% TIGHT-AKE PACKAGES %%%%%%%%%%%%%
+
+\newif\iffull
+\fulltrue  % comment out for llncs
+
+\newif\ifanon
+\anonfalse
+
+%\usepackage[letterpaper,hmargin=1in,vmargin=1in]{geometry}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage{xifthen}
+\usepackage{soul}	\let\strikethrough\st\let\st\undefined % \st already used...
+\usepackage{amssymb}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage[english]{babel}	
+% \usepackage{authblk}
+\iffull\else
+% unset llncs.cls definition of proof environment
+\let\proof\relax
+\let\endproof\relax
+\fi
+\usepackage{amsthm}
+
+
+\usepackage{sigma-thesis/collect}
+%\usepackage{eso-pic}
+\usepackage{sigma-thesis/crypto-environments}
+
+\usepackage{tikz}
+\usetikzlibrary{calc,matrix,arrows.meta,automata,shapes.geometric,positioning}
+\usepackage{pgfplots}
+
+
+\pgfplotsset{compat=1.15}
+
+%%%%%%%%%%%TIGHT-TLS PACKAGES %%%%%%%%%%%%%%
+\usepackage[breaklinks=true,pdfborder={0 0 0},pdftex, pdftitle={},
+       pdfauthor={},
+       pdfpagelabels=true, linktocpage=true, backref=page,urlcolor=blue,
+       colorlinks,citecolor=blue,linkcolor=blue,
+       bookmarksdepth=3,bookmarksopen=true]{hyperref}
+
+%%%%%%%%%%EDDSA PACKAGES %%%%%%%%%%%
+
+\usepackage{listings}
+\AtBeginDocument{%
+	\settowidth\cvlabelwidth{\cvlabelfont 0000--0000}%
+}
+
+%%%%%%%%%%%VDAF PACKAGES%%%%%%%%%%%
+\usepackage{subfig}
+\usepackage{wrapfig}
+  \usepackage[yyyymmdd]{datetime}
+\renewcommand{\dateseparator}{/}
+\usepackage{changepage}
+\usepackage{varwidth}
+% OGS recommends increasing the margins slightly.
+\increasemargins{.1in}
+
+
+%\usepackage{showframe} % This package was just to see page margins
+\usepackage[english]{babel}
+\usepackage{blindtext}
+\overfullrule5pt
+% ---
+
+% Required information
+\title{Securing the Standards: Bringing Cryptographic Security Proofs Closer To the Real World}
+\author{Hannah Elizabeth Davis}
+\degree{Doctor of Philosophy}{Computer Science}
+% Each member of the committee should be listed as Professor Foo Bar.
+% If Professor is not the correct title for one, then titles should be
+% omitted entirely.
+\chair{Professor Mihir Bellare}
+% \cochair{Professor Gamma Delta} % Optional
+% Your committee members (other than the chairs) must be in alphabetical order
+\committee{Professor Farinaz Koushanfar}
+\committee{Professor Daniele Micciancio}
+\committee{Professor Stefan Savage}
+\committee{Professor Deian Stefan}
+\degreeyear{2023}
+
+%%%%%%%%%% HEADER FILES %%%%%%%%%%%%%
+\makeatletter
+\AtBeginDocument{%
+	\def\doi#1{\url{https://doi.org/#1}}}
+\makeatother
+
+\input{domsep-thesis/header}
+\input{sigma-thesis/commands}
+\input{tls-thesis/commands}
+\input{eddsa/header}
+\input{vdaf/header}
+% Start the document
+\begin{document}
+% Begin with frontmatter and so forth
+\frontmatter
+\maketitle
+\makecopyright
+\makesignature
+% Optional
+\begin{dedication}
+\setsinglespacing
+\raggedright % It would be better to use \RaggedRight from ragged2e
+\parindent0pt\parskip\baselineskip
+In recognition of reading this manual before beginning to format the
+doctoral dissertation or master's thesis; for following the
+instructions written herein; for consulting with OGS Academic Affairs
+Advisers; and for not relying on other completed manuscripts, this
+manual is dedicated to all graduate students about to complete the
+doctoral dissertation or master's thesis.
+
+In recognition that this is my one chance to use whichever
+justification, spacing, writing style, text size, and/or textfont that
+I want to while still keeping my headings and margins consistent.
+\end{dedication}
+% Optional
+% \begin{epigraph}
+% \vskip0pt plus.5fil
+% \setsinglespacing
+% {\flushright
+% True ease in writing comes from art, not chance,\\
+% As those move easiest who have learn'd to dance.\\
+% 'T is not enough to no harshness gives offence,---\\
+% The sound must seem an echo to the sense.
+
+% \vskip\baselineskip
+% \textit{Alexander Pope}\par}
+% \vfil
+% \begin{center}
+% You write with ease to show your breeding,\\
+% But easy writing's curst hard reading.
+
+% \vskip\baselineskip
+% \textit{Richard Brinsley Sheridan}
+% \end{center}
+% \vfil
+% \noindent Writing, at its best, is a lonely life. Organizations for
+% writers palliate the writer's loneliness, but I doubt if they improve
+% his writing. He grows in public stature as he sheds his loneliness and
+% often his work deteriorates. For he does his work alone and if he is a
+% good enough writer he must face eternity, or the lack of it, each day.
+
+% \vskip\baselineskip
+% \hskip0pt plus1fil\textit{Ernest Hemingway}\hskip0pt plus4fil\null
+
+% \vfil
+% \end{epigraph}
+
+% Next comes the table of contents, list of figures, list of tables,
+% etc. If you have code listings, you can use \listoflistings (or
+% \lstlistoflistings) to have it be produced here as well. Same with
+% \listofalgorithms.
+\tableofcontents
+\listoffigures
+\listoftables
+
+% Preface
+% \begin{preface}
+% Almost nothing is said in the manual about the preface. There is no
+% indication about how it is to be typeset. Given that, one is forced to
+% simply typeset it and hope it is accepted. It is, however, optional
+% and may be omitted.
+% \end{preface}
+
+% Your fancy acks here. Keep in mind you need to ack each paper you
+% use. See the examples here. In addition, each chapter ack needs to
+% be repeated at the end of the relevant chapter.
+\begin{acknowledgements}
+%I would like to acknowledge Professor Eta Theta for his support as the
+%chair of my committee. Through multiple drafts and many long nights,
+%his guidance has proved to be invaluable.
+%
+%I would also like to acknowledge the ``Smith Clan'' of lab~28, without
+%whom my research would have no doubt taken fives times as long. It is
+%their support that helped me in an immeasureable way.
+%
+%Chapter 2, in full, is a reprint of the material as it appears in
+%Numerical Grid Generational in Computational Fluid Mechanics~2009.
+%Smith, Laura; Smith, Jane~D., Pineridge Press,~2009. The dissertation
+%author was the primary investigator and author of this paper.
+%
+%Chapter 3, in part, has been submitted for publication of the material
+%as it may appear in Education Mechanics,~2009, Smith, Laura; Smith,
+%Jane~D., Trailor Press,~2009. The dissertation author was the primary
+%investigator and author of this paper.
+%
+%Chapter 5, in part is currently being prepared for submission for
+%publication of the material. Smith, Laura; Smith, Jane~D\@. The
+%dissertation author was the primary investigator and author of this
+%material.
+Placeholder for acknowledgments.
+\end{acknowledgements}
+
+% Stupid vita goes next
+\begin{vita}
+\noindent
+\begin{cv}{}
+\begin{cvlist}{}
+\item[2014] Bachelor of Mathematics, University of Minnesota, Twin Cities
+\item[2014] Bachelor of Computer Science, University of Minnesota, Twin Cities 
+\item[2019--2021] Teaching Assistant, Department of Computer Science\\University of California, San Diego
+\item[2020] Master of Computer Science, University of California, San Diego
+\item[2018--2023] Research Assistant, University of California, San
+Diego
+\item[2023] Doctor of Philosophy, University of California, San Diego
+\end{cvlist}
+\end{cv}
+
+% This puts in the PUBLICATIONS header. Note that it appears inside
+% the vita environment. It is optional.
+\publications
+\noindent ``Power Dissipation in Fractal AC Circuits'' Chen J., Rogers J., Anderson L., Andrews U.,
+Brzoska A., Coffey A., Davis H., Fisher L., Hansalik M., Loew S., Teplyaev A. Journal of
+Physics A: Mathematical and Theoretical vol. 50, num. 32, 2017.
+
+\noindent ``Separate Your Domains: NIST PQC KEMs, Oracle Cloning and Read-Only Indifferentiability'' Bellare M., Davis
+H., G{\"{u}}nther F. Proceedings of 39th Annual International Conference on the Theory and Applications of Cryptographic
+Techniques (EUROCRYPT), 2020.
+
+\noindent ``Tighter Proofs for the SIGMA and TLS 1.3 Key Exchange Protocols'' Davis H., G{\"{u}}nther F.
+Proceedings of International Conference on Applied Cryptography and Network Security (ACNS), 2021.
+
+\noindent ``On the Concrete Security of {TLS} 1.3 {PSK} Mode'' Davis H., Diemert D., G{\"{u}}nther F., Jager T.
+Proceedings of 41st Annual International
+Conference on the Theory and Applications of Cryptographic Techniques (EUROCRYPT), 2022.
+
+\noindent ``Hardening Signature Schemes via Derive-then-Derandomize: Stronger
+Security Proofs for EdDSA'' Bellare M., Davis H., Di Z. Proceedings of 26th {IACR} International Conference
+on Practice and Theory of Public-Key Cryptography (PKC), 2023.
+
+\noindent ``Verifiable Distributed Aggregation Functions'' Davis H., Patton C., Rosulek M., Schoppmann P.
+Proceedings of Privacy Enhancing Technology Symposium (PETS), 2023.
+
+% This puts in the FIELDS OF STUDY. Also inside vita and also
+% optional.
+% \fieldsofstudy
+% \noindent Major Field: Engineering (Specialization or Focused Studies)
+% \vskip\baselineskip
+% Studies in Applied Mathematics\par
+% Professors Alpha Beta and Gamma Delta
+% \vskip\baselineskip
+% Studies in Mechanices\par
+% Professors Epsilon Zeta and Eta Theta
+% \vskip\baselineskip
+% Studies in Electromagnetism\par
+% Professors Iota Kappa and Lambda Mu
+\end{vita}
+
+% Put your maximum 350 word abstract here.
+\begin{dissertationabstract}
+	
+	Cryptographic standards published by organizations like NIST, ISO, and the
+	IETF provide guidance for developers choosing and implementing cryptographic
+	algorithms for their applications. In recent years, formal proofs of security
+	have become an important part of validation for standardized algorithms;
+	however, these proofs rely on abstractions which sometimes differ
+	significantly from the schemes and protocols used in practice.
+
+	In this work, I will begin with a study of the ongoing NIST standardization
+	process of post-quantum key-encapsulation mechanisms and highlight
+	vulnerabilities in several (former) candidate algorithms which arise from a
+	systematic mismatch between abstract primitives used in cryptographic models
+	 and their actual instantiation in implementations. I will then present a
+	 library of secure instantiation techniques and a way to extend schemes'
+	 existing proofs to their instantiations. Next, I will address the Transport
+	Layer Security (TLS 1.3) Handshake Protocol and demonstrate by a concrete
+	evaluation that prior work fails to prove practical security levels for many
+	of the standardized parameter sets. I will then show tighter proofs that do
+	justify these parameter sets and which additionally give the first fully
+	justified abstraction of the TLS 1.3 key schedule in the random oracle model,
+	and I will explain how certain parts of the TLS 1.3 design hinder the
+	application of useful abstractions.
+	
+	I will also explain how inaccurate portrayals of hash functions in the random
+	oracle model impact the security analysis of the standardized EdDSA signature
+	scheme and present an improved proof of security with better tightness and modularity.
+	I conclude by introducing my work on the proposed standard for privacy-preserving
+	measurement, including a new security model for Verifiable Distributed
+	Aggregation Functions. Within this model, I discuss results for Prio3, an optimized
+	version of the massively scalable, widely used Prio construction for private
+	data collection, and Doplar, a new construction for private histogram generation.
+\end{dissertationabstract}
+
+% This is where the main body of your dissertation goes!
+\mainmatter
+
+% Optional Introduction
+\begin{dissertationintroduction}
+\input{intro}
+\end{dissertationintroduction}
+
+\chapter{Separate Your Domains}\label{chap:domsep}
+\mathversion{normal1}
+\input{domsep-thesis/intro}
+\input{domsep-thesis/pqc-kem}
+\input{domsep-thesis/prelims}
+\input{domsep-thesis/rd-indiff}
+\input{domsep-thesis/framework}
+\input{domsep-thesis/newhope}
+\input{domsep-thesis/kem}
+\mathversion{normal}
+\section*{Acknowledgments}
+
+We thank Dan Bernstein for comments and corrections. We thank the Eurocrypt 2020 reviewers for their comments.
+ 
+\chapter{Tighter Bounds for the TLS 1.3 and SIGMA Key Exchange Protocols}\label{chap:tight-ake}
+\mathversion{normal2}
+\input{sigma-thesis/introduction}
+\input{sigma-thesis/ake-model}
+\input{sigma-thesis/components}
+\input{sigma-thesis/appendix-stDHproof}
+\input{sigma-thesis/sigma}
+\input{sigma-thesis/sigma-proof}
+\input{sigma-thesis/tls}
+\input{sigma-thesis/tls-proof}
+\input{sigma-thesis/evaluation}
+\input{sigma-thesis/appendix-evaluation}
+\section*{Acknowledgements}
+\input{sigma-thesis/acks}
+\mathversion{normal}
+
+\chapter{On the concrete security of TLS 1.3 PSK Mode}\label{chap:tight-ake-ext}
+\mathversion{normal3}
+\input{tls-thesis/introduction}
+\input{tls-thesis/tls13-psk-handshake}
+\input{tls-thesis/mske-psk-model}
+\input{tls-thesis/indiff-bg}
+\input{tls-thesis/ks-indiff}
+\input{tls-thesis/modularizing}
+\input{tls-thesis/short-proof}
+\input{tls-thesis/evaluation}
+\input{tls-thesis/appendix-domsep}
+\mathversion{normal}
+
+\chapter{Derive-then-Derandomize: Stronger Security Proofs for EdDSA Signatures}\label{chap:eddsa}
+\mathversion{normal4}
+\input{eddsa/intro}
+\input{eddsa/prelim}
+\input{eddsa/direct}
+\input{eddsa/schnorr}
+\input{eddsa/chop}
+\input{eddsa/prop1-proof}
+%\input{eddsa/gp-instantiation}
+\mathversion{normal}
+\chapter{Verifiable Distributed Aggregation Functions}\label{chap:vdaf}
+\mathversion{normal5}
+\input{vdaf/body}
+\input{vdaf/appendix}
+%\chapter{Figures and Such}
+%This demonstrates how OGS wants figures and tables formatted. For
+%figures, the caption goes below the figure and ``Figure'' is in bold.
+%See Figure~\ref{fig:zen}. Tables are formatted with the caption above
+%the table. See Table~\ref{tab:bad}.
+%
+%Of course, Table~\ref{tab:bad} looks horrible. It should probably be
+%formatted like Table~\ref{tab:good} instead.
+%
+%For facing caption pages, see Table~\ref{tab:facing}. Of course,
+%facing caption pages are vaguely ridiculous and my implementation of
+%them in the class file is by far the most brittle part of the
+%implementation. It's entirely possible that something has changed and
+%these don't work at all. I implemented it merely for the challenge.
+
+%\begin{figure}
+%\centering
+%\fbox{\parbox{.9\linewidth}{%
+%	\noindent
+%	{\Huge PHD ZEN}\par
+%	\vskip.5in
+%	\centerline{comic here}
+%	\vskip.5in
+%}}
+%\caption[``Ph.D. Zen'']{Comic entitled ``Ph.D. Zen'' by Jorge Cham, 2005. Copyright
+%has not been obtained and so it isn't displayed.}
+%\label{fig:zen}
+%\end{figure}
+%
+%\begin{table}
+%\centering
+%\caption[Electronic Dissertation Submission Rates]{Electronic
+%Dissertation Submission Rates at UCSD, Fall 2005 and Winter 2006.
+%(First two quarters that the program was available to all Ph.D.
+%candidates not in a Joint Doctoral Program with SDSU.)}
+%\label{tab:bad}
+%\begin{tabular}{|*{5}{>{\centering\arraybackslash}m{.15\linewidth}|}}
+%\hline
+%&Ph.D.s awarded (Including Joint degrees) & Electronic submission of
+%Dissertation & Paper Submission of Dissertation & Percentage of
+%Electronic Submission\\
+%\hline
+%Fall\par 2005 & 84 & 37 & 47 & 44.05\%\\
+%\hline
+%Winter\par 2006 & 64 & 42 & 22 & 65.63\%\\
+%\hline
+%\end{tabular}
+%\end{table}
+%
+%\begin{table}
+%\centering
+%\caption[Electronic Dissertation Submission Rates]{Electronic
+%Dissertation Submission Rates at UCSD, Fall 2005 and Winter 2006.
+%(First two quarters that the program was available to all Ph.D.
+%candidates not in a Joint Doctoral Program with SDSU.)}
+%\label{tab:good}
+%\renewcommand\tabularxcolumn[1]{>{\RaggedRight\arraybackslash}p{#1}}
+%\begin{tabularx}{.9\linewidth}{lcccc}
+%\toprule
+%&\multicolumn{1}{X}{Ph.D.s awarded (Including Joint degrees)}
+%&\multicolumn{1}{X}{Electronic submission of Dissertation}
+%&\multicolumn{1}{X}{Paper Submission of Dissertation}
+%&\multicolumn{1}{X}{Percentage of Electronic Submission}\\
+%\midrule
+%Fall 2005 & 84 & 37 & 47 & 44.05\%\\
+%Winter 2006 & 64 & 42 & 22 & 65.63\%\\
+%\bottomrule
+%\end{tabularx}
+%\end{table}
+
+%\begin{facingcaption}{table}
+%\caption[UCSD Gender Distribution]{University of
+%California, San Diego Gender Distribution for the Campus Population,
+%October~2005\\
+%(http://assp.ucsd.edu/analytical/Campus\%20Population.shtml)\\
+%\emph{(This is an example of a facing caption page, the next page is
+%the example of the table/figure/etc.\ that corresponds to this
+%caption. It is also an example of table/figure that is rotated 90
+%degrees to fit the page.)}}
+%\label{tab:facing}
+%\renewcommand\tabularxcolumn[1]{>{\RaggedLeft\arraybackslash}p{#1}}
+%\parindent=0pt
+%\setbox0=\vbox{%
+%\vsize\textwidth
+%\hsize\textheight
+%\linewidth\hsize
+%\columnwidth\hsize
+%\textwidth\hsize
+%\textheight\vsize
+%\begin{tabularx}{\linewidth}{lXXXXXX}
+%\toprule
+%& \multicolumn{2}{c}{\textbf{Women}}
+%& \multicolumn{2}{c}{\textbf{Men}}
+%& \multicolumn{2}{c}{\textbf{Total}}\\
+%\cmidrule(l){2-3}\cmidrule(l){4-5}\cmidrule(l){6-7}
+%\textbf{Population Segment}
+%& \multicolumn{1}{c}{\textbf{N}} & \multicolumn{1}{c}{\textbf{\%}}
+%& \multicolumn{1}{c}{\textbf{N}} & \multicolumn{1}{c}{\textbf{\%}}
+%& \multicolumn{1}{c}{\textbf{N}} & \multicolumn{1}{c}{\textbf{\%}}\\
+%\midrule
+%Students & 12,987 & 51\% & 12,686 & 49\% & 25,673 & 100\%\\
+%Employees & 9,943 & 56\% &  7,671 & 44\% & 17,614 & 100\%\\
+%\addlinespace
+%\hfill\textbf{Total} & \textbf{22,930} & \textbf{53\%} &
+%\textbf{20,357} & \textbf{47\%} & \textbf{43,287} & \textbf{100\%}\\
+%\bottomrule
+%\end{tabularx}
+%\singlespacing
+%
+%\emph{Notes}:
+%\begin{enumerate}
+%\item The counts shown below will differ from the official quarterly
+%Registrar's registration report because 1) data for residents in the
+%Schools of Medicine and Pharmacy and Pharmaceutical Science are
+%excluded, and 2) registered, non-matriculated, visiting students are
+%included.
+%\item Student workers are excluded from employees; however emeritus
+%faculty and others on recall status are included.
+%\end{enumerate}
+%
+%Campus Planning. Analytical Studies and Space Planning\\
+%31 January 2006
+%}
+%\centerline{\rotatebox{90}{\box0}}
+%\end{facingcaption}
+%
+%% This will give us some more text
+%\Blinddocument
+%
+%% Skipping a bunch of chapters
+%\setcounter{chapter}{50}
+%\chapter{Another chapter}
+%\setcounter{figure}{73}
+%\setcounter{table}{88}
+%\begin{figure}
+%\centering
+%\fbox{\hbox to.8\linewidth{\hss Another figure\hss}}
+%\caption{Another figure caption}
+%\end{figure}
+%\begin{table}
+%\centering
+%\caption{Another table caption}
+%\begin{tabular}{ccc}
+%\toprule
+%X&Y&Z\\
+%\midrule
+%a&b&c\\
+%\bottomrule
+%\end{tabular}
+%\end{table}
+%\begin{figure}
+%\caption{ASDF fig}
+%\end{figure}
+%\begin{table}
+%\caption{ASDF tab}
+%\end{table}
+
+%\appendix
+%\Blinddocument
+\nocite{eddsa,tight-ake-ext,vdaf}
+% Stuff at the end of the dissertation goes in the back matter
+%\nocite{domsep-thesis/local, sigma-thesis/local,tls-thesis/local}
+\backmatter
+\bibliographystyle{abbrv} % Or whatever style you want like plainnat
+\bibliography{bibfiles/abbrev3,bibfiles/mypubs,domsep-thesis/local,sigma-thesis/local,tls-thesis/local,eddsa/main,vdaf/cite,bibfiles/crypto}
+
+\end{document}

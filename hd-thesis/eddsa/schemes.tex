@@ -1,0 +1,215 @@
+\section{Writeup formal schemes for EdDSA and Schnorr variants}
+%Commands for writing up EdDSA and Schnorr schemes:
+%\ifdraft
+%
+%$\ell$ is a prime.
+%
+%$\group'$ is the abstract group
+%
+%$\group$ is the prime-order subgroup.
+%
+%$\generator$ is a generator of $\group$
+%
+%$\hash$ is a hash function (abstract)
+%
+%$\SHA{512}$ is a concrete hash function
+%
+%$\sig$ is a signature
+%
+%$\concat$ is concatenation of strings
+%
+%$\curvepoint{A}$ is a group element or elliptic curve point
+%
+%$\Z_\ell$ for integers $\mod \ell$. 
+%
+%$\pk$ is the public key
+%
+%$\sk$ is the secret key
+%
+%$\msg$ is a message
+%
+%$\cofactor$ is a cofactor
+%
+%$\n$ is a secret scalar
+%
+%$\Scheme{E}$ is a signature scheme
+%
+%$\KeyGen{E}$ is the key generation algorithm of $\Scheme{E}$
+%
+%$\SignAlg{E}$ is the signing algorithm of $\Scheme{E}$
+%
+%$\Vfy{E}$ is the verification algorithm of $\Scheme{E}$
+%
+%$\Enc{E}$ is the encoding algorithm of $\Scheme{E}$ where $\Enc{E}: \group'\to\{0,1\}^b$
+%
+%$\Dec{E}$ is the decoding algorithm of $\Scheme{E}$ where $\Dec{E}: \{0,1\}^b\to\group'$
+%
+%$\Enc{E}$ and $\Dec{E}$ are inverse functions to each other, and $\forall P \in \group'$, they must satisfy $P = \Dec{E}(\Enc{E}(P))$
+%
+%\fi
+%
+%EdDSA, and certain variants of the Schnorr signature scheme we will look at, operate over a subgroup of a larger group. However, an adversary may submit, as part of a forged signature, a group element which lies outside the subgroup. EdDSA specifies two types of verification: cofactorless verification, which will succeed only on subgroup elements, and cofactored verification, which projects all points into the subgroup before proceeding with  verification. Most implementations perform cofactorless verification, which is slightly faster; however, only cofactored verification is consistent with "batch verification," a technique which is also frequently implemented. Both variants are discussed in the original Ed25519 paper and in the standard; cofactored verification is the ``official" version. We therefore parameterize both Ed25519 and Schnorr signatures by their verification style: $\CF$ denoting ``cofactored" verification, and $\CL$ denoting cofactorless. 
+
+\begin{figure}
+	\vspace{-15pt}
+	\twoCols{0.45}{0.45}{
+		% \schemeName{$\SchID[G, g]$}
+		\begin{algorithm-initial}{$\KeyGen{E_i}$ \\ $i \in \{\CF, \CL\}$}
+			\item $\sk \getsr \{0,1\}^b$ 
+			\item $\h \gets \hash(\sk)$
+			\item $\s \gets \sum_{i=\cofactor}^{n-1} 2^{i}\h[i] $
+			\item $\curvepoint{A} \gets \s\generator + (2^\n B)$
+			\item $\pk \gets \Enc{E}(\curvepoint{A})$
+			\item Return $(\pk, \sk)$
+		\end{algorithm-initial}
+		\begin{algorithm-subsequent}{$\SignAlg{E_i}^{\HASH}(\sk, \msg)$ \\ $i \in \{$CF, CL$\}$}
+			\item $\h \gets \hash(k)$; $s \gets \sum_{i=\cofactor}^{\n-1} 2^{i}\h[i] $
+			\item $\littler \gets \hash(\h[b], \cdots, \h[2b-1]||\msg)$
+			\item $\curvepoint{R} \gets \littler\generator$; $\bar{\curvepoint{R}} \gets \Enc{E}(\curvepoint{R})$
+			\item $\CapitalS \gets (\littler + \hash(\bar{\curvepoint{R}}||\pk||\msg)\s)\mod \ell$
+			%\item $\bar{S} \gets \Enc{E}(S)$
+			\item $\sig = (\bar{\curvepoint{R}}, \CapitalS)$; Return $(\sig)$
+		\end{algorithm-subsequent}
+		% \underline{Set:} $\Chl = \Z_p$ \\ [4pt]
+	}{
+		\begin{algorithm-subsequent}{$\Vfy{E_{\CF}}^{\HASH}(\pk, \sig= (\bar{\curvepoint{R}}, \CapitalS), \msg)$}
+			% \item \procName{$\Rsp(x, c, r)$}
+			\item If $0 < \CapitalS$ or $\CapitalS > \ell$
+			\item \quad Return $ \false$
+			\item If $(\curvepoint{A} \gets\Dec{E}(\pk))$ fails
+			\item \quad Return $ \false$
+			\item If $(\curvepoint{R} \gets\Dec{E}(\bar{\curvepoint{R}}))$ fails
+			\item \quad Return $ \false$
+			\item If $|\curvepoint{A}|<2^c$ or $|\curvepoint{R}|<2^\cofactor$
+			\item \quad Return $ \false$
+			\item $\digest \gets \hash(\bar{\curvepoint{R}}||\pk||\msg)$
+			\item Return $2^\cofactor\CapitalS\generator = 2^\cofactor \digest\curvepoint{A} +2^\cofactor \curvepoint{R} $
+		\end{algorithm-subsequent} \vspace{2pt}
+		\begin{algorithm-subsequent}{$\Vfy{E_{\CL}}^{\HASH}(\pk, \sig= (\bar{\curvepoint{R}}, \CapitalS), \msg)$}
+			% \item \procName{$\Rsp(x, c, r)$}
+			\item If $0 < \CapitalS$ or $\CapitalS > \ell$
+			\item \quad Return $ \false$
+			\item If $(\curvepoint{A} \gets\Dec{E}(\pk))$ fails
+			\item \quad Return $ \false$
+			\item If $(\curvepoint{R} \gets\Dec{E}(\bar{\curvepoint{R}}))$ fails
+			\item \quad Return $ \false$
+			\item If $|\curvepoint{A}|<2^\cofactor$ or $|\curvepoint{R}|<2^\cofactor$
+			\item \quad Return $ \false$
+			\item $\digest \gets \hash(\bar{\curvepoint{R}}||\pk||\msg)$
+			\item Return $\CapitalS\generator = \digest\curvepoint{A}+\curvepoint{R}$
+		\end{algorithm-subsequent} 
+	}
+	\vspace{-10pt}
+	\oneCol{0.56}{
+		\begin{algorithm-initial}{$\Enc{E}(\curvepoint{P})$ \\ $\curvepoint{P} \in \group'$}
+			\item Encode the point $\curvepoint{P}$ in $\group'$ canonically into $\bar{\curvepoint{P}}$ (i.e. $\curvepoint{P}.y \gets \curvepoint{P}.y  \mod 255-19$ in LibSodium Ed25519).
+			\item Return $ \bar{\curvepoint{P}}$
+		\end{algorithm-initial}
+		\begin{algorithm-subsequent}{$\Dec{E}(\bar{\curvepoint{P}})$ \\ $\bar{\curvepoint{P}} \in \{0,1\}^b$}
+			\item Decode $\bar{\curvepoint{P}}$ into $\curvepoint{P}$
+			\item If decoding fails (e.g. $\curvepoint{P} \notin \group'$)
+			\item \quad Return Failure
+			\item If $\curvepoint{P}$ is non-canonical
+			\item \quad Return Failure
+			\item Return Success
+		\end{algorithm-subsequent}
+	}
+
+	\vspace{-8pt}
+	\caption{Let $\G$ be a group of prime order $\ell=|\G|$ and let $\generator\in\G^*$ be a generator of $\G$. The
+		Schnorr ID scheme $\ID = \ID[\G, g]$ is shown pictorially at the top and
+		algorithmically at the bottom left. At the bottom right is the Schnorr signature scheme $\DS = \SchSig[\G,g]$, using $\HASH\Colon\G\cross\bits^*\to\Z_p$.}
+	\label{fig:schnorr-id}
+	\label{fig:schnorr-sig}
+	
+	\vspace{-10pt}
+	\twoCols{0.45}{0.45}{
+		\begin{algorithm-initial}{$\DS_{i}.\Kg$}
+			\item $\sk \getsr \Z_{\ell}$ ; $\vk \gets \sk \generator$
+			\item Return $(\vk, \sk)$
+		\end{algorithm-initial}
+		\begin{algorithm-subsequent}{$\DS_{i}.\Sign^{\HASH}(\sk, \msg)$}
+			\item $\littler \getsr \Z_{\ell}$ ; $\curvepoint{R} \gets \littler \generator$
+			\item $\digest \gets \HASH(\curvepoint{R}, \msg)$
+			\item $\CapitalS \gets (\sk \cdot \digest + \littler) \mod \ell$
+			\item Return $(\curvepoint{R}, \CapitalS)$
+		\end{algorithm-subsequent}
+	}{
+		\begin{algorithm-subsequent}{$\DS_{\CF}.\Vf^{\HASH}(\vk, \msg, \sigma)$}
+			\item $(\curvepoint{R}, \CapitalS) \gets \sigma$
+			\item  $\digest \gets \HASH(\curvepoint{R}, \msg)$
+			\item Return $(2^\cofactor\CapitalS\generator = 2^\cofactor (\digest \cdot \vk + \curvepoint{R})$
+		\end{algorithm-subsequent}  \vspace{2pt}
+	\begin{algorithm-subsequent}{$\DS_{\CL}.\Vf^{\HASH}(\vk, \msg, \sigma)$}
+		\item $(\curvepoint{R}, \CapitalS) \gets \sigma$
+		\item  $\h \gets \HASH(\curvepoint{R}, \msg)$
+		\item Return $S\generator = \h \cdot \vk + \curvepoint{R}$
+	\end{algorithm-subsequent}  \vspace{2pt}
+	}
+	\hrulefill
+	\vspace{-10pt}
+	
+\end{figure}
+%
+%Notes on how to get rid of key clamping:
+%
+%Consider a variant of EDDSA with a single change: $s$ is drawn uniformly from $\{x \in [0,2^{c-1}\ell) : x = 0 \mod 2^c \}$ instead of from $\{2^cx : x \in [0, 2^{n-c})\}$. The statistical distance between these two distributions for the parameters of Ed25519 is approximately $2^{-130}$, which is imperceptible to any adversary. (I would have to more carefully write an analysis for the multi-user case, but I conjecture that for any reasonable number of users (i.e., less than a billion), the statistical distance will still be imperceptible ($\approx 2^{-100}$). )
+%
+%We can alternately write the distribution $\{x \in [0,2^{c-1}\ell) : x = 0 \mod 2^c \}$ as $\{2^c y : y \in [0, \ell/2)\}$. We can alternately pick $s'$ uniformly from $[0, \ell/2)$, then multiply by $8$ to get $s$. If we change the notation of the scheme to reflect this, we see that a "clamped" key is simply one that is less than $\ell/2$. However, an adversary cannot distinguish whether a discrete logarithm is greater or less than $\ell/2$ as this is a hard-core bit \cite{blumic81}. By reducing to this problem (via a simple reduction that answers Sign queries by programming the random oracle), we can show that distinguishing between an EDDSA game with "clamped" keys and one with "unclamped" keys is hard. (Note: this is not a multi-user to single-user reduction. It's a single-user to single-user or multi-user to multi-user reduction. The multi-user hard-core bit game has either $N$ keys with first bit $0$ or $N$ keys with uniformly random first bits.) We use this result to argue that an adversary has approximately equal advantage in the "clamped" game and "unclamped" game; hence all further analysis may proceed unclamped. :D
+%
+%
+% 
+%Game 0: Top of Fig 1.
+%Game 1: Change line 2 to $s \gets \sum_{i=c}^{n-1} 2^{i}h[i]  \mod \ell$. This changes nothing.
+%Game 2: Replace $h$ with a random $2b$-bit string. (Straightforward reduction to multi-user PRF security). 
+%Game 3: Stop sampling unused bits of $h$, break notation into sampling $s$ and $h'$ directly. This changes nothing. 
+%Game 4: Change line 2 to $s' \getsr [0, \ell/2)$; $s \gets 8s' \mod \ell$. Use a statistical distance argument to limit advantage difference between games $3$ and $4$. 
+%Game 5: Change line 2 to $s' \getsr \{x \in [0, \ell) : x = 0 \mod 2\}$; $s \gets 4s' \mod \ell$. This changes nothing (we're just sampling $2s'$ instead of $s'$). 
+%
+%At this point, the proof diverges in two directions. The first is my experimental "wild goose chase" attempt to eliminate key clamping; the second simply reduces to Schnorr with clamped keys. 
+%
+%\underline{Direction 1:}
+%
+%Game 6: Change line 2 to $s' \getsr \Z_\ell$; $s \gets 4s' \mod \ell$. Reduce difference btwn Game 6, Game 5 to problem "Distinguish between $N$ uniform group elements with parity $0$ exponents and $N$ uniform group elements." 
+%
+%Adversary B simply uses group elements as public keys (multiplying them by $4$ for the adv). If A forges, it guesses parity $0$; else it guesses uniform. It signs by programming the hash function in the following way: on query $\Sign(i, \msg)$, sample $S \getsr \Z_\ell; h \getsr \bits^{2b}$, and set $R \gets S\generator - hA_i$. Then set $H(R||A_i||\msg)) \gets h$. This will fail if the adversary has already queried $H(R||A_i||\msg)$, but since $S\generator$ is uniformly random, so is $R$ and this happens with prob only ${\Queries{\hash}{}}{\ell}$. 
+%
+%Next we need to show that problem "distinguish between $N$ uniform group elements with parity $0$ exponents and $N$ uniform group elements" is hard. This is where I am stuck. I have a reduction from this problem to DL when $N = 1$; when $N$ is larger it starts to fail.
+%
+%The reduction when $N = 1$: Let $PAR$ be an algorithm that on input $k\generator$ returns the LSB of $k$ with high probability. Given $Y = k\generator$, where $k$ is $n$ bits and the group order is prime $\ell$, for each $i$ from $0$ to $n-1$, perform the following:
+%\begin{enumerate}
+%	\item $k_i \gets PAR(Y)$
+%	\item $Y \gets Y - k_i \generator$
+%	\item $Y \gets 2^{-1}Y$ (inverse is multiplicative mod $\ell$)
+%	\item $i \gets i+1$
+%\end{enumerate}
+%At the end of step $n-1$, $k = k_{n-1}\ldots k_2 k_1 k_0$. 
+%
+%This reduction is similar to that of $\cite{blumic81}$ showing hard-core bits for the discrete logarithm; it differs in that our group is of prime order $\ell$ where theirs was $\Z^*_\ell$, which has order $p-1$. In the latter group, the parity bit is not hard-core, but multiplication by $2$ (squaring, in their terms) is not injective. 
+%
+%I thought about how to build $PAR$ using an algorithm for deciding "$N$-all-even-or-uniform". My best attempt so far is this: On input $Y= k\generator$, produce $N$ public keys in the following way:
+%\begin{enumerate}
+%	\item $s\getsr\Z_\ell$; $b_1, b_2 \getsr \bits$
+%	\item If $b_1 = 0$ then  $\pk \gets s\generator$
+%	\item Else if $b_2 = 0$ then $\pk \gets (\lfloor s/2-\ell/4\rfloor) \generator + Y$.
+%	\item Else $\pk \gets (\lfloor s/2-\ell/4\rfloor) \generator - Y - 1$. 
+%\end{enumerate}
+%To evaluate $PAR$, the reduction would simulate game $G_5$; generating public keys in this way. It would answer $\Sign$ queries as adversary $B$ does above. 
+%
+%My goal here is to produce all even secret keys if $Y$ is even, and uniform keys otherwise. I do not quite achieve this goal: if $(\lfloor s/2-\ell/4\rfloor) + k > \ell$, the constructed key will have the wrong parity. For uniformly distributed $k$ and $s$, even keys will be constructed with probability $9/16$ instead of $1/2$. My distribution is therefore biased: size and parity of keys will be slightly correlated, and when $k$ is even, the secret keys will be only mostly even vs all even.
+%
+%\underline{Direction 2}
+%
+%Game 6': Change line 2 to $s \getsr \{x \in [0, \ell) : x = 0 \mod 2$ and line $3$ to $A \gets s\generator$ We bound the difference between games 5 and 6' with a reduction $B_2$. $B_2$ receives public keys $\vk_1, \ldots, \vk_N$ and passes on public keys $vk'_i = 4^{-1}\vk_i - 2^n\generator$. It also answers hash queries of the form $\hash(R\concat \vk'_i\concat \msg)$ with $\hash(4R\concat \vk_i \concat \msg)$. When it receives a forgery $(R, S)$ on $\msg$, it calls $\Finalize$ on input $(4R, 4(S-2^{n}\hash(R\concat \vk'_i\concat \msg)))$. The advantage of A in game 5 equals the advantage of B in game 6'. 
+%
+%Game 7': Remove key prefixing: change line 4 of $\Sign$ to $h \gets \hash(R \concat \msg)$. Bound difference between games 6' and 7': Reduction $B_3$ simulates game 6' faithfully while playing game 7'. When signing message $\msg$ under user $i$, it instead queries $\Sign(i, A_i\concat \msg)$. It logs all signatures $(R, S)$ obtained from the $\Sign$ oracle. If the adversary queries $\hash(R\concat A_i \concat \msg)$ where $(R,S)$ was a signature on $\msg$ under key $A_i$, $B_3$ responds with $\hash(R\concat \msg)$. The simulation fails if A queries $\hash(R\concat A_i \concat \msg)$ before the corresponding $\Sign$ query; this is prevented by the unpredictability of $R$. Collisions on $R$ also present a problem. A valid forgery $(R,S)$ on message $\msg$ and user $i$ submitted to $B_3$ is a forgery on message $A_i \concat \msg$; so $B_3$ wins. (If $A_i \concat \msg$ had already been queried to $\Sign$ in game 7', then $\msg$ had been queried in game 6' and the forgery is invalid.)
+%
+%Game 8': in line 8 of $\Sign$, replace $r$ with random (cached) sampling based on the user and $M$. Simple mu-PRF reduction. 
+%
+%Game 8' is UF-CMA for Schnorr with restricted key space (as the bottom of Fig 1.). We should add a line to the UF-CMA game so repeated $\Sign$ queries are cached. 
+%
+%Mihir's reduction from batched Schnorr to strict Schnorr appears to work even with key clamping. 
+%Then we need to go from strict Schnorr to MBDL even with key clamping, or remove the key clamping here (using the techniques from Direction 1???). 
+%Strict schnorr works only over the subgroup, so we can reduce from there to clamped MBDL. 
+%
+%Next up: extend this to SUF-CMA, consider encoding function in the above, make sure it's using parametrized definitions so works for both batched and strict variants. 

@@ -1,0 +1,674 @@
+
+\section{Read-only indifferentiability of translating functors}\label{sec-cc-indiff}
+
+We define read-only indifferentiability (rd-indff) of functors. Then we define a class of functors called translating, and give general results about their rd-indiff security. Later we will apply this to analyze the security of cloning functors, but the treatment in this section is broader and, looking ahead to possible future applications, more general than we need for ours.
+
+
+
+\subsection{Functors and read-only indifferentiability} 
+
+A random oracle, formally, is a function drawn at random from a certain space of functions. A construction (functor) is a mapping from one such space to another. We start with definitions for these.
+
+\heading{Function spaces and functors.} A function space $\roSp$ is simply a set of functions, with the requirement that all functions in the set have the same domain $\Dom(\roSp)$ and the same range $\Rng(\roSp)$. Examples are $\AllSOLFuncs{\domain}{\ell}$ and $\AllXOLFuncs{\domain}$. Now $f\getsr\roSp$ means we pick a function uniformly at random from the set $\roSp$. 
+
+Sometimes (but not always) we want an extra condition called input independence. It asks that the values of $f$ on different inputs are identically and independently distributed when $f\getsr\roSp$. More formally, let $\domain$ be a set and let $\FSOutSet$ be a function that associates to any $W \in \domain$ a set $\FSOutSet(W)$. Let $\FSOutSet(\domain)$ be the union of the sets $\FSOutSet(W)$ as $W$ ranges over $\domain$. Let $\AllFuncs{\domain}{\FSOutSet}$ be the set of all functions $f\Colon\domain\to\FSOutSet(\domain)$ such that $f(W)\in \FSOutSet(W)$ for all $W\in\domain$. We say that $\roSp$ provides input independence if there exists such a $\FSOutSet$ such that $\roSp = \AllFuncs{\Dom(\roSp)}{\FSOutSet}$. Put another way, there is a bijection between $\roSp$ and the set $S$ that is the cross product of the sets $\FSOutSet(W)$ as $W$ ranges over $\Dom(\roSp)$. (Members of $S$ are $|\Dom(\roSp)|$-vectors.) As an example the function space $\AllSOLFuncs{\domain}{\ell}$ satisfies input independence, but $\AllXOLFuncs{\domain}$ does \textit{not} satisfy input independence.
+
+Let $\GenroSp{\functionInSet}$ be a function space that we call the starting space. Let $\GenroSp{\functionOutSet}$ be another function space that we call the ending space. We imagine that we are given a function $\functionIn\in\GenroSp{\functionInSet}$ and want to construct a function $\functionOut\in\GenroSp{\functionOutSet}$. We refer to the object doing this as a functor. Formally a \textit{functor} is a deterministic algorithm $\construct{F}$ that, given as oracle a function $\aFunc{\functionIn}\in\GenroSp{\functionInSet}$, returns a function $\construct{F}[\aFunc{\functionIn}]\in\GenroSp{\functionOutSet}$. We write $\construct{F}\Colon \GenroSp{\functionInSet}\to \GenroSp{\functionOutSet}$ to emphasize the starting and ending spaces of functor $\construct{F}$. 
+
+
+
+ 
+ 
+ % \hd{Can we give some intuition here as to what this means? It's what makes our random oracles random.}
+
+\heading{Rd-indiff.} We want the ending function to ``emulate'' a random function from $\GenroSp{\functionOutSet}$. Indifferentiability is a way of defining what this means. The original definition of MRH~\cite{TCC:MauRenHol04} has been followed by many variants~\cite{C:CDMP05,EC:RisShaShr11,EC:DGHM13,EC:Mittelbach14}. 
+Here we give ours, called read-only indifferentiability, which implies composition not just for single-stage games, but even for multi-stage ones~\cite{EC:RisShaShr11,EC:DGHM13,EC:Mittelbach14}. 
+
+Let $\GenroSp{\functionOutSet}$ and $\GenroSp{\functionInSet}$ be function spaces, and let $\construct{F}\Colon \GenroSp{\functionInSet}\to 
+\GenroSp{\functionOutSet}$ be a functor. Our variant of indifferentiability mandates a particular, strong simulator, which can read, but not write, its (game-maintained) state, so that this state is a static quantity. 
+% \fg{Why do we use the word ``state'' here? It suggests being mutable.}
+% Not sure what else to use or what mutable means.
+Formally a \textit{read-only simulator}~$\simulator$ for
+% a primitive oracle space~$\GenroSp{\functionInSet}$ from a target oracle space~$\GenroSp{\functionOutSet}$
+$\construct{F}$ specifies a \textit{setup algorithm}  $\SimgenCC$ which outputs the state, and a  deterministic \textit{evaluation algorithm} $\Simeval$ that, given as oracle a function~$\aFunc{\functionOut} \in \GenroSp{\functionOutSet}$, and given a string $\commoncoins \in \algOutput(\SimgenCC)$ (the read-only state), defines a function $\Simeval[\aFunc{\functionOut}](\commoncoins,\cdot) \Colon\GenroSpDom{\functionInSet}\to\GenroSpRng{\functionInSet}$. 
+
+\begin{figure}[t]
+	\twoColsNoDivide{0.35}{0.4}{
+		\ExperimentHeader{Game $\ngameCCINDIFF{\construct{F},\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\workDom,\simulator}$}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Initialize$}
+			\item $\aFunc{\functionIn} \getsr \GenroSp{\functionInSet}$
+			\item $\aFunc{\functionOut}_1 \gets \construct{F}[\aFunc{\functionIn}]$ ; $\aFunc{\functionOut}_0 \getsr \GenroSp{\functionOutSet}$
+			\item $b \getsr \bits$
+			\item $\commoncoins \getsr \SimgenCC()$
+			% Should the following be there? \hd{No}
+			%	\item Return $\commoncoins$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+	}{
+		\begin{oracle}{$\priv(W)$}
+			\item If $W \in\workDom$ then return $\aFunc{\functionOut}_b(W)$
+			\item Else return $\bot$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\pub(U)$}
+			\item if $(b=1)$ then return $\aFunc{\functionIn}(U)$
+			\item else return $\Simeval[\functionOut_0](\commoncoins, U)$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(b')$}
+			\item return $(b = b')$
+		\end{oracle}
+	}
+	
+	\caption{Game defining read-only indifferentiability.}
+	\label{fig:cc-indiff}
+	\hrulefill
+\end{figure}
+
+The intent is that $\Simeval[\aFunc{\functionOut}](\commoncoins,\cdot)$  play the role of a starting function $\aFunc{\functionIn} \in \GenroSp{\functionInSet}$ satisfying $\construct{F}[\functionIn] = \functionOut$. To formalize this, consider the read-only indifferentiability game $\ngameCCINDIFF{\construct{F},\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\workDom,\simulator}$ of Figure~\ref{fig:cc-indiff}, where $\workDom\subseteq\GenroSpDom{\functionOutSet}$ is called the working domain. The adversary $\advA$ playing this game is called a distinguisher. Its advantage is defined as
+\[
+\AdvCCINDIFF{\construct{F},\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\workDom,\simulator}{\advA} =
+2 \cdot \Pr\left[ \ngameCCINDIFF{\construct{F},\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\workDom,\simulator}(\advA)\right] - 1.
+\]
+To explain, in the game, $b$ is a challenge bit that the distinguisher is trying to determine.
+Function $\functionOut_b$ is a random member of the ending space $\GenroSp{\functionOutSet}$ if $b=0$ and is $\construct{F}[\aFunc{\functionIn}](\cdot)$ if $b=1$. The query $W$ to oracle $\priv$ is required to be in $\GenroSpDom{\functionOutSet}$. The oracle returns the value of $\functionOut_b$ on $W$, but only if $W$ is in the working domain, otherwise returning $\bot$. The query $U$ to oracle $\pub$ is required to be in $\GenroSpDom{\functionInSet}$. The oracle returns the value of $\aFunc{\functionIn}$ on $U$ in the $b=1$ case, but when $b=0$, the simulator evaluation algorithm $\Simeval$ must answer the query with access to an oracle for $\aFunc{\functionOut}_0$. The distinguisher ends by calling $\Finalize$ with its guess $b'\in\bits$ of $b$ and the game returns $\true$ if $b'=b$ (the distinguisher's guess is correct) and $\false$ otherwise.
+
+The working domain $\workDom\subseteq\GenroSpDom{\functionOutSet}$, a parameter of the definition, is included as a way to allow the notion of read-only indifferentiability to provide results for oracle cloning methods like length differentiation whose security depends on domain restrictions.  
+
+The $\Simeval$ algorithm is given direct access to $\aFunc{\functionOut}_0$, rather than access to $\priv$ as in other definitions, to bypass the working domain restriction, meaning it may query $\aFunc{\functionOut}_0$ at points in $\GenroSpDom{\functionOutSet}$ that are outside the working domain.
+
+All invocations of $\Simeval[\functionOut_0]$ are given the same (static, game-maintained) state $\commoncoins$ as input, but $\Simeval[\functionOut_0]$ cannot modify this state, which is why it is called read-only. 
+Note $\Initialize$ does not return $\commoncoins$, meaning the state is not given to the distinguisher. 
+
+%In the $b=0$ case, both $\advA$ and $\Simeval$ make queries to $\priv = \functionOut_0$, but while those of $\advA$ are required to be in the subset $\workDom$ of $\GenroSpDom{\functionOutSet}$, those of $\Simeval$ are not so constrained, meaning can range over all of $\GenroSpDom{\functionOutSet}$. 
+%This is why having working domains is not the same as restricting the domain of $\functionOutSet$ from the start.
+%In Section~\ref{sec-kem} we will discuss how the working domain should be chosen; here we leave it as an arbitrary set. 
+
+
+\heading{Discussion.} To compare rd-indiff to other indiff notions, we set $\workDom = \GenroSpDom{\functionOutSet}$, because prior notions do not include working domains. Now, rd-indiff differs from prior indiff notions because it requires that the simulator state be just the immutable string chosen at the start of the game. In this regard, rd-indiff falls somewhere between the original MRH-indiff~\cite{TCC:MauRenHol04} and reset indiff~\cite{EC:RisShaShr11} in the sense that our simulator is more restricted than in the first and less than in the second. A construction (functor) that is reset-indiff is thus rd-indiff, but not necessarily vice-versa, and a construct that is rd-indiff is MRH-indiff, but not necessarily vice-versa. Put another way, the class of rd-indff functors is larger than the class of reset-indiff ones, but smaller than the class of MRH-indiff ones. Now, RSS's proof~\cite{EC:RisShaShr11} that reset-indiff implies security for multi-stage games extends to rd-indiff, so we get this for a potentially larger class of functors. This larger class includes some of the cloning functors we have described, which are not necessarily reset-indiff.
+
+\subsection{Translating functors}
+
+\heading{Translating functors.} We focus on a class of functors that we call translating. This class includes natural and existing oracle cloning methods, in particular all the effective methods used by NIST KEMs, and we will be able to prove general results for translating functors that can be applied to the cloning methods. 
+
+A translating functor $\construct{T} \Colon \GenroSp{\functionInSet}\to \GenroSp{\functionOutSet}$ is a functor that, with oracle access to $\functionIn$ and on input $W \in\GenroSpDom{\functionOutSet}$, non-adaptively calls $\functionIn$ on a fixed number of inputs, and computes its output $\construct{T}[\functionIn](W)$ from the responses and $W$. Its operation can be split into three phases which do not share state: (1) a pre-processing phase which chooses the inputs to $\aFunc{\functionIn}$ based on $W$ alone (2) the calls to $\aFunc{\functionIn}$ to obtain responses (3) a post-processing phase which uses $W$ and the responses collected in phase 2 to compute the final output value $\construct{T}[\functionIn](W)$.
+
+Proceeding to the definitions, let $\GenroSp{\functionInSet},\GenroSp{\functionOutSet}$ be function spaces. A $(\FuncSp{\functionInSet},\GenroSp{\functionOutSet})$-\textit{query translator} is a function (deterministic algorithm) $\QuT\Colon \GenroSpDom{\functionOutSet} \to \GenroSpDom{\functionInSet}^*$, meaning it takes a point $W$ in the domain of the ending space and returns a vector of points in the domain of the starting space. This models the pre-processing. A $(\FuncSp{\functionInSet},\FuncSp{\functionOutSet})$-\textit{answer translator} is a function (deterministic algorithm) $\AnT\Colon  \GenroSpDom{\functionOutSet} \times \GenroSpRng{\functionInSet}^* \to \GenroSpRng{\functionOutSet}$, meaning it takes the original $W$, and a vector of points in the range of the starting space, to return a point in the range of the ending space. This models the post-processing. To the pair $(\QuT, \AnT)$, we associate the functor $\construct{TF}_{\QuT,\AnT}\Colon \GenroSp{\functionInSet}\to\GenroSp{\functionOutSet}$, defined as follows:
+\begin{tabbing}
+	1234\=123\=\kill
+	\> \underline{Algorithm $\construct{TF}_{\QuT,\AnT}[\aFunc{\functionIn}](W)$} \comment{Input $W \in \GenroSpDom{\functionOutSet}$ and oracle $\aFunc{\functionIn} \in \GenroSp{\functionInSet}$} \\[2pt]
+	\> $\vecU\gets\QuT(W)$ \\
+	\> For $j=1,\ldots,|\vecU|$ do $\vecV[j] \gets \aFunc{\functionIn}(\vecU[j])$ \comment{$\vecU[j]\in\Dom(\GenroSp{\functionInSet})$} \\
+	\> $Y \gets \AnT(W,\vecV)$ ; Return $Y$
+\end{tabbing}
+The above-mentioned calls of phase~(2) are done in the second line of the code above, so that this implements a translating functor as we described. Formally we say that a functor $\construct{F} \Colon \GenroSp{\functionInSet}\to \GenroSp{\functionOutSet}$ 
+% on $\workDom$ 
+is \textit{translating} if there exists a $(\GenroSp{\functionInSet},\GenroSp{\functionOutSet})$-query translator $\QuT$ and a $(\GenroSp{\functionInSet},\GenroSp{\functionOutSet})$-answer translator $\AnT$ such that $\construct{F} = \construct{TF}_{\QuT,\AnT}$.
+%\fg{Where does $\workDom$ come from here? Is it needed, is it used later like that?}
+
+\heading{Inverses.}
+So far, query and answer translators may have  just seemed an unduly complex way to say that a translating oracle construction is one that makes non-adaptive oracle queries. The purpose of making the query and answer translators explicit is to define \textit{invertibility}, which determines rd-indiff security.
+ 
+Let $\GenroSp{\functionInSet}$ and $\GenroSp{\functionOutSet}$ be function spaces. Let $\QuTInv$ be a function (deterministic algorithm) that takes an input $U \in \GenroSpDom{\functionInSet}$ and returns a vector $\vecW$ over $\GenroSpDom{\functionOutSet}$. We allow $\QuTInv$ to return the empty vector $()$, which is taken as an indication of failure to invert. Define the \textit{support} of $\QuTInv$, denoted $\supportQuT{\QuTInv}$, to be the set of all $U\in\GenroSpDom{\functionInSet}$ such that $\QuTInv(U)\neq ()$. Say that $\QuTInv$ has \textit{full support} if $\supportQuT{\QuTInv} = \GenroSpDom{\functionInSet}$, meaning there is no $U \in \GenroSpDom{\functionInSet}$ such that $\QuTInv(U)=()$. Let $\AnTInv$ be a function (deterministic algorithm) that takes $U\in\GenroSpDom{\functionInSet}$ and a vector $\vecY$ over $\GenroSpRng{\functionOutSet}$ to return an output in $\GenroSpRng{\functionInSet}$. Given a function $\aFunc{\functionOut} \in \GenroSp{\functionOutSet}$, we define the function $\mathrm{P}[\aFunc{\functionOut}]_{\QuTInv,\AnTInv} \Colon \GenroSpDom{\functionInSet}\to\GenroSpRng{\functionInSet}$ by 
+\begin{tabbing}
+	123456\=\kill
+	\> \underline{Function $\mathrm{P}[\aFunc{\functionOut}]_{\QuTInv,\AnTInv}(U)$} \comment{$U  \in % \supportQuT{\QuTInv} \subseteq 
+	\GenroSpDom{\functionInSet}$} \\[2pt]
+	\> $\vecW \gets \QuTInv(U)$ ; $\vecY\gets \aFunc{\functionOut}(\vecW)$ ;
+	$V\gets \AnTInv(U,\vecY)$ ; Return $V$
+\end{tabbing}
+Above, $\aFunc{\functionOut}$ is applied to a vector component-wise, meaning $\aFunc{\functionOut}(\vecW)$ is defined as the vector $(\aFunc{\functionOut}(\vecW[1]),\allowbreak \ldots,\allowbreak \aFunc{\functionOut}(\vecW[|\vecW|]))$. 
+% As the comment indicates, the input $U$ to the function is in $\supportQuT{\QuTInv} \subseteq \GenroSpDom{\functionInSet}$.
+
+We require that the function $\mathrm{P}[\aFunc{\functionOut}]_{\QuTInv,\AnTInv}$ belong to the starting space $\GenroSp{\functionInSet}$. Now let $\QuT$ be a $(\GenroSp{\functionInSet},\GenroSp{\functionOutSet})$-query translator and $\AnT$ a $(\GenroSp{\functionInSet},\GenroSp{\functionOutSet})$-answer translator. Let $\workDom\subseteq\GenroSpDom{\functionOutSet}$ be a working domain. We say that \textit{$\QuTInv,\AnTInv$ are inverses of $\QuT,\AnT$ over $\workDom$} if two conditions are true. The first is that for all  $\aFunc{\functionOut}\in\GenroSp{\functionOutSet}$ and all $W \in \workDom$ we have
+	\begin{equation}
+	\construct{TF}_{\QuT,\AnT}
+	[\mathrm{P}[\aFunc{\functionOut}]_{\QuTInv,\AnTInv}](W) = \aFunc{\functionOut}(W) \;.  \label{eq-invertible-def}
+	\end{equation}
+This equation needs some parsing. Fix a function $\aFunc{\functionOut}\in\GenroSp{\functionOutSet}$ in the ending space. Then $\aFunc{\functionIn} = \mathrm{P}[\aFunc{\functionOut}]_{\QuTInv,\AnTInv}$ is in $\GenroSp{\functionInSet}$. Recall that the functor $\construct{F} = \construct{TF}_{\QuT,\AnT}$ takes a function $\aFunc{\functionIn}$ in the starting space as an oracle and defines a function $\functionOut' = \construct{F}[\aFunc{\functionIn}]$ in the ending space. Equation~(\ref{eq-invertible-def}) is asking that $\functionOut'$ is identical to the original function $\functionOut$, on the working domain $\workDom$. The second condition (for invertibility) is that if $U\in \set{\QuT(W)[i]}{W\in\workDom}$ ---that is, $U$ is an entry of the vector $\vecU$ returned by $\QuT$ on some input $W$--- then $\QuTInv(U)\neq ()$. Note that if $\QuTInv$ has full support then this condition is already true, but otherwise it is an additional requirement.
+
+% the restriction of some function in $\GenroSp{\functionInSet}$ to inputs in $\supportQuT{\QuTInv}$. 
+
+We say that $(\QuT,\AnT)$ is invertible over $\workDom$ if there exist $\QuTInv,\AnTInv$ such that $\QuTInv,\AnTInv$ are inverses of $\QuT,\AnT$ over $\workDom$, and we say that a translating functor $\construct{TF}_{\QuT,\AnT}$ is invertible over $\workDom$ if $(\QuT,\AnT)$ is invertible over $\workDom$.
+
+In the rd-indiff context, function $\mathrm{P}[\aFunc{\functionOut}]_{\QuTInv,\AnTInv}$ will be used by the simulator. Roughly, we try to set $ \Simeval[\functionOut](\commoncoins, U) = \mathrm{P}[\aFunc{\functionOut}]_{\QuTInv,\AnTInv}(U)$. But we will only be able to successfully do this for $U \in \supportQuT{\QuTInv}$. The state $\commoncoins$ is used by $\Simeval$ to provide replies when $U \not\in \supportQuT{\QuTInv}$. 
+
+\begin{figure}[t]
+	\oneCol{0.5}{
+		\ExperimentHeader{Game $\ngameTI{\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\QuTInv,\AnTInv}$}
+		
+	%	\ExptSepSpace
+		
+		\begin{oracle}{$\Initialize$}
+			\item $b\getsr\bits$ ; $\aFunc{\functionOut} \getsr \GenroSp{\functionOutSet}$ 
+			\item $\functionIn_1\getsr \GenroSp{\functionInSet}$ ; 
+					$\functionIn_0 \gets \mathrm{P}[\aFunc{\functionOut}]_{\QuTInv,\AnTInv}$ 
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+
+		\begin{oracleC}{$\pub(U)$}{$U\in\GenroSpDom{\functionInSet}$}
+			\item If $\QuTInv(U)=()$ then return $\bot$
+			\item return $\functionIn_b(U)$
+		\end{oracleC}
+		\ExptSepSpace
+		
+		
+		\begin{oracle}{$\Finalize(b')$}
+			\item return $(b = b')$
+		\end{oracle}\smallskip
+	}
+	
+	\caption{Game defining translation indistinguishability.}
+	\label{fig:translating-condition}
+	\hrulefill
+\end{figure}
+
+
+
+Equation~(\ref{eq-invertible-def}) is a correctness condition. There is also a security metric. Consider the \textit{translation indistinguishability} game  $\ngameTI{\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\QuTInv,\AnTInv}$ of Figure~\ref{fig:translating-condition}. Define the ti-advantage of adversary $\advB$ via
+\[
+\AdvTI{\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\QuTInv,\AnTInv}{\advB} =
+2 \cdot \Pr\left[ \ngameTI{\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\QuTInv,\AnTInv}(\advB)\right] - 1.
+\]
+%	\begin{center}\begin{tabular}{cc|cc}
+%			\begin{minipage}{2in}
+%				\begin{tabbing}
+%					123\=\kill
+%					$\aFunc{\functionIn} \getsr \GenroSp{\functionInSet}$ \\
+%					For all $U\in\GenroSpDom{\functionInSet}$ do \\
+%					\> If $\QuTInv(U)=()$ then $\aFunc{\functionIn}(u)\gets\bot$ \\
+%					Return $\aFunc{\functionIn}$
+%			\end{tabbing} \end{minipage} &   \hspace{2pt}     &   \hspace{2pt}      &
+%			\begin{minipage}{2in}
+%				\begin{tabbing}
+%					123\=\kill
+%					$\aFunc{\functionOut} \getsr \GenroSp{\functionOutSet}$ ;
+%					$\aFunc{\functionIn} \gets \mathrm{P}[\aFunc{\functionOut}]_{\QuTInv,\AnTInv}$ \\
+%					For all $U\in\GenroSpDom{\functionInSet}$ do \\
+%					\> If $\QuTInv(U)=()$ then $\aFunc{\functionIn}(u)\gets\bot$ \\
+%					Return $\aFunc{\functionIn}$
+%				\end{tabbing}
+%			\end{minipage}
+%	\end{tabular}\end{center}
+In reading the game, recall that $()$ is the empty vector, whose return by $\QuTInv$ represents an inversion error. TI-security is thus asking that if $\aFunc{\functionOut}$ is randomly chosen from the ending space, then the output of $\mathrm{P}[\aFunc{\functionOut}]_{\QuTInv,\AnTInv}$ on an input $U$ is distributed like the output on $U$ of a random function in the starting space, \textit{but only as long as $\QuTInv(U)$ was non-empty}. We will see that the latter restriction creates some challenges in simulation whose resolution exploits using read-only state. We say that $(\QuTInv,\AnTInv)$ provides perfect translation indistinguishability if $\AdvTI{\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\QuTInv,\AnTInv}{\advB} = 0$ for all $\advB$, regardless of the running time of $\advB$. 
+
+%\begin{lemma}\label{th-qt-invertible} Suppose $\GenroSp{\functionInSet},\GenroSp{\functionOutSet}$ are function spaces. Suppose $\QuT$ is a $(\GenroSp{\functionInSet},\GenroSp{\functionOutSet})$-query translator and $\AnT$ is a $(\GenroSp{\functionInSet},\GenroSp{\functionOutSet})$-answer translator. Suppose the length of the vectors returned by $\QuT$ and $\AnT$ are one. Suppose $\QuTInv,\AnTInv$ are full inverses of $\QuT,\AnT$ over $\workDom$. 
+%
+
+%Let $\aFunc{\functionInSet}$ and $\aFunc{\functionOutSet}$ be function spaces such that $\GenroSpRng{\functionInSet} = \GenroSpRng{\functionOutSet}$. Let $\workDom \subseteq \GenroSpDom{\functionOutSet}$. Let $\QuT\Colon \GenroSpDom{\functionOutSet} \to \GenroSpDom{\functionInSet}$ be a query translation for $\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\workDom$ with inverse $\QuTInv$. 
+%	Let $\AnT \Colon \GenroSpDom{\functionOutSet}\cross \GenroSpRng{\functionInSet} \to \GenroSpRng{\functionOutSet}$ be defined such that $\AnT(x,y) = y$ for all $x \in \GenroSpDom{\functionOutSet}$ and $y \in \GenroSpRng{\functionInSet}$.
+%	Then $(\QuT,\AnT)$ is invertible.
+%\end{lemma}
+
+
+
+Additionally we of course ask that the functions $\QuT,\AnT,\QuTInv,\AnTInv$ all be efficiently computable. In an asymptotic setting, this means they are polynomial time. In our concrete setting, they show up in the running-time of the simulator or constructed adversaries. (The latter, as per our conventions, being the time for the execution  of the adversary with the overlying game.) 
+
+\subsection{Rd-indiff of translating functors} 
+
+We now move on to showing that invertibility of a pair $(\QuT,\AnT)$ implies rd-indifferentiability of the translating functor $\construct{TF}_{\QuT,\AnT}$.
+%  We indicated above that simulation is harder when $\QuTInv$ may return the empty vector $()$. We will distinguish this case. Define the \textit{support} of $\QuTInv$, denoted $\supportQuT{\QuTInv}$, to be the set of all $U\in\GenroSpDom{\functionInSet}$ such that $\QuTInv(U)\neq ()$. Say that $\QuTInv$ has \textit{full support} if $\supportQuT{\QuTInv} = \GenroSpDom{\functionInSet}$, meaning there is no $U \in \GenroSpDom{\functionInSet}$ such that $\QuTInv(U)=()$.
+% In this case, the second condition in the invertibility requirement above simplifies, with $p$, in both experiments, never returning $\bot$. 
+We start with the case that $\QuTInv$ has full support.
+
+
+\begin{figure}[t]
+	\begin{twoCols}{0.25}{0.6}{
+			\begin{algorithm}{Algorithm $\SimgenCC$}
+				\item Return $\emptystring$
+			\end{algorithm}
+		}
+		{
+			\begin{algorithm}{Algorithm $\Simeval[\aFunc{\functionOut}](\commoncoins,U)$}
+				\item $\vecW\gets\QuTInv(U)$ ; $\vecY \gets \aFunc{\functionOut}(\vecW)$ ; $V\gets\AnTInv(U,\vecY)$
+				\item Return $V$ \smallskip
+			\end{algorithm}
+		}
+	\end{twoCols}
+	\begin{twoCols}{0.25}{0.6}{
+			\begin{algorithm}{Algorithm $\SimgenCC$}
+				\item $\commoncoins \getsr \bits^{\prfKl}$
+				\item Return $\commoncoins$
+			\end{algorithm}
+		}
+		{
+			\begin{algorithm}{Algorithm $\Simeval[\aFunc{\functionOut}](\commoncoins,U)$}
+				\item $\vecW\gets\QuTInv(U)$
+				\item If $\vecW=()$ then return $\prf_{\commoncoins}[{\functionOut}](U)$
+				\item $\vecY \gets \aFunc{\functionOut}(\vecW)$ ; $V\gets\AnTInv(U,\vecY)$
+				\item Return $V$
+			\end{algorithm}\smallskip
+		}
+	\end{twoCols}
+	\caption{Simulators for Theorem~\ref{th-cc-indiff-invertible} (top) and Theorem~\ref{th-cc-indiff-invertible-gen} (bottom).}
+	\label{fig-th-cc-indiff-invertible}
+	\label{fig:cc-indiff-sims}
+\end{figure}
+
+\begin{theorem}\label{th-cc-indiff-invertible}  Let $\GenroSp{\functionInSet}$ and $\GenroSp{\functionOutSet}$ be function spaces. Let $\workDom$ be a subset of $\GenroSpDom{\functionOutSet}$.
+	Let $\QuT,\AnT$ be $(\GenroSp{\functionInSet},\GenroSp{\functionOutSet})$ query and answer translators, respectively. Let $\QuTInv,\AnTInv$ be inverses of $\QuT,\AnT$ over $\workDom$. Assume $\QuTInv$ has full support. Define read-only simulator $\simulator$ as per the top panel of Figure~\ref{fig-th-cc-indiff-invertible}.
+	Let $\construct{F} = \construct{TF}_{\QuT,\AnT}$. Let $\advA$ be any distinguisher.  Then we construct a ti-adversary $\advB$ such that
+	\begin{align*}
+	\AdvCCINDIFF{\construct{F},\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\workDom,\simulator}{\advA}  & \leq \AdvTI{\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\QuTInv,\AnTInv}{\advB} \;.
+	\end{align*}
+	Let $\ell$ be the maximum output length of $\QuT$. 
+	If $\advA$ makes $q_{\priv},q_{\pub}$ queries to its $\priv,\pub$ oracles, respectively, then $\advB$ makes $\ell\cdot q_{\priv}+q_{\pub}$ queries to its $\pub$ oracle. The running time of $\advB$ is about that of $\advA$. 
+\end{theorem}
+\begin{figure}[t]
+	\twoCols{0.48}{0.38}{
+		\ExperimentHeader{Games $\Gm_0$, $\Gm_1$} 
+		
+		\begin{oracle}{$\Initialize$}
+			\item $\aFunc{\functionIn} \getsr \GenroSp{\functionInSet}$\Comment{Game $\Gm_0$} 
+			\item $\aFunc{\functionOut}_0 \getsr \GenroSp{\functionOutSet}$ ; 
+			$\functionIn \gets \mathrm{P}[\aFunc{\functionOut}_0]_{\QuTInv,\AnTInv}$ \ccomment{Game $\Gm_1$}
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\priv(W)$}
+			\item If $W\in\workDom$ then return $\construct{F}[\aFunc{\functionIn}](W)$
+			\item Else return $\bot$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\pub(U)$}
+			\item return $\aFunc{\functionIn}(U)$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(b')$}
+			\item return $(b' = 1)$
+		\end{oracle}
+		
+		%	\ExperimentHeader{Game $\Gm_1$} 
+		%
+		%		\begin{oracle}{$\Initialize$}
+		%			
+		%			\item $\aFunc{\functionOut}_1 \gets \construct{F}[\aFunc{\functionIn}]$ 	
+		%		%	\item $\commoncoins \getsr \SimgenCC()$
+		%		\end{oracle}
+		%		
+		%		\ExptSepSpace
+		%
+		%		
+		%		\begin{oracle}{$\priv(X)$}
+		%			\item If $X\not\in\workDom$ then 
+		%			\item \hindent return $\bot$ 
+		%			\item return $\aFunc{\functionOut}_1(X)$
+		%		\end{oracle}
+		%		\ExptSepSpace
+		%		
+		%		\begin{oracle}{$\pub(U)$}
+		%			\item return $\aFunc{\functionIn}(U)$
+		%		\end{oracle}
+		%		
+		%		\ExptSepSpace
+		%		
+		%		\begin{oracle}{$\Finalize(b')$}
+		%			\item return $(b' = 1)$
+		%		\end{oracle}
+	}
+	{
+		\ExperimentHeader{Game $\Gm_2$} 
+		
+		\begin{oracle}{$\Initialize$}
+			\item $\aFunc{\functionOut}_0 \getsr \GenroSp{\functionOutSet}$ 
+			\item  $\functionIn \gets \mathrm{P}[\aFunc{\functionOut}_0]_{\QuTInv,\AnTInv}$
+			% \item $\aFunc{\functionOut}_1 \gets \construct{F}[\aFunc{\functionIn}]$ 	
+			% \item $\commoncoins \getsr \SimgenCC()$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		
+		\begin{oracle}{$\priv(W)$}
+			\item If $W\in\workDom$ then return $\aFunc{\functionOut}_0(W)$
+			\item Else return $\bot$ 
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\pub(U)$}
+			\item return $\aFunc{\functionIn}(U)$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(b')$}
+			\item return $(b' = 1)$
+		\end{oracle}
+	}
+	\twoColsNoDivide{0.38}{0.5}{
+		\begin{algorithm-initial}{Adversary $\advB$}
+			\item $\Initialize()$
+			\item $\advA[\Init', \pub', \priv', \Fin']()$
+		\end{algorithm-initial} 
+		
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\Init'$}
+			\item Return
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\pub'(U)$}
+			\item return $\pub(U)$
+		\end{algorithm-subsequent}
+	}{
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\priv'(W)$}
+			\item if $W \not \in \workDom$ then return $\bot$
+			\item $\vecU \gets \QuT(W)$
+			\item For $j=1,\ldots,|\vecU|$ do 
+			$\vecV[j] \gets \pub(\vecU[j])$
+			\item return $\AnT(W,\vecV)$
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\Fin'(b')$}
+			\item $\Finalize(b')$
+		\end{algorithm-subsequent}
+	}
+	\caption{Top: Games for proof of Theorem~\ref{th-cc-indiff-invertible}. Bottom: Adversary for proof of Theorem~\ref{th-cc-indiff-invertible}.}
+	\label{fig:th-cc-indiff-invertible-games}
+	\hrulefill
+\end{figure}
+\begin{proof}[Theorem~\ref{th-cc-indiff-invertible}] Consider the games of Figure~\ref{fig:th-cc-indiff-invertible-games}. In the left panel, line 1 is included only in $\Gm_0$ and line 2 only in $\Gm_1$, and this is the only way the games differ. Game $\Gm_0$ is the real game, meaning the case $b=1$ in game $\ngameCCINDIFF{\construct{F},\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\workDom,\simulator}$. In game $\Gm_2$, oracle $\priv$ is switched to a random function $\functionOut_0$. From the description of the simulator in Figure~\ref{fig:cc-indiff-sims} we see that
+	\begin{align*}
+	\Simeval[\functionOut_0](\emptystring,U) &= \mathrm{P}[\aFunc{\functionOut}_0]_{\QuTInv,\AnTInv}(U)
+	\end{align*}
+	for all $U\in \GenroSpDom{\functionInSet}$ and all $\functionOut_0\in\GenroSp{\functionOutSet}$, so that oracle $\pub$ in game $\Gm_2$ is responding according to the simulator based on $\functionOut_0$. So game $\Gm_2$ is the case $b=0$ in game $\ngameCCINDIFF{\construct{F},\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\workDom,\simulator}$. Thus
+	\begin{align*}
+	\AdvCCINDIFF{\construct{F},\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\workDom,\simulator}{\advA} & =  \Pr[\Gm_0(\advA)] - \Pr[\Gm_2(\advA)] \\
+	&= (\Pr[\Gm_0(\advA)] - \Pr[\Gm_1(\advA)])+(\Pr[\Gm_1(\advA)] - \Pr[\Gm_2(\advA)]) \;.
+	\end{align*}
+	We define translation-indistinguishability adversary $\advB$ in Figure~\ref{fig:th-cc-indiff-invertible-games} so that 
+	\begin{align*}
+	\Pr[\Gm_0(\advA)] - \Pr[\Gm_1(\advA)] & \leq \AdvTI{\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\QuTInv,\AnTInv}{\advB} \;.
+	\end{align*}
+	Adversary $\advB$ is playing game  $\ngameTI{\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\QuTInv,\AnTInv}$. Using its $\pub$ oracle, it presents the interface of $\Gm_0$ and $\Gm_1$ to $\advA$. In order to simulate the $\priv$ oracle, $\advB$ runs $\construct{TF}_{\QuT,\AnT}[\pub]$. This is consistent with $\Gm_0$ and $\Gm_1$. If $b=1$ in $\ngameTI{\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\QuTInv,\AnTInv}$, then $\advB$ perfectly simulates $\Gm_0$ for $\advA$. If $b=1$, then $\advB$ correctly simulates $\Gm_1$ for $\advA$.
+	To complete the proof we claim that  
+	\begin{align*}
+	\Pr[\Gm_1(\advA)] &= \Pr[\Gm_2(\advA)]  \;.
+	\end{align*}
+	This is true by the correctness condition. The latter says that if $\functionIn \gets \mathrm{P}[\aFunc{\functionOut}_0]_{\QuTInv,\AnTInv}$ then $\construct{F}[\aFunc{\functionIn}]$ is just $\functionOut_0$ itself. So $\functionOut_1$ in game $\Gm_1$ is the same as $\functionOut_0$ in game $\Gm_2$, making their $\priv$ oracles identical. And their $\pub$ oracles are identical by definition. \qed
+\end{proof}
+
+\medskip
+
+\begin{figure}[t]
+	\twoColsNoDivide{0.3}{0.3}{
+		\ExperimentHeader{$\ngamePRF{\prf,\GenroSp{\functionInSet},\GenroSp{\functionOutSet}}$}
+		
+		\begin{oracle}{$\Initialize()$}
+			\item $b \getsr \bits$
+			\item $\functionOut \getsr \GenroSp{\functionOutSet}$
+			\item $\commoncoins \getsr \bits^{\prfKl}$
+			\item $\functionIn_1 \gets \prf[\functionOut](\commoncoins,\cdot)$ 
+			\item $\functionIn_0 \getsr \GenroSp{\functionInSet}$
+		\end{oracle}
+	}{
+		\begin{oracle}{$\RO(W)$}
+			\item Return $\functionOut(W)$
+		\end{oracle}
+		\ExptSepSpace
+		\begin{oracle}{$\FnO(U)$}
+			\item $V \gets \functionIn_b(U)$ 
+			\item Return $V$
+		\end{oracle}
+		\ExptSepSpace
+		\begin{oracle}{$\Finalize(b')$}
+			\item Return $(b' = b)$
+		\end{oracle}
+	}
+	
+	\caption{Game to define PRF security of $(\GenroSp{\functionInSet},\GenroSp{\functionOutSet})$-oracle aided PRF $\prf$.}\label{fig-prf}
+	\hrulefill
+\end{figure}
+
+
+\noindent The simulator in Theorem~\ref{th-cc-indiff-invertible} is stateless, so when $\workDom$ is chosen to be $\GenroSpDom{\functionOutSet}$ the theorem is establishing reset indifferentiability~\cite{EC:RisShaShr11} of $\construct{F}$. 
+
+For translating functors where $\QuTInv$ does not have full support, we need an auxiliary primitive that we call a $(\GenroSp{\functionInSet},\GenroSp{\functionOutSet})$-oracle aided PRF. Given an oracle for a function $\functionOut\in\GenroSp{\functionOutSet}$, an $(\GenroSp{\functionInSet},\GenroSp{\functionOutSet})$-oracle aided PRF $\prf$ defines a function $\prf[\functionOut]\Colon\bits^{\prfKl}\cross\GenroSpDom{\functionInSet}\to\GenroSpRng{\functionInSet}$. The first input is a key. For $\advC$ an adversary, let $\prfAdv{\prf,\GenroSp{\functionInSet},\GenroSp{\functionOutSet}}{\advC} = 2\Pr[\ngamePRF{\prf,\GenroSp{\functionInSet},\GenroSp{\functionOutSet}}(\advC)]-1$, where the game is in Figure~\ref{fig-prf}. The simulator uses its read-only state to store a key $\commoncoins$ for $\prf$, then using $\prf(\commoncoins,\cdot)$ to answer queries outside the support $\supportQuT{\QuTInv}$. 
+
+We introduce this primitive because it allows multiple instantiations. The simplest is that it is a PRF, which happens when it does not use its oracle. In that case the simulator is using a computational primitive (a PRF) in the indifferentiability context, which seems novel. Another instantiation prefixes $\commoncoins$ to the input and then invokes $e$ to return the output. This works for certain choices of $\GenroSp{\functionOutSet}$, but not always. Note $\prf$ is used only by the simulator and plays no role in the functor. 
+
+
+
+
+
+
+
+
+% We will use this prefix as the key of a pseudorandom function $\prf \Colon \bits^{\prfKl} \times \GenroSpDom{\functionInSet}\to \GenroSpRng{\functionOutSet}$, which may query the random oracle $\aFunc{\functionOut}_0$.
+
+
+
+
+
+
+
+% We will also need some assumptions on the function spaces and the query translator, for which we give some definitions.
+
+
+
+% This is now assumed already in the definitions, no special name needed.
+%Let $(\QuT,\AnT)$ be invertible with inverses $\QuTInv$ and $\AnTInv$. We say that $\QuTInv$ is a full inverse of $\QuT$ if $\QuTInv$ never returns $()$ on the image of $\QuT$; that is, if $\QuTInv$ never fails to invert a query in $\GenroSpDom{\functionInSet}$ that could be output by $\QuT$. 
+
+
+\begin{figure}[t]
+	\twoCols{0.44}{0.42}{
+		\ExperimentHeader{Games $\Gm_0$, $\Gm_1$} 
+		
+		\begin{oracle}{$\Initialize$}
+			\item $\aFunc{\functionIn}_1 \getsr \GenroSp{\functionInSet}$ 
+			\item $\aFunc{\functionIn}_2 \getsr \GenroSp{\functionInSet}$ \Comment{Game $\Gm_1$}
+			\item $\aFunc{\functionOut}_1 \gets \construct{F}[\aFunc{\functionIn}_1]$
+			
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\priv(W)$}
+			\item If $W\in\workDom$ then return $\aFunc{\functionOut}_1(W)$
+			\item Else return $\bot$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\pub(U)$}
+			\item if $\QuTInv(U) = ()$ then
+			\item \hindent return $\aFunc{\functionIn}_2(U)$ \Comment{Game $\Gm_1$}
+			\item return $\aFunc{\functionIn}_1(U)$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(b')$}
+			\item return $(b' = 1)$
+		\end{oracle}
+	}
+	{
+		\ExperimentHeader{Game $\Gm_2,\Gm_3$} 
+		
+		\begin{oracle}{$\Initialize$}
+			\item $\aFunc{\functionOut}_0 \getsr \GenroSp{\functionOutSet}$ 
+			\item  $\functionIn_1 \gets \mathrm{P}[\aFunc{\functionOut}_0]_{\QuTInv,\AnTInv}$ 
+			\item $\aFunc{\functionIn}_2 \getsr \GenroSp{\functionInSet}$ \ccomment{Game $\Gm_2$}
+			\item $\functionOut_1 \gets \construct{F}[\aFunc{\functionIn}_1]$
+			% \item $\aFunc{\functionOut}_1 \gets \construct{F}[\aFunc{\functionIn}]$ 	
+			\item $\commoncoins \getsr \SimgenCC()$ \ccomment{Game $\Gm_3$}
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		
+		\begin{oracle}{$\priv(W)$}
+			\item If $W\in\workDom$ then return $\aFunc{\functionOut}_1(W)$
+			\item Else return $\bot$ 
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\pub(U)$}
+			\item if $\QuTInv(U) = ()$ then
+			\item \hindent return $\aFunc{\functionIn}_2(U)$ \ccomment{Game $\Gm_2$}
+			\item \hindent return $\prf_{\commoncoins}[\functionOut_0](U)$ \ccomment{Game $\Gm_3$}
+			\item return $\aFunc{\functionIn}_1(U)$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(b')$}
+			\item return $(b' = 1)$
+		\end{oracle}
+	}
+	\twoColsNoDivide{0.44}{0.42}
+	{
+		\ExperimentHeader{Game $\Gm_4$} 
+		
+		\begin{oracle}{$\Initialize$}
+			\item $\aFunc{\functionOut}_0 \getsr \GenroSp{\functionOutSet}$ 
+			\item  $\functionIn_1 \gets \mathrm{P}[\aFunc{\functionOut}_0]_{\QuTInv,\AnTInv}$
+			% \item $\aFunc{\functionOut}_1 \gets \construct{F}[\aFunc{\functionIn}]$ 	
+			\item $\commoncoins \getsr \SimgenCC()$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\priv(W)$}
+			\item If $W\in\workDom$ then return $\functionOut_0(W)$
+			\item Else return $\bot$ 
+		\end{oracle}
+	}{
+		
+		\begin{oracle}{$\pub(U)$}
+			\item if $\QuTInv(U) = ()$ then
+			\item \hindent return $\prf[\functionOut_0]_{\commoncoins}(U)$
+			\item return $\aFunc{\functionIn}_1(U)$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(b')$}
+			\item return $(b' = 1)$
+		\end{oracle}
+	}
+	
+	\caption{Games for proof of Theorem~\ref{th-cc-indiff-invertible-gen}.}
+	\label{fig:th-cc-indiff-invertible-gen-games}
+	\hrulefill
+\end{figure}
+
+\begin{figure}[t]
+	\twoCols{0.44}{0.42}{
+		\begin{algorithm-initial}{Adversary $\advB$}
+			\item $\Initialize()$
+			\item $\advA[\Init', \pub', \priv', \Fin']()$
+		\end{algorithm-initial} 
+		
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\Init'$}
+			\item Return
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\pub'(U)$}
+			\item if $T[U] \neq \bot$ then return $T[U]$
+			\item $W \gets \pub(U)$
+			\item if $W = \bot$ then
+			\item \hindent $(i,X) \gets U$
+			\item \hindent $T[U] \getsr \FSOutSet(U)$
+			\item \hindent $W \gets T[U]$
+			\item return $W$
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\priv'(W)$}
+			\item if $W \in \workDom$ then return $\construct{F}[\pub](W)$
+			\item Else return $\bot$
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\Fin'(b')$}
+			\item $\Finalize(b')$
+		\end{algorithm-subsequent}
+	}{	
+		\begin{algorithm-initial}{Adversary $\advC$}
+			\item $\Initialize()$
+			\item $\advA[\Init', \pub', \priv', \Fin']()$
+		\end{algorithm-initial} 
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\Init'$}
+			\item Return
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\pub'(U)$}
+			\item if $\QuTInv(U) = ()$ then
+			\item \hindent return $\FnO(U)$
+			\item return $\mathrm{P}[\RO]_{\QuTInv,\AnTInv}(U)$
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\priv'(W)$}
+			\item If $W \in \workDom$ then 
+			\item \hindent return $\construct{F}[\pub'](W)$
+			\item Else return $\bot$
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\Fin'(b')$}
+			\item $\Finalize(b')$
+		\end{algorithm-subsequent}
+	}
+	\caption{Adversaries for proof of Theorem~\ref{th-cc-indiff-invertible-gen}.}
+	\label{fig:th-cc-indiff-invertible-gen-adversaries}
+	\hrulefill
+\end{figure}
+
+% Let $\domain,\rangeSet$ be non-empty, finite sets. Recall that a function space $\GenroSp{H} \subseteq \AllFuncs{\domain}{\rangeSet}$ is $q$-wise independent if for all distinct $U_1,\ldots,U_q\in\domain$ and all $V_1,\ldots,V_q\in\rangeSet$ we have
+%\begin{align*}
+%\Pr[\aFunc{h}(U_1)=V_1\mbox{ and }\cdots\mbox{ and }\aFunc{h}(U_q)=V_q] &= %\frac{1}{|\rangeSet|^q} \;,
+%\end{align*}
+%where the probability is over $\aFunc{h} \getsr \GenroSp{H}$.
+
+\begin{theorem}\label{th-cc-indiff-invertible-gen}  Let $\GenroSp{\functionInSet}$ and $\GenroSp{\functionOutSet}$ be function spaces, and assume they provide input independence. Let $\workDom$ be a subset of $\GenroSpDom{\functionOutSet}$.
+	Let $\QuT,\AnT$ be $(\GenroSp{\functionInSet},\GenroSp{\functionOutSet})$ query and answer translators, respectively. Let $\QuTInv,\AnTInv$ be inverses of $\QuT,\AnT$ over~$\workDom$.
+	% This is now the default
+	% , and assume that $\QuTInv$ is a full inverse of $\QuT$.
+	Define read-only simulator $\simulator$ as per the bottom panel of Figure~\ref{fig-th-cc-indiff-invertible}.
+	Let $\construct{F} = \construct{TF}_{\QuT,\AnT}$. Let $\advA$ be any distinguisher.  Then we construct a ti-adversary $\advB$ and a prf-adversary $\advC$ such that
+	\begin{align*}
+	\AdvCCINDIFF{\construct{F},\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\workDom,\simulator}{\advA}  & \leq \AdvTI{\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\QuTInv,\AnTInv}{\advB} +\prfAdv{\prf,\GenroSp{\functionInSet}}{\advC} \;.
+	\end{align*}
+	Let $\ell$ be the maximum output length of $\QuT$ and $\ell'$ the maximum output length of $\QuTInv$.
+	If $\advA$ makes $q_{\priv},q_{\pub}$ queries to its $\priv,\pub$ oracles, respectively, 
+	then $\advB$ makes $\ell\cdot q_{\priv}+q_{\pub}$ queries to its $\pub$ oracle 
+	and $\advC$ makes at most $\ell\cdot \ell'\cdot q_{\priv}+ q_{\pub}$ queries to its $\RO$ oracle 
+	and at most $q_{\pub}+\ell\cdot q_{\priv}$ queries to its $\FnO$ oracle. The running times of $\advB,\advC$ are about that of $\advA$.
+	\end{theorem}
+
+	\begin{proof}[Theorem~\ref{th-cc-indiff-invertible-gen}] We will rely on the sequence of games in Figure~\ref{fig:th-cc-indiff-invertible-gen-games}. The first game $G_0$ is the real game, meaning the case $b=1$ in game $\ngameCCINDIFF{\construct{F},\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\workDom,\simulator}$. 
+	Game $\Gm_1$ differs from $\Gm_0$ because it samples an additional function $\aFunc{\functionIn}_2$ from the starting space. When an inversion error occurs in the $\pub$ oracle, game $\Gm_1$ answers using $\aFunc{\functionIn}_2$ instead of $\aFunc{\functionIn}_1$. Since the starting space $\GenroSp{\functionInSet}$ provides input independence, both $\aFunc{\functionIn}_1$ and $\aFunc{\functionIn}_2$ are drawn from $\AllFuncs{\GenroSpDom{\functionInSet}}{\FSOutSet}$ for some $\FSOutSet$. Then on any input $U$, the outputs of $\aFunc{\functionIn}_1$ and $\aFunc{\functionIn}_2$ are identically and independently distributed. The adversary can therefore only tell that queries outside the support of $\QuTInv$ are not being answered by $\aFunc{\functionIn}_1$ if the $\pub$ oracle becomes inconsistent with the $\priv$ oracle. This happens only if the $\priv$ oracle, while computing $\construct{F}[\aFunc{\functionIn}_1] = \construct{TF}_{\QuT,\AnT}[\aFunc{\functionIn}_1]$, queries $\aFunc{\functionIn}_1$ on some point outside the support of $\QuTInv$, which is impossible by the first condition in the definition of invertibility.  Hence
+	\[\Pr[\Gm_0(\advA)] = \Pr[\Gm_1(\advA)].\]
+	Between games $\Gm_1$ and $\Gm_2$, we draw a function $\functionOut_0$ from the ending space and replace $\aFunc{\functionIn}_1$ with $\mathrm{P}_{\QuTInv,\AnTInv}[\functionOut_0]$.
+	We construct the translation-indistinguishability adversary $\advB$ in Figure~\ref{fig:th-cc-indiff-invertible-gen-games} so that 
+	\[ 	\Pr[\Gm_1(\advA)]-\Pr[\Gm_2(\advA)] \leq \genAdv{ti}{\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\QuTInv,\AnTInv}{\advB}. \]
+	This adversary simulates the interface of $\Gm_1$ and $\Gm_2$ for $\advA$, using its $\pub$ oracle to implement $\aFunc{\functionIn}_1$ and check for inversion errors. It lazily samples $\aFunc{\functionIn}_2$, which is consistent with $\Gm_1$ and $\Gm_2$ by the input independence of $\GenroSp{\functionInSet}$. Its $\priv'$ oracle runs $\construct{F}[\pub]$, which is consistent. 
+	When the challenge bit $b = 1$ in game $\nGame{ti}{\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\QuTInv,\AnTInv}$, adversary $\advB$ simulates game $\Gm_1$ perfectly, and when $b=0$ it perfectly simulates game $\Gm_2$.
+	
+	In game $\Gm_3$, we replace $\aFunc{\functionIn}_2$ with an $(\GenroSp{\functionInSet},\GenroSp{\functionOutSet})$-oracle-aided pseudorandom function $\prf$ and sample a PRF key $\commoncoins$ in the $\Initialize$ oracle. We construct an adversary $\advC$ in Figure~\ref{fig:th-cc-indiff-invertible-gen-games} against the PRF-security of $\prf$. This adversary plays game $\nGame{prf}{\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\prf}$ and simulates the interface of games $\Gm_2$ and $\Gm_3$ for $\advA$. It uses its $\RO$ oracle to simulate $\aFunc{\functionOut}_0$, and it uses its $\FnO$ oracle to answer $\pub$ queries outside the support of $\QuTInv$. When $b=0$ in game $\nGame{prf}{\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\prf}$, the adversary perfectly simulates $\Gm_2$ for $\advA$, and when $b=1$ it perfectly simulates $\Gm_3$.
+	Therefore
+	\[\Pr[\Gm_2(\advA)]-\Pr[\Gm_3(\advA)] \leq \genAdv{prf}{\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\prf}{\advC}.\]
+	In Game $\Gm_4$, we answer $\priv$ queries with $\functionOut_0$ directly, instead of with $\construct{F}[\mathrm{P}_{\QuTInv,\AnTInv}[\functionOut_0]]$. By the correctness condition of invertibility, these two functions are identical, so
+	\[\Pr[\Gm_3(\advA)] = \Pr[\Gm_4(\advA)].\]
+	
+	Looking at the pseudocode for simulator $\simulator$ in the bottom panel of Figure~\ref{fig:cc-indiff-sims}, we see that $\Simeval[\functionOut]$ first runs $\QuTInv$ on its input $U$. If $\QuTInv(U)=()$, then it returns $\prf_{\commoncoins}[\functionOut](U)$. Otherwise, it runs $\mathrm{P}[\functionOut]_{\QuTInv,\AnTInv}(U)$ and returns the output. This is identical to lines 6-8 of game $\Gm_4$, so $\advA$ wins $\Gm_4$ if and only if it loses the ideal game (meaning the case $b=0$), of the rd-indiff game $\nGame{rd-indiff}{\construct{F},\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\workDom,\simulator}$. Thus
+	\begin{align*} \advRINDIFF{\construct{F},\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\workDom,\simulator}{\advA} &= \Pr[\Gm_0(\advA)]-\Pr[\Gm_4(\advA) \\
+	&= \Pr[\Gm_1(\advA)] - \Pr[\Gm_3(\advA)]\\
+	&= (\Pr[\Gm_1(\advA)] - \Pr[\Gm_2(\advA)] )+( \Pr[\Gm_2(\advA)] - \Pr[\Gm_3(\advA))]\\
+	&\leq \genAdv{ti}{\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\QuTInv,\AnTInv}{\advB} + \genAdv{prf}{\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\prf}{\advC} .
+	\end{align*}
+	This completes the proof. \qed
+\end{proof}

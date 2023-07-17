@@ -1,0 +1,48 @@
+\section{Filtered indifferentiability of MD}\label{sec-fi-md} 
+ 
+Above, we defined the functor $\construct{MD}$. It is not indifferentiable, for multiple reasons. However, what we now want to show is that it is filter-indifferentiable with respect to the filter $\FltEDDSA$ defined above.
+In short, our goal is to prove the following theorem: 
+
+\begin{theorem}
+	\label{th-md-indiff} Let $\construct{MD}\Colon \allowbreak \AllFuncs(\bits^{4k},\allowbreak \bits^{2k}) \allowbreak  \to \allowbreak  \AllFuncs(\bits^{*}, \allowbreak  \bits^{2k})$ be the functor presented in Section~\ref{sec-fi}, and let $\Filter = \FltEDDSA$ be the filter of Section~\ref{sec-schemes}. Let $\advD$ be any distinguisher, and let $\ell$ be an integer such that all of $\advD$'s queries to $\PrivO$ have length no more than $2k\cdot \ell$ bits. Then there exists a simulator $\simulator$, making at most $\qsim$ queries per execution of $\simulator.\Eval$, such that
+	\begin{align*}
+	\findiffAdv{\construct{MD},\simulator,\Filter}{\advD} \leq& \frac{(\ell \cdot \Queries{\advD}{\PrivO} + \Queries{\advD}{\PubO})(\ell \cdot \Queries{\advD}{\PrivO} + 2\Queries{\advD}{\PubO}) + \Prime(\ell \cdot \Queries{\advD}{\PrivO})(\ell \cdot \Queries{\advD}{\PrivO} + \Queries{\advD}{\PubO})}{2^{2k}}\\
+&+\frac{4(\ell \cdot \Queries{\advD}{\PrivO}+\Queries{\advD}{\PubO})+ 2\Queries{\advD}{\PrivO}+(\ell \cdot \Queries{\advD}{\PrivO})^2 + \ell \cdot \Queries{\advD}{\PrivO}}{2^k}.
+	\end{align*}
+ The running time of $\simulator$ is approximately $\bigO(\Queries{\advD}{\PrivO}\ell + \Queries{\advD}{\PubO})$, and it makes $\Queries{\advD}{\PrivO}\ell+\Queries{\advD}{\PubO}$ queries across all executions.
+\end{theorem}
+
+We prove this result by leveraging the weak public indifferentiability of the MD transform in two lemmas.
+\begin{lemma}
+	\label{th-md-wp-indiff}
+	Let $\construct{MD}$ and $\advD$ be as above. There exists a simulator, $\simulator$, such that 
+	\begin{align*}
+	\genAdv{\wpindiff}{\construct{MD},\simulator}{\advD} \leq& \frac{(\ell \cdot \Queries{\advD}{\PrivO} + \Queries{\advD}{\PubO})^2}{2^{2k}}+ \frac{\Queries{\advD}{\PubO}(\ell \cdot \Queries{\advD}{\PrivO} + \Queries{\advD}{\PubO})}{2^{2k}}.
+	\end{align*} The running time of $\simulator$ is approximately $\bigO(\Queries{\advD}{\PrivO}\ell + \Queries{\advD}{\PubO})$, and it makes $ \Queries{\advD}{\PrivO}\ell+\Queries{\advD}{\PubO}$ queries across all executions.
+\end{lemma}
+This lemma follows directly from Theorem 7.1 of~\cite{EC:DodRisShr09}, on the public indifferentiability of the MD transform.
+Weak public indifferentiability is the restriction of public indifferentiability to the class of distinguishers which do not access the RO transcript interface; thus the same bound applies.
+
+A second lemma, which we prove in Appendix~\ref{apx-md-indiff}, captures the reduction from filtered indifferentiability to weak public indifferentiability. 
+Notice that we will use the same simulator $\simulator$ for both filtered and weak public indifferentiability; the two games present the same interface to the simulator. 
+
+\begin{lemma}
+	\label{th-flt-to-pub-indiff}
+	Let $\construct{MD}$, $\Filter=\FltEDDSA$, and $\advD$ be as in Theorem~\ref{th-md-indiff}. Then there exists a distinguisher $\advD^{\prime}$ such that for any simulator $\simulator$,
+	\begin{align*}
+		%\hspace{-80pt}
+ \findiffAdv{\construct{MD}, \simulator, \Filter}{\advD} \leq& \genAdv{\wpindiff}{\construct{MD},\simulator}{\advD^{\prime}} +\frac{2\Queries{\simulator}{\HH_0}+ 2\Queries{\advD}{\PrivO}+2(\Queries{\advD}{\PubO} + \ell \cdot \Queries{\advD}{\PrivO})}{2^k} \\
+ &+ \frac{(\ell \cdot \Queries{\advD}{\PrivO})^2 + \ell \cdot \Queries{\advD}{\PrivO}+\Prime(\ell \cdot \Queries{\advD}{\PrivO})(\ell \cdot \Queries{\advD}{\PrivO} + \Queries{\advD}{\PubO})}{2^{2k}}. 
+\end{align*}
+
+The adversary $\advD^{\prime}$ makes at most $\Queries{\advD}{\PrivO}$ queries to $\PrivO$, each with length at most $2k \cdot \ell$ bits and $\Queries{\advD}{\eHASH}$ queries to $\PubO$, and it has runtime approximately equal to that of $\advD$.
+\end{lemma}
+	
+
+%\begin{lemma}\label{th-chop-md-lemma} Let $k$, $\construct{MD}$, $\Out$,$\roSp_1$, $\roSp_2$ and $\construct{F}$ be as defined in Lemma~\ref{th-flt-to-std-indiff}.
+%\mihirnote{Probably also want to assume that $\Out$ is $\epsilon$-sampleable; this does not seem to be assumed in Lemma~\ref{th-flt-to-std-indiff} but you use $\epsilon$ below.}
+%Then there exists a simulator $\simulator$ such that for any adversary $\advB$ which makes $q_{\PubO}$ queries to $\PubO$ and $q_{\PrivO}$ queries of length at most $\ell \cdot 2k$ to $\PrivO$ 
+%	\[\genAdv{\indiff}{\construct{F},\simulator,\roSp_1,\roSp_2}{\advB} \leq \frac{q_{\PubO}^2+8(q_{\PubO}+q_{\PrivO}\cdot \ell)^2}{2^{2k}} + 7(q_{\PubO}+q_{\PrivO} \cdot \ell)^2\cdot \varepsilon .\]
+%	\mihirnote{Should one say something about the running time and query counts of $\simulator$? And the same $\simulator$ works for all $\advB$ regardless of the number of queries made by the latter?}
+%\end{lemma}
+

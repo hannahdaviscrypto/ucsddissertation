@@ -1,0 +1,518 @@
+\renewcommand*{\backref}[1]{(Cited on page~#1.)}
+\DeclareMathAlphabet{\mathsc}{OT1}{cmr}{m}{sc}
+\DeclareMathAlphabet{\mathslbf}{OT1}{cmr}{bx}{sl}
+
+\setlength{\fboxsep}{1pt}
+
+% ====================================================================
+%
+\newcommand{\gamesfontsize}{\small}
+\newcommand{\gameName}[1]{\underline{$\main$ #1}\\[2pt]}
+
+
+\newcommand{\twoColsNoDivide}[4]{
+\begin{center}
+        \framebox{
+        \begin{tabular}{c@{\hspace*{.4em}}c@{\hspace*{.4em}}c}
+        \begin{minipage}[t]{#1\textwidth}\setstretch{1.0}\gamesfontsize #3 \end{minipage}
+        &
+        \begin{minipage}[t]{#2\textwidth}\setstretch{1.0}\gamesfontsize #4 \end{minipage}
+        \end{tabular}
+        }
+\end{center}
+}
+
+\newcommand{\oneCol}[2]{
+\begin{center}
+        \framebox{
+        \begin{tabular}{c}
+        \begin{minipage}[t]{#1\textwidth}\setstretch{1.0}\gamesfontsize #2 \end{minipage}
+        \end{tabular}
+        }
+\end{center}
+}
+
+
+\newcommand{\twoCols}[4]{
+\begin{center}
+        \framebox{
+        \begin{tabular}{c@{\hspace*{.4em}}|c@{\hspace*{.4em}}}
+        \begin{minipage}[t]{#1\textwidth}\setstretch{1.0}\gamesfontsize #3 \end{minipage}
+        &
+        \begin{minipage}[t]{#2\textwidth}\setstretch{1.0}\gamesfontsize #4 \end{minipage}
+        \end{tabular}
+        }
+\end{center}
+}
+%
+%% Theorem environments
+%
+\newtheorem{thm}{Theorem}
+\newtheorem{lem}{Lemma}
+
+
+\newenvironment{theorem}{\begin{thm}}{\end{thm}}
+\newenvironment{lemma}{\begin{lem}}{\end{lem}}
+
+\newcommand{\secref}[1]{Section~\ref{#1}}
+\newcommand{\apref}[1]{Appendix~\ref{#1}}
+\newcommand{\thref}[1]{Theorem~\ref{#1}}
+
+\newcommand{\figref}[1]{Figure~\ref{#1}}
+\newcommand{\tabref}[1]{Table~\ref{#1}}
+
+%%%fancy proof env %%%
+\def\qedsym{\hspace{1pt}\rule[-1pt]{3pt}{9pt}}
+
+\newlength{\saveparindent}
+\setlength{\saveparindent}{\parindent}
+\newlength{\saveparskip}
+\setlength{\saveparskip}{\parskip}
+
+
+\def\qsym{\vrule width0.6ex height1em depth0ex}
+\newcount\proofqeded
+\newcount\proofended
+\def\qed{{\hspace{1pt}\rule[-1pt]{3pt}{9pt}}
+\end{rm}\addtolength{\parskip}{-0pt}
+\setlength{\parindent}{\saveparindent}
+\global\advance\proofqeded by 1 }
+\def\qedenv{
+\end{rm}\addtolength{\parskip}{-0pt}
+\setlength{\parindent}{\saveparindent}
+\global\advance\proofqeded by 1 }
+\renewenvironment{proof}%
+ {\proofstart}%
+ {\ifnum\proofqeded=\proofended~\qed\fi \global\advance\proofended by 1
+  \medskip}
+\newenvironment{proofenv}%
+ {\proofenvstart}%
+ {\ifnum\proofqeded=\proofended\qedenv\fi \global\advance\proofended by 1
+  \medskip}
+\makeatletter
+\def\proofstart{\@ifnextchar[{\@oprf}{\@nprf}}
+\def\proofenvstart{\@ifnextchar[{\@osprf}{\@nsprf}}
+\def\@oprf[#1]{\begin{rm}\protect\vspace{6pt}\noindent{\bf Proof of #1:\ }%
+\addtolength{\parskip}{5pt}\setlength{\parindent}{0pt}}
+\def\@osprf[#1]{\begin{rm}\protect\vspace{6pt}\noindent
+\addtolength{\parskip}{5pt}\setlength{\parindent}{0pt}}
+\def\@nprf{\begin{rm}\protect\vspace{6pt}\noindent{\bf Proof:\ }%
+\addtolength{\parskip}{5pt}\setlength{\parindent}{0pt}}
+\def\@nsprf{\begin{rm}\protect\vspace{6pt}\noindent%
+\addtolength{\parskip}{5pt}\setlength{\parindent}{0pt}}
+
+
+% ========================================================================
+
+% Lists
+
+\newcounter{ctr}
+\newenvironment{bignewenum}{%
+\begin{list}{{\bf (\arabic{ctr})}\hfill}{\usecounter{ctr} \labelwidth=17pt%
+\labelsep=7pt \leftmargin=24pt \topsep=4pt%
+\setlength{\listparindent}{\saveparindent}%
+\setlength{\parsep}{\saveparskip}%
+\setlength{\itemsep}{4pt} }}{\end{list}}
+
+
+\newenvironment{newmath}{\begin{displaymath}%
+\setlength{\abovedisplayskip}{4pt}%
+\setlength{\belowdisplayskip}{4pt}%
+\setlength{\abovedisplayshortskip}{5pt}%
+\setlength{\belowdisplayshortskip}{5pt} }{\end{displaymath}}
+
+% =========================================================================
+
+
+%\makeatletter
+%\def\appearsin#1{\gdef\@appearsin{#1}}
+%\def\maketitle{\par
+% \begingroup
+% \def\thefootnote{\arabic{footnote}}
+% \def\@makefnmark{\hbox
+% to 0pt{$^{\@thefnmark}$\hss}}
+% \if@twocolumn
+% \twocolumn[\@maketitle]
+% \else \newpage
+% \global\@topnum\z@ \@maketitle \fi\thispagestyle{plain}\@thanks
+% \endgroup
+% \setcounter{footnote}{0}
+% \let\maketitle\relax
+% \let\@maketitle\relax
+% \gdef\@thanks{}\gdef\@author{}\gdef\@title{}\gdef\@appearsin{}
+%          \let\thanks\relax}
+%\def\@maketitle{\newpage
+% \noindent \@appearsin
+% \vskip 0.5in \begin{center}
+% {\LARGE \@title \par} \vskip 1.5em {\large \lineskip .5em
+%\begin{tabular}[t]{c}\@author
+% \end{tabular}\par}
+% \vskip 1em {\normalsize \@date} \end{center}
+% \par
+% \vskip 1.5em}
+%\def\abstract{\if@twocolumn
+%\section*{Abstract}
+%\else \small
+%\begin{center}
+%{\bf Abstract\vspace{-.5em}\vspace{0pt}}
+%\end{center}
+%\quotation
+%\fi}
+%\def\endabstract{\if@twocolumn\else\endquotation\fi}
+%\mark{{}{}}
+%
+
+
+% =========================================================================
+
+% General
+%\newcommand{\hindent}{\quad}
+
+\newcommand{\mysubsubsection}[1]{\subsubsection{#1}}
+\newcommand{\headingb}[1]{{\vspace{5pt}\noindent\textbf{#1.}}}
+\newcommand{\headingg}[1]{{\sc{#1}}}
+\newcommand{\heading}[1]{{\vspace{5pt}\noindent\sc{#1}}}
+
+\newcommand{\tuple}[1]{\langle{#1}\rangle}
+\def\from{\mbox{from}\ }
+\def\From{\mbox{From}\ }
+\def\bits{\{0,1\}}
+\def\cross{\times}
+\newcommand{\cab}{,\allowbreak}
+\newcommand{\xor}{\oplus}
+\newcommand{\Colon}{{:\;\;}}
+\def\emptystring{\varepsilon}
+
+\newcommand{\OL}[0]{\mathsf{OL}}
+
+\newcommand{\Dom}{\mathsf{Dom}}
+\newcommand{\DomR}{\mathsf{DomR}}
+\newcommand{\Rng}{\mathsf{Rng}}
+\newcommand{\RngR}{\mathsf{RngR}}
+\newcommand{\calA}{{\cal A}}
+\newcommand{\calB}{{\cal B}}
+\newcommand{\calC}{{\cal C}}
+\newcommand{\calF}{{\cal F}}
+\newcommand{\N}{{{\mathds N}}}
+\newcommand{\Z}{{{\mathds Z}}}
+\newcommand{\R}{{{\mathds R}}}
+\def\union{\cup}
+\def\intersection{\cap}
+\newcommand{\set}[2]{\{#1 \,:\, #2\}}
+\newcommand{\getsr}{{{\,\leftarrow{\hspace*{-3pt}\raisebox{.75pt}{$\scriptscriptstyle\$$}}\,}}}
+\newcommand{\OR}{{\textstyle\bigvee}}
+\newcommand{\Var}{{\mbox{\bf Var}}}
+\newcommand{\E}{\mathbf{E}}
+\def\e{{\epsilon}}
+\newcommand{\concat}{{\,\|\,}}
+% ========================================================================
+
+% ===================================================================
+\newcommand{\comment}[1]{\hspace{8pt}{\small /$\!\!$/\ #1}}
+\newcommand{\Comment}[1]{\hspace{5pt}{/$\!\!$/\ #1}}
+\newcommand{\ccomment}[1]{\hspace{1pt}{/$\!\!$/\ #1}}
+
+\newcommand{\authnote}[2]{ \begin{center}\fbox{\begin{minipage}{5.7in}
+\textbf{#1 says:} #2\end{minipage}}\end{center}}
+
+\newcommand{\nGame}[2]{\mathbf{G}^{\mathrm{#1}}_{#2}}
+\newcommand{\pk}{pk}
+\newcommand{\dk}{dk}
+\newcommand{\FSOutSet}[0]{\mathrm{Out}}
+
+\newcommand{\schemefont}[1]{{\mathsf{#1}}}
+\newcommand{\algfont}[1]{{\mathrm{#1}}}
+\newcommand{\Adv}{\mathbf{Adv}}
+\newcommand{\genAdv}[3]{\mathbf{Adv}^{\mathrm{#1}}_{#2}(#3)}
+\newcommand{\prfAdv}[1]{\genAdv{prf}{#1}}
+
+\newcommand{\advA}{\mathcal{A}}
+\newcommand{\advB}{\mathcal{B}}
+\newcommand{\advC}{\mathcal{C}}
+\newcommand{\advD}{\mathcal{D}}
+\newcommand{\INDCCA}{\mbox{IND-CCA}\xspace}
+
+\newcommand{\atk}{\mathrm{atk}}
+\newcommand{\cpa}{\mathrm{cpa}}
+\newcommand{\cca}{\mathrm{cca}}
+\newcommand{\ind}{\mathrm{ind}}
+
+\addtolength{\belowcaptionskip}{-2mm}
+\addtolength{\abovecaptionskip}{-3mm}
+\addtolength{\topsep}{-1mm}
+\newcommand{\schalg}[2]{\mathsf{#1.#2}}
+
+
+\newcommand{\procfont}[1]{\mathsc{#1}}
+\newcommand{\tablefont}[1]{\mathsf{#1}}
+\newcommand{\Initialize}{\Init}
+\newcommand{\Finalize}{\Fin}
+\newcommand{\Init}{\procfont{init}}
+\newcommand{\Fin}{\procfont{fin}}
+
+\newcommand{\RO}{\procfont{RO}}
+\newcommand{\ROSim}{\procfont{ROSim}}
+\newcommand{\FUNC}{\procfont{FUNC}}
+\newcommand{\DecO}{\procfont{Dec}}
+
+\newcommand{\win}{\mathsf{win}}
+
+\newcommand{\Fimage}[0]{\mathrm{Im}}
+\newcommand{\simulator}[0]{\mathsf{Sim}}
+\newcommand{\Gensimulator}[1]{\mathsf{S}_{#1}}
+
+
+\newcommand{\group}{\mathds{G}}
+\newcommand{\wins}{\textrm{ wins}}
+\newcommand{\true}{\mathsf{true}}
+\newcommand{\false}{\mathsf{false}}
+\newcommand{\AND}{\;\wedge\;}
+\newcommand{\bad}{\mathsf{bad}}
+\newcommand{\chal}{\mathsf{chal}}
+\newcommand{\Good}{\mathsf{Good}}
+\newcommand{\Gm}{\textnormal{G}}
+\newcommand{\fn}{\footnotesize}
+
+\newcommand{\vecx}{\mathbf{x}}
+\newcommand{\pfvec}[0]{\mathbf{p}}
+\newcommand{\vecY}{\mathslbf{Y}}
+\newcommand{\vecV}{\mathslbf{V}}
+\newcommand{\vecU}{\mathslbf{U}}
+\newcommand{\vecW}{\mathslbf{W}}
+\newcommand{\vecxx}[0]{\mathbf{x}}
+\newcommand{\Oracle}{\mathsc{O}}
+\newcommand{\pkeScheme}{\schemefont{PKE}}
+\newcommand{\pkeEnc}{\schalg{\pkeScheme}{E}}
+\newcommand{\pkeDecR}{\schalg{\pkeScheme}{DecR}}
+\newcommand{\pkeML}{\schalg{\pkeScheme}{ml}}
+\newcommand{\prf}{\mathsf{G}}
+\newcommand{\prfKl}{\prf.\mathsf{kl}}
+%
+\newcommand{\pkeToKem}[0]{\mathbf{T}}
+\newcommand{\QpkeToKem}[0]{\mathbf{T}}
+\newcommand{\pkeCiph}[0]{C}
+\newcommand{\kemCiph}[0]{C^*}
+%
+\newcommand{\kemScheme}{\schemefont{KE}}
+\newcommand{\kemKg}{\schalg{\kemScheme}{K}}
+\newcommand{\kemEnc}{\schalg{\kemScheme}{E}}
+\newcommand{\kemDec}{\schalg{\kemScheme}{D}}
+\newcommand{\kemRl}{\schalg{\kemScheme}{rl}}
+\newcommand{\kemKl}{\schalg{\kemScheme}{kl}}
+\newcommand{\kemRoSp}{\schalg{\kemScheme}{FS}}
+
+\newcommand{\FkemScheme}{\overline{\mathsf{KE}}}
+\newcommand{\FkemRoSp}{\schalg{\FkemScheme}{FS}}
+\newcommand{\FkemEnc}{\schalg{\FkemScheme}{E}}
+%
+\newcommand{\GkemScheme}[1]{\schemefont{KE}_{#1}}
+\newcommand{\GkemEnc}[1]{\schalg{\GkemScheme{#1}}{E}}
+%
+\newcommand{\DFunc}[0]{\mathsf{D}}
+\newcommand{\KLenFunc}[0]{\mathsf{k}^*}
+%
+
+\newcommand{\advQINDIFF}[2]{\genAdv{QINDIFF}{#1}{#2}}
+\newcommand{\advTINDIFF}[2]{\genAdv{TINDIFF}{#1}{#2}}
+\newcommand{\advINDIFF}[2]{\genAdv{indiff}{#1}{#2}}
+\newcommand{\advRINDIFF}[2]{\genAdv{reset\text{-}indiff}{#1}{#2}}
+
+\newcommand{\Func}[1][]{\mathcal{F}_{#1}}
+\newcommand{\FuncHon}[1][]{\mathcal{F}_{#1}.hon}
+\newcommand{\FuncAdv}[1][]{\mathcal{F}_{#1}.adv}
+
+\newcommand{\lazysample}{\mathsf{ls}}
+
+\newcommand{\secPropPKE}[0]{\mathrm{S}_{\mathrm{pke}}}
+
+
+%
+% Game hops
+%
+\newcommand{\gamehopchange}[2][0.85]{\hspace{0pt}\smash{\fbox{\rule[-1.75pt]{0pt}{#1\baselineskip}\smash{#2}}}} % frame around changes from one game to another, use optional parameter to adapt box height (as factor of \baselineskip), leading \hspace{0pt} prevents weird jump if nothing before \gamehopchange{..}
+
+\newcommand{\supportQuT}[1]{\mathbf{sup}(#1)}
+\newcommand{\algOutput}[0]{\mathrm{OUT}}
+%
+% FREE / DOMSEP predicates
+%
+\newcommand{\aPrefix}{P}
+\newcommand{\prefix}{\preceq}
+\newcommand{\listRO}{\mathcal{L}}
+
+\newcommand{\gameFREE}[4]{\mGame{#3,FREE}{#4,#1,#2}{\advA}}
+\newcommand{\gameFIXED}[4]{\mGame{#3,FIXED}{#4,#1,#2}{\advA}}
+\newcommand{\gameDOMSEP}[5]{\mGame{#2,#3,DOMSEP}{#4,#5,#1}{\advA}}
+
+\newcommand{\ngameCORR}[1]{\nGame{CORR}{#1}}
+\newcommand{\ngamePRF}[1]{\nGame{prf}{#1}}
+
+\newcommand{\ngameINDCCA}[1]{\nGame{ind-cca}{#1}}
+\newcommand{\ngameINDCPA}[1]{\nGame{INDCPA}{#1}}
+\newcommand{\ngameOWCPA}[1]{\nGame{OWCPA}{#1}}
+\newcommand{\ngameOWPCA}[1]{\nGame{OWPCA}{#1}}
+\newcommand{\ngameDOM}[1]{\nGame{wdom}{#1}}
+\newcommand{\ngameQINDIFF}[1]{\nGame{QINDIFF}{#1}}
+\newcommand{\ngameTINDIFF}[2]{\nGame{TINDIFF-{#1}}{#2}}
+
+\newcommand{\DRTransform}[0]{\mathbf{DR}}
+\newcommand{\RTransform}[0]{\mathbf{R}}
+\newcommand{\InsTransform}[0]{\mathbf{Inst}}
+
+\newcommand{\Aset}[2]{\{#1\,:\,#2\}}
+\newcommand{\domain}[0]{\mathcal{D}}
+\newcommand{\rangeSet}[0]{\mathcal{R}}
+\newcommand{\domainFunc}[0]{\mathcal{F}}
+\newcommand{\usedDomain}[0]{\mathcal{U}}
+\newcommand{\SchemeQuery}{\mathsf{sq}}
+\newcommand{\restrict}[2]{#1|_{#2}}
+
+\newcommand{\pfFunctor}[1]{\construct{F}_{\mathrm{pf}(#1)}}
+\newcommand{\ldFunctor}[0]{\construct{F}_{\mathrm{ld}}}
+\newcommand{\idFunctor}[0]{\construct{F}_{\mathrm{id}}}
+\newcommand{\splFunctor}[0]{\construct{F}_{\mathrm{spl}}}
+
+\newcommand{\queryRO}[0]{\mathbf{Q}}
+\newcommand{\GenqueryRO}[1]{\mathbf{#1}}
+\newcommand{\FixedprefixqueryRO}[1]{\QuT_{\mathrm{pf}(#1)}}
+\newcommand{\FixedprefixanswerRO}[1]{\AnT_{\mathrm{pf}(#1)}}
+\newcommand{\FixedprefixqueryInv}[1]{\QuTInv_{\mathrm{pf}(#1)}}
+\newcommand{\FixedprefixanswerInv}[1]{\AnTInv_{\mathrm{pf}(#1)}}
+
+\newcommand{\VarprefixqueryRO}{\GenqueryRO{QPv}}
+\newcommand{\LengthqueryRO}{\QuT_{\mathrm{ld}}}
+\newcommand{\LengthanswerRO}{\AnT_{\mathrm{ld}}}
+\newcommand{\IdqueryRO}{\QuT_{\mathrm{id}}}
+\newcommand{\IdanswerRO}{\AnT_{\mathrm{id}}}
+\newcommand{\IdqueryInv}{\QuTInv_{\mathrm{id}}}
+\newcommand{\IdanswerInv}{\AnTInv_{\mathrm{id}}}
+\newcommand{\SplittingqueryRO}{\QuT_{\mathrm{spl}}}
+\newcommand{\SplittingqueryInv}{\QuTInv_{\mathrm{spl}}}
+\newcommand{\SplittinganswerRO}{\AnT_{\mathrm{spl}}}
+\newcommand{\SplittinganswerInv}{\AnTInv_{\mathrm{spl}}}
+\newcommand{\answerRO}{\GenqueryRO{AT}}
+\newcommand{\answerInv}{\answerRO^{-1}}
+\newcommand{\NIntrusivequeryRO}{\GenqueryRO{QNI}}
+\newcommand{\IntrusivequeryRO}{\GenqueryRO{QI}}
+\newcommand{\AddgqueryRO}[1]{\GenqueryRO{QAGx}[#1]}
+\newcommand{\IDqueryRO}{\GenqueryRO{QId}}
+
+\newcommand{\Outputsplitting}{\mathbf{OS}}
+
+
+\newcommand{\FComb}[1]{[[#1]]}
+\newcommand{\aFunc}[1]{\mathit{#1}}
+\newcommand{\aFuncDom}[0]{\mathsf{Dom}}
+\newcommand{\aFuncRng}[0]{\mathsf{Rng}}
+
+\newcommand{\bFunc}[1]{\mathrm{#1}}
+\newcommand{\bFuncDom}[0]{\mathsf{Dom}}
+\newcommand{\bFuncRng}[0]{\mathsf{Rng}}
+
+\newcommand{\encode}[1]{\langle #1\rangle}
+\newcommand{\Encode}{\texttt{Encode}}
+
+
+%\newcommand{\AllFuncs}[2]{\llbracket #1\rightarrow#2\rrbracket}
+\newcommand{\AllFuncs}[2]{\mathrm{FUNC}(#1,#2)}
+\newcommand{\AllSOLFuncs}[2]{\mathrm{SOL}(#1,#2)}
+\newcommand{\AllXOLFuncs}[1]{\mathrm{XOL}(#1)}
+\newcommand{\FuncSp}[1]{\mathsf{#1}}
+\newcommand{\aRO}[0]{\aFunc{F}}
+\newcommand{\roSp}[0]{\mathsf{FS}}
+\newcommand{\GenroSp}[1]{\mathsf{#1}}
+\newcommand{\GenroSpCardinality}[1]{\GenroSp{#1}.\mathsf{n}}
+\newcommand{\GenroSpFuncs}[1]{\GenroSp{#1}.\mathsf{F}}
+\newcommand{\GenroSpDom}[1]{\mathrm{Dom}(\GenroSp{#1})}
+\newcommand{\GenroSpDomP}[1]{\mathrm{Dom}_{*}(\GenroSp{#1})}
+\newcommand{\GenroSpRng}[1]{\mathrm{Rng}(\GenroSp{#1})}
+\newcommand{\roSpCardinality}[0]{\roSp.\mathsf{n}}
+\newcommand{\roSpFuncs}[0]{\roSp.\mathsf{Fncs}}
+\newcommand{\roSpDom}[0]{\mathrm{Dom}(\roSp)}
+\newcommand{\roSpRng}[0]{\mathrm{Rng}(\roSp)}
+\newcommand{\GGenroSpCardinality}[1]{{#1}.\mathsf{n}}
+\newcommand{\GGenroSpFuncs}[1]{{#1}.\mathsf{Fncs}}
+\newcommand{\GGenroSpDom}[1]{\mathrm{Dom}({#1})}
+\newcommand{\GGenroSpDomP}[1]{\mathrm{Dom}_{*}({#1})}
+\newcommand{\GGenroSpRng}[1]{\mathrm{Rng}({#1})}
+
+\newcommand{\appendRO}[2]{{#1}\!\!+\!\!{#2}}
+\newcommand{\chopRO}[1]{\mathrm{Chop}(#1)}
+\newcommand{\addRO}[1]{\mathrm{Add}(#1)}
+\newcommand{\expandRO}[1]{\mathrm{Expand}(#1)}
+\newcommand{\compressRO}[1]{\mathrm{Compress}(#1)}
+
+%\newcommand{\SHA}[1]{\mathsf{SHA#1}}
+\newcommand{\SHAA}[2]{\mathsf{SHA#1}\mbox{-}\mathsf{#2}}
+\newcommand{\SHAKE}[1]{\mathsf{SHAKE#1}}
+\newcommand{\cSHAKE}{\mathsf{cSHAKE}}
+
+\newcommand{\ulheading}[1]{\medskip\noindent\textsf{\underline{\smash{#1}}}}
+\newcommand{\uldheading}[2]{\medskip\noindent\textsf{\underline{\smash{#1:}} #2}}
+
+% \newcommand{\pqcname}[1]{\texttt{#1}}
+% \newcommand{\pqcheading}[1]{\medskip\noindent\underline{\smash{\pqcname{#1}}}}
+\newcommand{\pqcnameRoundOne}[1]{\texttt{\color{darkgray}#1}}
+\newcommand{\pqcnameRoundTwo}[1]{\texttt{\fontseries{b}\selectfont#1}}
+
+\newcommand{\functionOut}{e}
+\newcommand{\functionIn}{s}
+\newcommand{\functionInSet}{SS}
+\newcommand{\functionOutSet}{ES}
+
+\newcommand{\construct}[1]{\mathbf{#1}}
+\newcommand{\constructDom}[1]{\construct{#1}.\mathsf{Dom}}
+\newcommand{\constructEv}[1]{\construct{#1}.\mathsf{Ev}}
+\newcommand{\constructRng}[1]{\construct{#1}.\mathsf{Rng}}
+
+\newcommand{\commoncoins}{st}
+\newcommand{\ccell}{st\ell}
+\newcommand{\SimgenCC}{\simulator.\algfont{Setup}}
+\newcommand{\Simeval}{\simulator.\algfont{Ev}}
+\newcommand{\GenSimgenCC}[1]{\Gensimulator{#1}.\algfont{Setup}}
+\newcommand{\GenSimeval}[1]{\Gensimulator{#1}.\algfont{Ev}}
+\newcommand{\ccsample}{\mathsf{sample}}
+
+\newcommand{\UHF}{H} % universal hash function
+
+\newcommand{\functionality}{\mathfrak{f}}
+\newcommand{\functionalityClass}{\mathfrak{F}}
+\newcommand{\priv}{\procfont{priv}}
+\newcommand{\pub}{\procfont{pub}}
+\newcommand{\FnO}{\procfont{FnO}}
+\newcommand{\functionalityPriv}{\functionality_{\priv}}
+\newcommand{\functionalityPub}{\functionality_{\pub}}
+
+
+\newcommand{\ngameCCINDIFF}[1]{\nGame{rd\mbox{-}indiff}{#1}}
+\newcommand{\AdvCCINDIFF}[2]{\genAdv{rd\mbox{-}indiff}{#1}{#2}}
+\newcommand{\indccaAdv}[2]{\genAdv{ind\mbox{-}cca}{#1}{#2}}
+\newcommand{\wdomAdv}[2]{\genAdv{wdom}{#1}{#2}}
+
+
+\newcommand{\ngameTI}[1]{\nGame{ti}{#1}}
+\newcommand{\AdvTI}[2]{\genAdv{ti}{#1}{#2}}
+
+\newcommand{\ngameEXEC}[1]{\nGame{exec}{#1}}
+
+\newcommand{\ngameMSReal}[1]{\nGame{ms\mbox{-}1}{#1}}
+\newcommand{\ngameMSIdeal}[1]{\nGame{ms\mbox{-}0}{#1}}
+\newcommand{\ngameMS}[1]{\nGame{ms}{#1}}
+
+\newcommand{\env}{\algfont{FG}}
+
+\newcommand{\execoracle}{OR}
+\newcommand{\execfinalize}{\mathsf{Finalize}}
+
+\newcommand{\workDom}[0]{{\cal W}}
+\newcommand{\WDInv}[0]{\mathrm{In}}
+
+\newcommand{\QuT}[0]{\mathsf{QT}}
+\newcommand{\AnT}[0]{\mathsf{AT}}
+\newcommand{\QuTInv}[0]{\mathsf{QTI}}
+\newcommand{\AnTInv}[0]{\mathsf{ATI}}
+
+\newcommand{\Codewords}{\mathcal{C}}
+
+\newcommand{\lncsorfull}[1]{{#1}}
+\DeclareMathVersion{normal1}

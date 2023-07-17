@@ -1,0 +1,219 @@
+\section{Plans, Status and Direct Proofs}\label{sec-direct} 
+
+
+What has happened with this paper, in the review process, is unusual. We have one reviewer, at C22, who insisted that some kind of direct proof is possible and findiff is not needed. At AC22, a reviewer who had been privy to that view echoed it. 
+
+If we continue to ignore this and submit the same paper, we are likely to keep meeting the same response. Instead, let's try to turn the situation to our advantage rather than fight against it. This means we make a serious attempt to follow the path the reviewers appear to indicate. We will either see that it work, or find good reasons it does not.
+
+In this section I am going to outline such a path. It makes a number of separate assumptions on certain functors, all with access to a function $\hh$ representing the compression function. 
+
+I had seen the difficulty as being that $\hh$ is the same across all the functors. I am no longer sure this is really a difficulty.
+
+\heading{Functors.} Following~\cite{EC:BelDavGun20}, we use the term functor for a transform that constructs one function from another. A functor $\construct{F}\Colon\FuncSp{SS}\to\FuncSp{ES}$ takes as oracle a function $\hh$ from a starting function space $\FuncSp{SS}$ and returns a function $\construct{F}[\hh]$ in the ending function space $\FuncSp{ES}$.
+
+
+\heading{MD functor.} We are interested in the Merkle-Damg{\aa}rd~\cite{C:Merkle89a,C:Damgaard89b} transform. This transform constructs a hash function with domain $\bits^*$ from a compression function $\hh\Colon\bits^{4k}\to\bits^{2k}$ for some integer $k$. It is the basis of the design for $\SHA512$, where the compression function $\sha{512}$ has $k=256$. In our language, the Merkle-Damg{\aa}rd transform is a functor $\construct{MD}\Colon \allowbreak \AllFuncs(\bits^{4k},\allowbreak \bits^{2k}) \allowbreak  \to \allowbreak  \AllFuncs(\bits^{*}, \allowbreak  \bits^{2k})$. It  is parameterized by a padding function $\padF\Colon \N  \to\bits^{\leq 2k}$ that takes the length $\ell$ of an input $X$ to the hash function and returns a padding string $P \gets \padF(\ell)$, at most $2k$ bits long, such that $\ell+|P|$ is a multiple of $2k$.
+%We require that $\padF$ has an inverse function $\UnPadF\Colon \bits^* \to \bits^*\cup \{\bot\}$ with the property that for all strings $X$, it holds that $\UnPadF(X \concat \padF(|X|)) = X$. (This means that the padding must be uniquely decodeable).
+We also fix an ``initialization vector'' $\initV \in \bits^{2k}$. Given oracle $\hh$, the functor defines hash function $\HH = \construct{MD}[\hh]\Colon\bits^{*}\to\bits^{2k}$ as follows:
+
+\begin{tabbing}
+\underline{Functor $\construct{MD}[\hh](X)$} \\[2pt]
+$y[0] \gets \IV$ \\
+$P\gets \padF(|X|)$ ; $X'[1]\ldots X'[m] \gets X\|P$ \comment{Split $X\|P$ into $2k$-bit blocks} \\
+For $i=1,\ldots,m$ do $y[i] \gets \hh(X'[i]\|y[i-1])$ \\
+Return $y[m]$
+\end{tabbing}
+
+
+
+\begin{figure}[t]
+\oneCol{0.75}
+{
+  \begin{algorithm-initial}{$\fDS.\MakeSK$}
+  \item $\osk\getsr\bits^k$ 
+  ; Return $\osk$
+  \end{algorithm-initial}
+
+\begin{algorithm-subsequent}{$\fDS.\MakePK[\hh](\osk)$}
+  \item $\e_1\|\e_2\gets\PRGF[\hh](\osk)$ 
+  ; $\sk \gets \CF(\e_1)$ ; $\pk \gets \DS.\MakePK[\OHF[\hh]](\sk)$ 
+  \item Return $\pk$
+  \end{algorithm-subsequent}
+  
+  \begin{algorithm-subsequent}{$\fDS.\Sign[\hh](\osk, \pk, \msg)$}
+\item $\e_1\|\e_2\gets\PRGF[\hh](\osk)$ 
+  ; $\sk \gets \CF(\e_1)$ ; $r \gets \PRFF[\hh](\e_2,\msg)$  
+\item $\sigma \gets \DS.\Sign[\OHF[\hh]](\sk,\pk,\msg;r)$ ; Return $\sigma$
+  \end{algorithm-subsequent}
+
+  \begin{algorithm-subsequent}{$\fDS.\Vf[\hh](\pk, \msg, \sigma)$}
+    \item Return $\DS.\Vf[\OHF[\hh]](\pk,\msg,\sigma)$
+  \end{algorithm-subsequent}  \vspace{2pt}
+ }
+\vspace{-8pt}
+\caption{The signature scheme $\fDS = \DRTransform[\DS,\PRGF,\PRFF,\OHF,\CF,k]$ constructed by the $\DRTransform$ transform.}
+\label{fig-dd}
+\hrulefill
+\vspace{-10pt}
+\end{figure}
+
+
+
+
+\heading{The $\DRTransform$ transform.} Let $\DS$ be a given signature scheme that we call the base signature scheme. It will be the general Schnorr scheme in our application. 
+
+The $\DRTransform$ (derive and de-randomize) transform constructs a signature scheme $\fDS = \DRTransform[\DS,\PRGF,\PRFF,\OHF,\CF,k]$ based on $\DS$, three functors, a function $\CF$ called the clamping function and a key-length $k$. The algorithms of $\fDS$ are shown in Figure~\ref{fig-dd}. The three functors $\PRGF,\PRFF,\OHF$ all have the same starting space; denoting it $\FuncSp{SS}$, we set $\fDS.\HASHSET = \FuncSp{SS}$, so that algorithms of $\fDS$ have oracle access to $\hh\in\FuncSp{SS}$. For $\hh\in\FuncSp{SS}$, the sub-key derivation functor $\PRGF$ defines a function $\PRGF[\hh]\Colon\bits^k\to\bits^{2k}$ that expands the signing key $\osk$ of the new scheme into sub-keys $\e_1$ and $\e_2$. The clamping function is applied to $\e_1$ to get a signing key for the base scheme, and its associated verification key is returned as the one for the new scheme at line~3. The de-randomizing functor $\PRFF$ defines function $\PRFF[\hh]\Colon\bits^k\cross\bits^*\to\DS.\SigCoins$ which, given the second sub-key $\e_2$ and a message $\msg$, determines signing randomness $r$ for the line~5 invocation of the base signing algorithm. Finally, the base hash functor $\OHF$ defines a function $\OHF[\hh]\in\DS.\HASHSET$ to use as oracle for the signing and verification algorithms of $\DS$. 
+% Note that we assume $\DS.\MakePK$ does not access its oracle, implicit in dropping it as an argument at line~1. This condition is true for the (general) Schnorr scheme, where the function is just group exponentiation.
+
+\heading{Obtaining $\EdDSA$ via $\DRTransform$.} Now one can see that if $\DS$ is the (general) $\Schnorr$ scheme then (for appropriate choices of the other arguments of the transform) $\fDS$ is $\EdDSA$. Thus the transform generalizes the way $\EdDSA$ is built from $\Schnorr$. Detail this by specifying what the functors and clamping function do, via pseudocode. 
+
+\heading{Security of $\fDS$.} We study the security of the scheme obtained via the $\DRTransform$ transform.
+
+
+
+\begin{theorem}\label{th-dd} Let $\CF$ be a clamping function with domain $\bits^k$. Let $\DS$ be a signature scheme, and assume $\DS.\MakeSK$ picks $\e_1\getsr\bits^k$ and returns $\sk\gets\CF(\e_1)$ as the signing key. Let $\fDS = \DRTransform[\DS,\PRGF,\PRFF,\OHF,\CF,k]$ be the signature scheme obtained as above by the $\DRTransform$ transform. Let $\advA$ be an adversary attacking the $\UFCMA$ security of $\fDS$. Then there are adversaries $\advADS,\advAPRG,\advAPRF$ such that
+\begin{align*}
+	\ufAdv{\fDS}{\advA} &\leq   \ufAdv{\DS}{\advADS} + \prgAdv{\PRGF}{\advAPRG} + \prfAdv{\PRFF}{\advAPRF}\;.
+\end{align*}
+Give details here with regard to adversary resources.
+	
+\end{theorem}
+
+\begin{figure}[t]
+	\oneCol{0.9}{
+		\ExperimentHeader{Games $\Gm_0,\Gm_1,\Gm_2$}
+
+		\begin{oracle}{$\Initialize$}
+			\item $\hh\getsr\FuncSp{SS}$
+			\item $\osk\getsr\bits^k$ 
+			; $\e_1\|\e_2\gets\PRGF[\hh](\osk)$ \comment{Game $\Gm_0$} 
+			\item $\e_1\|\e_2\getsr\bits^{2k}$ \comment{Games $\Gm_1,\Gm_2$} 
+  \item $\sk \gets \CF(\e_1)$ 
+  ; $\pk \gets \DS.\MakePK[\OHF[\hh]](\sk)$ 
+			; Return $\pk$
+		\end{oracle}
+		\ExptSepSpace
+
+		\begin{oracle}{$\SignOO(\msg)$}
+		\item If $\STable[\msg]\neq\bot$ then return $\STable[\msg]$ 
+			\item $r \gets \PRFF[\hh](\e_2,\msg)$ \comment{Games $\Gm_0,\Gm_1$}
+			\item $r\getsr\DS.\SigCoins$ \comment{Game $\Gm_2$}
+\item $\STable[\msg] \gets \DS.\Sign[\OHF[\hh]](\sk,\pk,\msg;r)$ ; Return $\STable[\msg]$ 
+		\end{oracle}
+		\ExptSepSpace
+
+		\begin{oracle}{$\HASH(X)$}
+			\item Return $\hh(X)$
+		\end{oracle}
+			\ExptSepSpace
+
+		\begin{oracle}{$\Finalize(\chmsg, \chsig)$}
+			\item If ($\STable[\chmsg]\neq\bot$) then return $\false$
+			\item Return $\DS.\Vf[\OHF[\hh]](\pk, \chmsg, \chsig)$ \vspace{2pt}
+		\end{oracle}
+	}
+	
+	\vspace{-5pt}
+	\caption{Games for proof of Theorem~\ref{th-dd}. A line annotated with names of games is included only in those games.}
+	\label{fig-dd-proof-1}
+	\hrulefill
+	\vspace{-10pt}
+\end{figure}
+
+\begin{proof}[Theorem~\ref{th-dd}] Consider the games of Figure~\ref{fig-dd-proof-1}. Let $\epsilon_i = \Pr[\Gm_i(\advA)]$ for $i=0,1,2$. Then
+
+\begin{align}
+	\ufAdv{\fDS}{\advA} & =  \epsilon_0 \nonumber \\
+	& =  (\epsilon_0-\epsilon_1)+(\epsilon_1-\epsilon_2)+\epsilon_2 \nonumber \;.
+\end{align}
+We build adversaries $\advADS,\advAPRG,\advAPRF$ such that
+\begin{align}
+\epsilon_0-\epsilon_1 &
+	\leq   \ufAdv{\DS}{\advADS} \\
+	\epsilon_1-\epsilon_2 & \leq 
+	 \prgAdv{\PRGF}{\advAPRG} \\
+	\epsilon_2 & \leq  \prfAdv{\PRFF}{\advAPRF}\;.
+\end{align}
+Complete this proof by filling in details and explanations, and giving descriptions of the adversaries.
+\end{proof}
+
+\mihirnote{In Figure~\ref{fig-gm-indiff}, replace the findiff game by either wp-indiff or p-indiff, whatever is suitable for us.}
+
+\begin{figure}[t]
+
+	\twoCols{0.45}{0.45}{
+		\ExperimentHeader{Game $\Gwpindiff_{\construct{F},  \simulator}$}
+
+		\begin{algorithm-initial}{$\Initialize()$}
+			\item $b \getsr \bits$
+			\item $\oseed \getsr \Filter.\Sg$ ; $\simstate \getsr \simulator.\Sg$
+			\item $\hh \getsr \FuncSp{SS}$
+			; $\HH_0 \getsr \FuncSp{ES}$ ; $\HH_1 \gets \construct{F}[\hh]$
+		\end{algorithm-initial}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\PrivO(X)$}
+			\item $(Y;Q) \gets \Filter.\FilterEv[\HH_b](\oseed,X)$
+			\item $\simstate\gets\simstate\|Q$
+			\item Return $Y,Q$
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+\begin{algorithm-subsequent}{$\PubO(\X)$}
+			\item If $b=1$ then  $Z\gets \hh(\X)$
+			\item Else $(\simstate,Z) \gets \simulator.\Eval[\HH_0] (\simstate,\X)$
+			\item return $Z$
+		\end{algorithm-subsequent}
+	\ExptSepSpace
+		\begin{algorithm-subsequent}{$\Finalize(b')$}
+			\item return $[[b = b']]$
+		\end{algorithm-subsequent}
+
+	}
+{
+	\ExperimentHeader{Game $\Gindiff_{\construct{F},  \simulator}$}
+
+	\begin{algorithm-initial}{$\Initialize()$}
+		\item $b \getsr \bits$
+		\item $\simstate \getsr \simulator.\Sg$
+		\item $\hh \getsr \FuncSp{SS}$
+		; $\HH_0 \getsr \FuncSp{ES}$ ; $\HH_1 \gets \construct{F}[\hh]$
+	\end{algorithm-initial}
+	\begin{algorithm-subsequent}{$\PrivO(X)$}
+		%	\item if $i \not\in \Filter.\PubS$ then return $\bot$
+		\item $Y \gets \HH_b(X)$
+		\item $\simstate\gets\simstate \concat (X, Y)$ \comment{Game $\Gwpindiff_{\construct{F},  \simulator}$ only}
+		\item Return $Y$
+	\end{algorithm-subsequent}
+	\ExptSepSpace
+	%		\begin{algorithm}{$\PrivOInt(i,x)$}
+	%			\item if $i \not\in \Filter.\PrivS$ then return $\bot$
+	%			\item $Y \gets \Filter.\FilterEv^{\HH_b}(\oseed,(i,x))$
+	%			\item Return $Y$
+	%		\end{algorithm}
+	%		\ExptSepSpace
+	\begin{algorithm-subsequent}{$\PubO(X)$}
+		\item If $b=1$ then $Z\gets \hh(X)$
+		\item Else $(\simstate,Z) \gets \simulator.\Eval[\HH_0] (\simstate,X)$
+		\item return $Z$
+	\end{algorithm-subsequent}
+		\ExptSepSpace
+	\begin{algorithm-subsequent}{$\Finalize(b')$}
+		\item return $[[b = b']]$
+	\end{algorithm-subsequent}
+}
+	\vspace{-5pt}
+	\caption{Left: Game  $\Gfindiff_{\construct{F},  \simulator, \Filter}$ measuring indifferentiability of a functor $\construct{F}\Colon \FuncSp{SS}\to\FuncSp{ES}$ with respect to simulator $\simulator$ and filter $\Filter$. Right: Standard and weak public indifferentiability games $\Gindiff_{\construct{F},  \simulator}$ and $\Gwpindiff_{\construct{F},  \simulator}$, where the latter includes line~5 and the former does not.
+	}
+	\label{fig-gm-indiff}
+	\hrulefill
+\end{figure}
+
+
+To better understand the relation of filtered indifferentiability to prior notions, we present, on the right of Figure~\ref{fig-gm-indiff}, the games for standard~\cite{TCC:MauRenHol04} indifferentiability, and a second notion of our own called \textit{weak public indifferentiability}, abbreviated wp-indiff.
+The difference between the two is that line~5 is included only in the latter.
+Here $\PrivO$ allows the distinguisher to directly query $\HH_b$.
+In the filtered case, in contrast, $\PrivO$ queries are made to the filter, and the latter queries $\HH_b$, which restricts the way in which the distinguisher can access $\HH_b$.
+The filter will be chosen to exclude attacks that would violate standard indifferentiability yet allow attacks needed to prove security of the application.
+The secrecy of the filter seed $\oseed$ (neither the distinguisher nor the simulator get it) plays a crucial role in making filtered indifferentiability non-trivially different from standard indifferentiability.  In weak public indifferentiability (wp-indiff), all queries made to $\PrivO$ are provided to the simulator. Filtered indifferentiability generalizes this, providing the simulator with queries made by the filter, but only for ports that are designated as public.
+
+To see that wp-indiff is a special case of f-indiff, consider the filter which on input $(\oseed, X)$, makes the query $\HH_b(X)$ and returns its output $Y$. Then the query transcript $Q$ contains exactly the tuple $(X,Y)$. From Figure~\ref{fig-gm-indiff}, we can see that both games identically append $(X,Y)$ to $\simstate$ in the $\PrivO$ oracle. The response to query $\PrivO(X)$ is $Y,(X,Y)$ in f-indiff and just $Y$ in wp-indiff, but in both games the distinguisher already knows $X$ and learns only $Y$ from the repsonse, so the difference is just one of format. Since $\simstate$, the simulator, and the $\PubO$ oracle's pseudocode are the same in both games, all $\PubO$ queries will be handled identically in the f-indiff and wp-indiff games.
+

@@ -1,0 +1,37 @@
+\section{Secret Indifferentiability and SHA512}
+
+The EDDSA signature scheme uses SHA512 in three places. In two of those places, the output is reduced modulo a prime that is small relative to the output. This is a variant of the chop-MD construction, which has been proven indifferentiable from an RO. Unfortunately, in the third place the output is not reduced. Consequently, SHA512 as used by EDDSA is not indifferentiable from a random oracle; furthermore, it is not a PRF. 
+
+However, EDDSA is still secure when using SHA512 because the adversary never obtains an unreduced input-output pair. I would like to prove this formally. First, I will establish some definitions; then I will prove claims in relation to these definitions.
+
+My first definition is a protected random oracle. This is an ideal functionality using of a random function $\HH$ sampled from an oracle space.
+
+\begin{figure}
+	\oneCol{0.7}{
+	\ExperimentHeader{Seeded-or-masked random oracle}
+	\begin{algorithm}{$\RO(\accessID, \X)$}
+		\item if $\accessID = \pub$
+		\item \quad return $\HH(\X) \mod \prime$
+		\item if $\accessID = \priv$
+		\item return $\HH(\X)$
+	\end{algorithm}
+	}
+	\vspace{5pt}
+	\caption{A sample protected random oracle.}
+	\label{fig-protected-RO}
+\end{figure}
+
+Second, I define an access-restricted construction and give a specific example of such a construction. An access-restricted construction is a pair of functions $\Const^{\hh}_{\pub}$ and $\Const^{\hh}_{\priv}$. Both functions require oracle access to a function $\hh$. For our proof of EDDSA, we will refer to an access-restricted hash function construction $\Const$. We set $\Const^{\hh}_{\pub} = \chopMD_\prime^{\hh}$ and $\Const^{\hh}_{\priv} \MD^{\hh}$.
+
+Second, I define secret indifferentiability. This is a variant of indifferentiability specialized for access-restricted constructions. In the secret indifferentiability game, a distinguisher $\advD$ is given access to three oracles $\pubRO$, $\privRO$, and $\smRO$, which behave differently according to the value of a secret bit $b$.  In the setting where $b=1$ (the ``real world"), the $\smRO$ oracle is a random oracle and the other two oracles are portals to the two constructions $\Const^{\smRO}_{\pub}$ and $\Const^{\smRO}_{\priv}$. In the setting where $b=0$ (the ``ideal world"), the first two oracles are implemented using a seeded-or-masked random oracle, and the third is a simulator. The distinctive feature of secret indifferentiability is that in both worlds, the $\privRO$ oracle takes no input. Instead, for each query it samples a string $\d$ from a distribution $\distrib$ which is a parameter of the game. It uses $\d$ as the input to $\Const^{\smRO}_{\priv}$ or $\RO(\priv, \cdot)$ depending on the value of $b$ and returns the result. 
+
+\begin{figure}
+	\caption{The game representing secret indifferentiability}
+\end{figure}
+
+I will prove the security of EDDSA using three claims.
+First, I claim that EDDSA with a seeded-or-masked RO is reducible to Schnorr signatures.
+Second, I claim that any single-stage scheme that is secure with a seeded-or-masked RO is secure with a construction pair from a compression function that is secret indifferentiable. 
+Third, I claim that chop-MD as the strong construction and normal MD as the weak construction are  indifferentiable from a seeded-or-masked RO. 
+
+

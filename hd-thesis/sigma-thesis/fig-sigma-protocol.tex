@@ -1,0 +1,107 @@
+% \begin{minipage}[t]{0.9\textwidth}
+\iffull\else\resizebox{11cm}{!}{\fi %% resizebox in lncs
+\begin{tikzpicture}
+	% Set the X coordinates of the client, server, and arrows
+	\edef\ClientX{0}
+	\edef\ArrowLeft{4.5}
+	\edef\ArrowRight{10.5}
+	\edef\ServerX{15}
+	
+	\newcommand{\sigmaY}{\protvarstyle{Y}}
+	
+	% Set the starting Y coordinate
+	\edef\Y{0}
+
+	% Draw header boxes
+	\node [rectangle,draw,inner sep=5pt,right] at (\ClientX,\Y) {\textbf{Initiator} $I$};
+	\node [rectangle,draw,inner sep=5pt,left] at (\ServerX,\Y) {\textbf{Responder} $R$};
+
+	% shared info
+	\node [inner sep=5pt] at ($(\ClientX,\Y) ! 0.5 ! (\ServerX,\Y)$) {cyclic group $\group = \langle g \rangle$ of prime order~$p$};
+
+	\NextLine[2]
+	\ClientAction{\underline{$\RunInitI(I, \sk_I, \st)$}}
+	\ServerAction{\underline{$\RunRespI(R, \sk_R, \st, \peerpk, m = (\nonce_I, \X))$}}
+	\NextLine
+	\ClientAction{$\x \getsr \ZZ_p$, $\X \gets g^\x$}
+	\ServerAction{$\y \getsr \ZZ_p$, $\sigmaY \gets g^\y$}
+	\NextLine
+	
+	\ClientAction[name=RunInitI-last]{$\nonce_I \getsr \bits^{nl}$}
+	\ServerAction{$\nonce_R \getsr \bits^{nl}$}
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\ClientToServer{$\nonce_I, \X$}{}
+	\NextLine[0.25]
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\ServerAction{$\sid \gets (\nonce_I, \nonce_R,\X,\sigmaY)$}
+	\NextLine
+	\ServerAction{$\mk \gets \RO(\nonce_I,\nonce_R,\X,\sigmaY,\X^\y)$}
+	\NextLine
+	\ServerAction{$\ks / \kt / \fbox{$\ke$} \gets \PRF(\mk,0 / 1 / 2)$}
+	\NextLine
+	
+	\ServerAction{$\sigma \gets \SIGScheme.\SIGSign(\sk_R, \labelrs\|\nonce_I\|\nonce_R\| \X \| \sigmaY)$}
+	\NextLine
+	\ServerAction{$\tau \gets \MACScheme.\MACTag(\kt, \labelrm\|\nonce_I\|\nonce_R\|R)$}
+	\NextLine
+	\ServerAction[name=RunRespI-last]{$c \gets (R, \sigma,\tau)$ \fbox{$c \gets \text{Enc}_{\ke}(R,\sigma,\tau)$}}
+	
+	\NextLine[-1]
+	\ClientAction[name=RunInitII]{\underline{$\RunInit(I, \sk_I, \st, \peerpk, m = (\nonce_R,\sigmaY,c))$}}
+	{\NextLine[1]}
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\ServerToClient{$\nonce_R, \sigmaY, c$}{}
+	{\NextLine[-0.5]}
+	\ClientAction{$\sid \gets (\nonce_I,\nonce_R,\X,\sigmaY)$}% \fg{Why do we set $\sid$ here already (there's aborts below), not upon acceptance?} \fg{Because we actually need sid be set for explicit auth.}
+	\NextLine
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+	\ClientAction{$\mk \gets \RO(\nonce_I,\nonce_R,\X,\sigmaY,\sigmaY^{\x})$}
+	\NextLine
+	\ClientAction{$\ks / \kt / \fbox{$\ke$} \gets \PRF(\mk,0 / 1 / 2)$}
+	\NextLine
+	\ClientAction{$(R, \sigma,\tau) \gets c$ \fbox{$(R, \sigma, \tau) \gets \text{Dec}_{\ke}(c)$}}
+	\NextLine
+	
+	\ClientAction{\textbf{abort} if $\neg \SIGScheme.\SIGVerify(\peerpk[R], \labelrs\|\nonce_I\|\nonce_R\| \X \| \sigmaY, \sigma)$}
+	\NextLine
+	\ClientAction{\textbf{abort} if $\neg \MACScheme.\MACVerify(\kt, \labelrm\|\nonce_I\|\nonce_R\|R, \tau)$}
+	\NextLine
+	
+	\ClientAction{$\status \gets \accepted$; $\peerid \gets R$}
+	\NextLine
+	\ClientAction{$\sigma' \gets \SIGScheme.\SIGSign(\sk_I, \labelis\|\nonce_I\|\nonce_R\|\X\|\sigmaY)$} 
+	\NextLine
+	\ClientAction{$\tau' \gets \MACScheme.\MACTag(\kt, \labelim\|\nonce_I\|\nonce_R\|I)$}
+	\NextLine
+	\ClientAction[name=RunInitII-last]{$c' \gets (I,\sigma', \tau')$ \fbox{$c' \gets \text{Enc}_{\ke}(I,\sigma',\tau')$}}
+	
+
+	\ServerAction[name=RunRespII]{\underline{$\RunRespII(\id,\sk,\st,\peerpk, m = c')$}}
+	{\NextLine[0.25]}
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	{\NextLine[0.5]}
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\ServerAction{$(I, \sigma',\tau') \gets c'$\fbox{$(I, \sigma', \tau') \gets \text{Dec}_{\ke}(c')$}}
+	\NextLine
+	\ServerAction{\textbf{abort} if  $\neg \SIGScheme.\SIGVerify(\peerpk[I], \labelis\|\nonce_I\|\nonce_R\|\X\|\sigmaY,\sigma')$}
+	\NextLine
+	\ServerAction{\textbf{abort} if $\neg \MACScheme.\MACVerify(\kt, \labelim\|\nonce_I\|\nonce_R\|I, \tau')$}
+	\NextLine	
+	\ServerAction{$\status \gets \accepted$; $\peerid \gets I$}
+	
+	\NextLine[1.5]
+	
+	\SharedAction{\textbf{accept} with key~$\skey = \ks$ and session identifier~$\sid = (\nonce_I, \nonce_R, \X, \sigmaY)$}
+	
+	
+	%
+	% state passing
+	%
+	\draw [thick,gray,dashed,-latex] (RunInitI-last.south west) -- (RunInitII.north west) node [midway,right,darkgray] {$\st.\state \gets (\nonce, \X, \x)$};
+	\draw [thick,gray,dashed,-latex] (RunRespI-last.south east) -- (RunRespII.north east) node [midway,left,darkgray] {$\st.\state \gets (\nonce, \nonce',\X,\sigmaY,\ks,\kt,\fbox{$\ke$})$};
+\end{tikzpicture}
+\iffull\else}\fi %% resizebox in lncs
+% \end{minipage}
+

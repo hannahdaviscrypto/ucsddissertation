@@ -1,0 +1,467 @@
+\section{Schemes} \label{sec-schemes}
+
+Given the above, we let $\GDesc.\group_{\Prime}$ denote the unique subgroup of order $\GDesc.\Prime$, and we fix a generator of it that we denote $\GDesc.\generator$. Item~(2) of Proposition~\ref{pr-group} gives us an efficient test for membership in the subgroup. We also assume an efficient test for membership in the group.
+
+When (as is usually the case), the group descriptor is fixed and understood from the context, we drop the $\GDesc$ and only write what is after the dot, like $\group,\Gorder,\Prime,\generator$ and so on.
+
+The instantiation used in Ed25519 is as follows. (Describe here succinctly what is the group descriptor and how the different components are instantiated.)
+
+%\begin{figure}[t]
+%\begin{center}\renewcommand{\arraystretch}{1.3}
+%	\begin{tabular}{|c||c|c|c|}\hline
+%	\textbf{Scheme} & $\HH$ & $\pF_1^{\HH_1}(\sk)$ & $\pF_2^{\HH_2}(e_2,m)$ \\ \hline\hline
+% & $\HH_i(x)=\SHA{512}(x)$ & $\HH_1(\sk)$ & $\HH_2(e_2\|m)$ \\ \hline
+% & $\HH_i(x)=\SHA{512}(\birep{i}\| x)$ & $\HH_1(\sk)$ & $\HH_2(e_2\|m)$ \\ \hline\hline
+% & $\HH \getsr \AllFuncs(\domain,\rangeSet;\domain,\rangeSet;\domain,\rangeSet)$ & $\HH_1(\sk)$ & $\HH_2(e_2\|m)$ \\ \hline
+% & $\HH \getsr \AllFuncs(\domain,\rangeSet;\domain,\Z_p;\domain,\Z_p)$ & $\HH_1(\sk)$ & $\HH_2(e_2\|m)$ \\ \hline
+%  & $\HG\getsr \AllFuncs(\domain,\rangeSet)$ ; $\HH_1,\HH_2,\HH_3 \gets \HG$ & $\HH_1(\sk)$ & $\HH_2(e_2\|m)$ \\ \hline
+%	\end{tabular}\renewcommand{\arraystretch}{1}
+%	\end{center}
+%	\caption{Here $\domain =\bits^*$ and $\rangeSet =\bits^{2k}$. The first two rows set $k=256$. }\label{fig-ge-types}
+%\end{figure}
+
+
+\begin{figure}[t]
+\begin{center}\renewcommand{\arraystretch}{1.3}
+	\begin{tabular}{|c||c|c|c|}\hline
+	\textbf{Choice} & $\HH$ & Models & Captures $\SHA{512}$? \\ \hline\hline
+1 & $\HH_i(x)=\SHA{512}(x)$ & &  \\ \hline
+2 & $\HH_i(x)=\SHA{512}(\birep{i}\| x)$ & & \\ \hline\hline
+3 & $\HH \getsr \AllFuncs(\domain,\rangeSet;\domain,\rangeSet;\domain,\rangeSet)$ & 2 & No \\
+     \hline
+4 & $\HH \getsr \AllFuncs(\domain,\rangeSet;\domain,\Z_p;\domain,\Z_p)$ & 2 & Yes \\ \hline
+ 5 & $\HG\getsr \AllFuncs(\domain,\rangeSet)$ ; $\HH_1,\HH_2,\HH_3 \gets \HG$ & \\ \hline
+	\end{tabular}\renewcommand{\arraystretch}{1}
+	\end{center}
+	\caption{Here $\domain =\bits^*$ and $\rangeSet =\bits^{2k}$. The first two rows set $k=256$. }\label{fig-ge-types}
+\end{figure}
+
+
+\headingu{The GS family.} We generalize the Schnorr signature scheme to a family of parameterized schemes. The algorithms of scheme $\DS = \SchSig[\GDesc,\SKS,\VF]$ are shown in Figure~\ref{fig-schnorr}. Here $\group,\generator,\Prime$ are specified by group description $\GDesc$ as described in Section~\ref{sec-prelims}. Parameter $\SKS$, the secret-key selector algorithm, returns a key $\s\in \Z_{\Prime}$ that, for standard Schnorr scheme, is uniformly distributed in $\Z_{\Prime}$, but, for the cases of interest to us, will instead by uniformly distributed in some subset of $\Z_{\Prime}$. The function space $\DS.\HASHSET$ is $\AllFuncs(\bits^*,\Z_{\Prime})$. Verification is parameterized by an algorithm $\VF$ to allow us to consider strict, permissive and batch verification. 
+
+
+
+\begin{figure}
+\twoCols{0.35}{0.49}
+{
+  \begin{algorithm-initial}{$\DS_1.\Kg$}
+  \item $\s \getsr \SKS$ ; $\curvepoint{A} \gets \s\cdot \generator$
+  \item Return $(\curvepoint{A},\s)$
+  \end{algorithm-initial}
+%  \begin{algorithm-subsequent}{$\DS.\Sign^{\HASH}(\s, \msg)$}
+%  \item $\littler \getsr \Z_{p}$ ; $\curvepoint{R} \gets \littler\cdot generator$
+%  \item $c \gets \HASH(\curvepoint{R}\|\curvepoint{A}\| \msg)$
+%  \item $\z \gets (\s c + \littler) \mod p$
+%  \item Return $(\curvepoint{R}, \z)$
+% \item $\curvepoint{A} \gets \s\cdot \generator$
+% \item Return $(\curvepoint{A},\s)$
+% \end{algorithm-subsequent}
+\begin{algorithm-subsequent}{$\DS_1.\Sign^{\HASH}(\s, \msg)$}
+\item $r \getsr \Z_{\Prime}$ ; $\curvepoint{R} \gets \littler\cdot \generator$
+\item $c \gets \HASH(\curvepoint{R}\|\curvepoint{A}\| \msg)$
+\item $\z \gets (\s c + \littler) \mod \Prime$
+\item Return $(\curvepoint{R}, \z)$
+  \end{algorithm-subsequent}
+  \begin{algorithm-subsequent}{$\DS_1.\Vf^{\HASH}(\curvepoint{A}, \msg, \sigma)$}
+  \item $(\curvepoint{R}, \z) \gets \sigma$
+  \item  $c \gets \HASH(\curvepoint{R}\|\curvepoint{A}\| \msg)$
+  \item Return $\VF(\curvepoint{A},\curvepoint{R},c,\z)$
+  \end{algorithm-subsequent}  \vspace{2pt}
+ }
+ {
+%\begin{algorithm-initial}{$\DS.\Kg^{\HASH}$}
+%  \item $\sk \getsr \bits^k$
+%  \item $\e\gets \pF_1^{\HASH_1(\cdot)}(\sk)$ 
+%; $\e_1 \gets \e[0..k-1]$ 
+%  \item $\s \gets \CF(\e_1)$ ; $\curvepoint{A} \gets \s\cdot \generator$
+%  \item Return $(\curvepoint{A},\sk)$
+%  \end{algorithm-initial}
+%  \begin{algorithm-subsequent}{$\DS.\Sign^{\HASH}(\sk, \msg)$}
+%  \item $\e\gets \pF_1^{\HASH_1(\cdot)}(\sk)$ 
+%  \item $\e_1 \gets \e[0..k-1]$ ; $\e_2 \gets \e[k..2k-1]$ 
+%  \item $\s \gets \CF(\e_1)$ ; $\curvepoint{A} \gets \s\cdot \generator$
+%  \item $\littler \gets \pF_2^{\HASH_2(\cdot)}(\e_2,\msg)\bmod \Prime$ 
+%  ; $\curvepoint{R} \gets \littler\cdot \generator$
+%  \item $c \gets \HASH_3(\curvepoint{R}\|\curvepoint{A}\|\msg) \bmod \Prime$
+%  \item $\z \gets (\s c + \littler) \mod \Prime$
+%  \item Return $(\curvepoint{R},\z)$
+%  \end{algorithm-subsequent}
+%  \begin{algorithm-subsequent}{$\DS.\Vf^{\HASH}(\curvepoint{A}, \msg, \sigma)$}
+%  \item $(\curvepoint{R}, \z) \gets \sigma$
+%  \item $c \gets \HASH_3(\curvepoint{R}\|\curvepoint{A}\|\msg)$
+%  \item Return $\VF(\curvepoint{A},\curvepoint{R},c,\z)$
+%\end{algorithm-subsequent}  \vspace{2pt}
+%}
+%	\oneCol{0.56}{
+	\begin{algorithm-initial}{$\DS_2.\Kg^{\HASH}$}
+		%\item $\sk \getsr \bits^k$
+		\item $\sk\gets  \HASH_1(\emptystring)$ 
+		; $\e_1 \gets \sk[0..k-1]$ 
+		\item $\s \gets \Clamp(\e_1)$ ; $\curvepoint{A} \gets \s\cdot \generator$
+		\item Return $(\curvepoint{A}, \sk)$
+	\end{algorithm-initial}
+	\begin{algorithm-subsequent}{$\DS_2.\Sign^{\HASH}(\sk, \msg)$}
+		\item $\e_1 \gets \sk[0..k-1]$ ; $\e_2 \gets \e[k..2k-1]$ 
+		\item $\s \gets \Clamp(\e_1)$ ; $\curvepoint{A} \gets \s\cdot \generator$
+		\item $\littler \gets \HASH_2(\e_2\|\msg) \bmod \Prime$ 
+		; $\curvepoint{R} \gets \littler \cdot \generator$
+		\item $c \gets \HASH_2(\curvepoint{R}\|\curvepoint{A}\|\msg) \bmod p$
+		\item $\z \gets (\s c + \littler) \mod p$
+		\item Return $(\curvepoint{R},\z)$
+	\end{algorithm-subsequent}
+	\begin{algorithm-subsequent}{$\DS_2.\Vf^{\HASH}(\curvepoint{A}, \msg, \sigma)$}
+		\item $(\curvepoint{R}, \z) \gets \sigma$
+		\item $c \gets \HASH_2(\curvepoint{R}\|\curvepoint{A}\|\msg)$
+		\item Return $\VF(\curvepoint{A},\curvepoint{R},c,\z)$
+	\end{algorithm-subsequent}  \vspace{2pt}
+	}
+\vspace{-8pt}
+\caption{Let $\GDesc$ be a group descriptor. Left: the General Schnorr signature scheme $\DS_1 = \SchSig[\GDesc,\SKS,\VF]$ is on the left. Right: the EDDSA scheme $\DS_2 = \NewGEscheme[\GDesc,k, \CF,\VF,\roSp]$}
+\label{fig-ge1}\label{fig-schnorr}
+\hrulefill
+\vspace{-10pt}
+\end{figure}
+
+\heading{The GE family.} We generalize EdDSA, parameterizing it to define a family of schemes. Formally, $\NewGEscheme$ is a transform constructing a signature scheme $\DS = \NewGEscheme[\GDesc,k, \CF,\VF,\roSp]$ from parameters we will discuss. The algorithms of the scheme are shown on the right side of Figure~\ref{fig-ge1}. 
+% Formally, $\GEscheme$ is a transform constructing a signature scheme $\DS = \GEscheme[\GDesc,k,\pF_1,\pF_2,\CF,\VF,\roSp]$ from parameters we will discuss. The algorithms of the scheme are shown in the right of Figure~\ref{fig-ge1}. 
+
+Here $\GDesc$ is a group descriptor as per Section~\ref{sec-prelims}, and $\group,\Prime,\generator,\ldots$ are as specified by it. Integer $k$ is the length of the secret key $\sk$ at line 1. 
+%At lines 2,5, function $\pF_1$ expands $\sk$ into a $2k$-bit string $\e$ with the aid of an oracle $\HASH_1$, which is one of three random oracles that the scheme will require. Function space $\roSp$ is accordingly, an arity-3 space that specifies these functions, whose choices will vary. 
+
+ At lines 2,5, $\CF \Colon \bits^k\to \Z_p$ is a ``clamping'' function that converts $\e_1$, which is the first $k$ bits of $\sk$, into a scalar $\s\in\Z_{\Prime}$. The clamping function of EdDSA is shown in ... 
+
+
+The public key is $\curvepoint{A}$, as per lines~2,5. Line~6 generates a scalar $\littler$ by applying to $\e_2\concat \msg$ the second random oracle, $\HASH_2$. This is the de-randomization step. The rest of signing is like for Schnorr, with the second random oracle used as in Schnorr. Verification uses the $\VF$ function, for which we will consider different choices.
+
+\headingu{Instantiations.}
+%
+%In EdDSA, $\HASH_1,\HASH_2,\HASH_3$ are all set to $\SHA{512}$. Formally, $\roSp$ consists of the single function $H$ defined by $H(i,x)=\SHA{512}(x)$ for $i=1,2,3$. Security analyses model the hash functions as ideal random oracles, leading to two questions or issues. The first is
+%
+%
+%There are two choices for $\VF$, strict and permissive. The second uses a multiplier of $m$ and the first does not. We need to specify both choices in a Figure.
+%
+% 
+%
+%For an analysis, we move to the ROM. Suppose we assume $\HASH_1,\HASH_2,\HASH_3$ are independent. Formally, $\roSp = \AllFuncs(\bits^*,\bits^{2k};\bits^*,\bits^{2k};\bits^*,\bits^{2k})$. Both $\pF_1$ and $\pF_2$ continue to be as above. This, implicitly, is the scheme analyzed by \cite{SP:BCJZ20}. (This citation needs to be added.)
+%
+%There are two weaknesses in the above analysis. First, in EdDSA, the three hash functions are the same, not independent. Second, $\SHA{512}$ is not indifferentiable from a RO due to the extension attack. 
+%
+%Let us continue to assume $\HASH_1,\HASH_2,\HASH_3$ are independent. (We will lift this restriction later.) Then we have two claims. One is that we can improve the analysis to make only standard model assumptions on $\HASH_1,\HASH_2$. (Formally, the assumptions are on $\pF_1,\pF_2$, but the consequence is that we can make concrete assumptions on $\SHA{512}$ itself for these two cases. Well, not exactly, since we don't have independence.) Second, we can have an analysis that applies to $\SHA{512}$ by changing the function space. Namely we assume the range of $\HASH_3$ is $\Z_p$. Then if $p$ is sufficiently smaller than $2^{2k}$, we can prove indifferentiability extending \cite{C:CDMP05}.
+
+%
+%
+%
+%
+%\headingu{Domain-separated EdDSA.} The following assumes the three ROs are independent. The bounds are a guess. Need to work out a proof and complete the theorem statement (correct bounds, resources of constructed adversaries). The first step is to give definitions for prf and prg security in the prelims section. This is all done in the multi-user setting. So definitions need to be in this setting for uf-cma and also prf. For prg, the seed plays the role of the key so it is like a PRF in which there is only one possible input. Write definitions and check them with me before proceeding to proofs.
+%
+%
+%\begin{theorem}\label{th-ds-eddsa} Let $\DS_1 = \GEscheme[\GDesc,k,\pF_1,\pF_2,\CF,\VF,\roSp]$ with $\roSp = \AllFuncs(\domain_1 ,\allowbreak \rangeSet_1 ;\allowbreak \domain_2 , \rangeSet_2 ;\allowbreak \bits^*,\Z_{\Prime})$ for some (any) sets $\domain_1,\rangeSet_1,\domain_2,\rangeSet_2$. Define secret-key selector $\SKS$ to pick $x\getsr\bits^k$ and then return $\s\gets\CF(x)$. Let $\DS_2 = \SchSig[\GDesc,\SKS,\VF]$. Let $\advA_1$ be an adversary, attacking the uf-cma security of $\DS_1$, the number of whose queries to oracles $\NewO,\SignO,\HASH_i$ are $q_n,q_s,q_i$, respectively ($i=1,2,3$). Then we build adversaries $\advA_2,\advA_{\pF_1},\advA_{\pF_2}$ such that 
+%\begin{align}
+%	\ufAdv{\DS_1}{\advA_1} &\leq \ufAdv{\DS_2}{\advA_2} + \prgAdv{\pF_1}{\advA_{\pF_1}} + \prfAdv{\pF_2}{\advA_{\pF_2}} + \frac{q_sq}{\GDesc.\Prime}
+%\end{align}
+%where $q=q_1+q_2+q_3$.
+%\end{theorem}
+
+\headingu{EdDSA with seeded oracle space} We consider the single-user uf-cma security of the scheme $\NewGEscheme[\GDesc, k, \CF, \VF, \FuncSp{TS}_{k,\GDesc.\Prime}]$, where $\FuncSp{TS}_{k,\GDesc.\Prime}$ is the seeded ideal functionality described in Section 4.
+
+
+\begin{theorem}\label{th-ts-eddsa} Let $\DS_1 = \NewGEscheme[\GDesc,k,\CF,\VF,\FuncSp{TS}_{k,\GDesc.\Prime}]$. Define secret-key selector $\SKS$ to pick $x\getsr\bits^k$ and then return $\s\gets\CF(x)$. Let $\DS_2 = \SchSig[\GDesc,\SKS,\VF]$. Let $\advA_1$ be an adversary attacking the uf-cma security of $\DS_1$, such that $\advA_1$ calls $\Initialize$ with input $u = 1$ and $\advA_1$ makes $q_s, q_2$ queries to oracles $\SignO,\HASH_2$, respectively and no queries to $\HASH_1$. Then 
+	\begin{align}
+	\ufAdv{\DS_1}{\advA_1} &\leq \ufAdv{\DS_2}{\advA_1} + \frac{q_2}{2^{k}}+\frac{q_sq_i}{2^{\Prime}}.
+	\end{align}
+	where $q=q_1+q_2$.
+\end{theorem}
+\begin{proof}
+	
+	We prove this theorem using a sequence of code-based games in the Bellare-Rogaway framework.
+	
+	The first game, $\Gm_0$ will be the UF game for $\DS_1$. Note that 
+		\[\Pr[\Gm_0(\advA_1)] = \ufAdv{\DS_1}{\advA_1}.\]
+		
+	In $\Gm_1$, which we define in Figure~\ref{fig:gm-pf-ts-eddsa-0-3}, we change line $1$ and to sample $e$ uniformly from the set $\bits^{2k}$. We know that $\HASH_1$ is drawn uniformly from $\AllFuncs(\bits^{k}\times \{\emptystring\}, \bits^{2k})$, that $\oseed$ is never used by $\Gm_0$ except in line $1$, and that $\advA_1$ never calls $\HASH_1$. Therefore the output $e$ of $\HASH_1(\oseed,\emptystring)$ is distributed uniformly over $\bits^{2k}$ regardless of the choice of $\oseed$, and sampling $e$ directly from this set does not change the input-output behavior of $\Initialize$. Consequently,
+	\[\Pr[\Gm_1(\advA_1)] = \Pr[\Gm_0(\advA_1)].\]
+	
+	\begin{figure}
+		\twoCols{0.49}{0.49}
+		{
+			\ExperimentHeader{Game $\mUFCMA_{\DS_1} = \Gm_0$, $\Gm_1$}
+			
+			\begin{oracle}{$\Initialize(\numUsers)$}
+				\item $\oseed\getsr\DS.\HASHSET.\Sg$ ;
+				$\HH \getsr \DS.\HASHSET.\Funcs$
+				\item For $\usr=1$ to $\numUsers$ do:
+				\item \quad $\vecSk[\usr] \gets \HASH_1(\oseed,\emptystring)$ \comment{In $\Gm_0$ only}
+				\item \quad $\vecSk[\usr] \gets \bits^{2k}$ \comment{In $\Gm_1$ only}
+				\item \quad $\e_1 \gets \vecSk[\usr][0..k-1]$ 
+				\item \quad $\s \gets \CF(\e_1)$ ; $\vecPk[\usr] \gets \s\cdot \generator$
+				\item Return $\vecPk$
+			\end{oracle}
+			\ExptSepSpace
+			
+			\begin{oracle}{$\SignOO(\usr, \msg)$}
+				\item if $T[\usr, \msg] \neq \bot$ then return $T[\usr, \msg]$
+				\item $\e_1 \gets \vecSk[\usr][0..k-1]$ ; $\e_2 \gets \vecSk[\usr][k..2k-1]$ 
+				\item $\s \gets \CF(\e_1)$ ; $\curvepoint{A} \gets \s\cdot \generator$
+				\item $\littler \gets \HASH_2(\oseed,\e_2\|\msg)\bmod \Prime$ 
+				; $\curvepoint{R} \gets \littler\cdot \generator$
+				\item $c \gets \HASH_2(\oseed, \curvepoint{R}\|\curvepoint{A}\|\msg) \bmod \Prime$
+				\item $\z \gets (\s c + \littler) \mod \Prime$
+				\item $\sigma \gets (\curvepoint{R},\z)$
+				\item $S \gets S \cup \{(\usr, \msg)\}$
+				\item $T[\usr, \msg] \gets \sigma$
+				\item Return $\sigma$
+			\end{oracle}
+			\ExptSepSpace
+			
+			\begin{oracle}{$\HASH(i,x)$}
+				\item Return $\HH_i(\oseed,x)$
+			\end{oracle}
+			\ExptSepSpace
+			
+			\begin{oracle}{$\Finalize(\chusr, \chmsg, \chsig)$}
+				\item Return ($(\chusr,\chmsg) \not\in S$) and $\DS_1.\Vf^{\HASH}(\vecPk[\chusr], \chmsg, \chsig)\:$) \vspace{2pt}
+			\end{oracle}
+		}
+		{
+			\ExperimentHeader{\fbox{$\Gm_2$}, $\Gm_3$}
+			
+			\begin{oracle}{$\SignOO(\usr, \msg)$}
+				\item if $T[\usr, \msg] \neq \bot$ then return $T[\usr, \msg]$
+				\item $\e_1 \gets \vecSk[\usr][0..k-1]$ ; $\e_2 \gets \vecSk[\usr][k..2k-1]$ 
+				\item $\s \gets \CF(\e_1)$ ; $\curvepoint{A} \gets \s\cdot \generator$
+				\item \gamechange{$\littler \getsr \Z_{\Prime}$}
+				\item \gamechange{if $L_1[\e_2\concat\msg] \neq \bot$ then $\bad \gets \true$}
+				\item \quad \gamechange{\fbox{$\littler \getsr L_1[\e_2\concat\msg] \bmod \Prime$}}
+				\item \gamechange{$L_2[\e_2\concat\msg] \gets \littler$}
+				\item $\curvepoint{R} \gets \littler\cdot \generator$
+				\item $c \gets \HASH_2(\oseed, \curvepoint{R}\|\curvepoint{A}\|\msg) \bmod \Prime$
+				\item $\z \gets (\s c + \littler) \mod \Prime$
+				\item $\sigma \gets (\curvepoint{R},\z)$
+				\item $S \gets S \cup \{(\usr, \msg)\}$
+				\item $T[\usr, \msg] \gets \sigma$
+				\item Return $\sigma$
+			\end{oracle}
+			\ExptSepSpace
+			
+			\begin{oracle}{$\HASH(i,x)$}
+				\item $y \gets \HH_i(\oseed,x)$
+				\item if $i = 2$ then 
+				\item \quad \gamechange{if $L_2[x] \neq \bot$ then $\bad \gets \true$}
+				\item \quad \quad \gamechange{\fbox{$y \gets L_2[x]$}}
+				\item \quad \gamechange{$L_1[x] \gets y$}
+				\item Return $y$
+			\end{oracle}
+	}
+	\vspace{-5pt}
+	\caption{
+		Left: Game defining UF security of signature scheme $\DS_1$ and $\Gm_1$ in the proof of Theorem~\ref{th-ts-eddsa}. Boxed code is only in $\Gm_1$, code that has been struck out is only in $\Gm_0$. Right: $\Gm_2$ and $\Gm_3$ for the proof of Theorem~\ref{th-ts-eddsa}, with changes from $\Gm_1$ highlighted. Boxed code is only in $\Gm_2$. Oracles that are identical to prior games have been omitted.}
+		%\label{fig:schnorr-sig}
+		\label{fig:gm-pf-ts-eddsa-0-3}
+		\hrulefill
+		\vspace{-10pt}
+	\end{figure}
+	
+	\begin{figure}
+		\twoCols{0.46}{0.46}
+		{
+		
+					\ExperimentHeader{$\Gm_4$}
+		
+		\begin{oracle}{$\Initialize(\numUsers)$}
+			\item $\oseed\getsr\DS.\HASHSET.\Sg$ ; 
+			$\HH \getsr \DS.\HASHSET.\Funcs$
+			\item For $\usr=1$ to $\numUsers$ do:
+			\item \quad \gamechange{$\e_1 \getsr \bits^{k}$}
+			\item \quad $\s \gets \CF(\e_1)$ ; $\vecPk[\usr] \gets \s\cdot \generator$
+			\item \gamechange{$\vecSk[\usr] \gets s $}
+			\item Return $\vecPk$
+		\end{oracle}
+		\ExptSepSpace
+		
+				\begin{oracle}{$\HASH(i,x)$}
+			\item $y \gets \HH_i(\oseed,x)$
+			\item \gamechange{Return $y$}
+		\end{oracle}
+	}{
+		\ExptSepSpace
+		\begin{oracle}{$\SignOO(\usr, \msg)$}
+			\item if $T[\usr, \msg] \neq \bot$ then return $T[\usr, \msg]$
+			\item \gamechange{$s \gets \vecSk[\usr]$}; $\curvepoint{A} \gets \s\cdot \generator$
+			\item $\littler \getsr \Z_{\Prime}$; $\curvepoint{R} \gets \littler\cdot \generator$
+			\item $c \gets \HASH_2(\oseed, \curvepoint{R}\|\curvepoint{A}\|\msg) \bmod \Prime$
+			\item $\z \gets (\s c + \littler) \mod \Prime$
+			\item $\sigma \gets (\curvepoint{R},\z)$
+			\item $S \gets S \cup \{(\usr, \msg)\}$
+			\item $T[\usr, \msg] \gets \sigma$
+			\item Return $\sigma$
+		\end{oracle}
+		\ExptSepSpace
+		
+	
+		}
+		\vspace{-5pt}
+		\caption{Left:  Right: $\Gm_4$ for the proof of Theorem~\ref{th-ts-eddsa}, with changes from $\Gm_3$ highlighted.}
+%		%\label{fig:schnorr-sig}
+		\label{fig:gm-pf-ts-eddsa-234}
+		\hrulefill
+		\vspace{-10pt}
+	\end{figure}
+	
+	The next game, $\Gm_2$, alters the $\SignO$ oracle to sample $r$ uniformly at random from  $\Z_{\GDesc.\Prime}$ instead of calling $\HASH_2$. Using two tables $L_1$ and $L_2$, we retroactively program $\HASH_2$ for consistency with these choices and set a $\bad$ flag if $\advA$ makes a query that necessitates such reprogramming. Since the reprogramming enforces identical behavior in $\Gm_2$ and $\Gm_1$, 
+		\[\Pr[\Gm_2(\advA_1)] = \Pr[\Gm_1(\advA_1)].\]
+	In $\Gm_3$, we stop programming $\HASH_2$ after $\bad$ is set. By the Fundamental Lemma of Game-Playing, 
+		\[\Pr[\Gm_3(\advA_1)] \leq \Pr[\Gm_2(\advA_1)] + \Pr[\Gm_3(\advA_1) \text{ sets } \bad].\]
+	We know that $\Gm_3(\advA_1)$ sets the $\bad$ flag only if $\advA$ makes a query $z\|M$ to $\HASH_2$ such that $z = e_2$ and $M$ was queried to $\SignO$. Since $e_2$ is a uniformly random $k$-bit string and is never output by any oracle, the probability that $z = e_2$ for any query to $\HASH_2$ is at most $\frac{1}{2^k}$. By the union bound over the $q_2$ queries to $\HASH_2$, we have 
+	\[ \Pr[\Gm_3(\advA_1) \text{ sets } \bad] \leq \frac{q_2}{2^k}. \]
+	
+	In the final game, $\Gm_4$, we make certain bookkeeping changes that do not alter the behavior of the oracles. We discard the redundant $\bad$ flag and tables $L_1$, $L_2$ and set the secret key $\sk = s$, so that $\CF(e_1)$ is computed only once in $\Initialize$ instead of once per $\SignO$ query. The adversary cannot tell how many times a value has been computed, so these changes are undetectable. Since the string $e$ is no longer used, we stop sampling it altogether. The resulting game is now identical to the $\UFCMA$ game for $\DS_2$. 
+\end{proof}
+
+\headingu{From permissive to strict verification.} This aims to be the claim whose proof was outlined in my handwritten notes. We need figures that show the strict verification algorithm $\sVF$ and permissive one $\pVF$. Then for general Schnorr signatures, the following reduces one to the other. It needs a proof and the bounds are currently guesses that would be updated after the proof. Parts of the theorem statement need filling in.
+
+\begin{theorem}\label{th-pvf-svf} Let $\DS_1 = \SchSig[\GDesc,\SKS,\sVF]$ and $\DS_2 = \SchSig[\GDesc,\SKS,\pVF]$. Let $\advA_2$ be an adversary, attacking the uf-cma security of $\DS_2$, the number of whose queries to oracles $\NewO,\SignO,\HASH$ are $q_n,q_s,q$, respectively. Then we build an adversary $\advA_1$, attacking the uf-cma security of $\DS_1$ such that 
+\begin{align}
+	\ufAdv{\DS_2}{\advA_2} &\leq \ufAdv{\DS_1}{\advA_1} +  \frac{2(q_s + q)^2}{\GDesc.\Prime}\;.
+\end{align}
+The running time of $\advA_1$ is that of $\advA_2$ plus ... the number of $\NewO,\SignO$ queries is maintained as $q_n,q_s$ and the number of $\HASH$ queries is $q_s + q + 1$.
+\end{theorem}
+
+\begin{proof}
+	{\color{red} change $\curvepoint{R}$ to $\R$ and $M$ to $\msg$?}
+	
+	We prove this theorem by constructing adversary $\advA_1$ given $\advA_2$.  $\advA_1$ is an adversary attacking the uf-cma security of $\DS_1= \SchSig[\GDesc,\SKS,\sVF]$, while $\advA_2$ is an adversary attacking the uf-cma security of $\DS_2= \SchSig[\GDesc,\SKS,\pVF]$. The strict verification algorithm $\sVF$ for $\DS_1$ and the permissive one $\pVF$ for  $\DS_2$ are shown in Figure~\ref{fig:sVF and pVF}. The other algorithms defined for $\DS_1$ and $\DS_2$ are the same as what are specified in the $\SchSig$ family.
+	
+	We define adversary $\advA_1$ on Figure~\ref{fig:A1}. $\advA_1$ has access to random oracle $\HASH$ and has input public key $\curvepoint{A}$. $\advA_1$ is able to run $\advA_2$ and simulates $\advA_2$'s oracles $\HASH_2$ and $\SignO_2$. Additionally, we maintain tables $T$ and $HT$ to store intermediate values from simulators and use in other places. We claim that through construction, we can gain an adversary $\advA_1$ with advantage satisfying the inequality in Theorem~\ref{th-pvf-svf}. 
+	
+	We will show that except with some small probability, our adversary $\advA_1$ simulates the uf-cma game of $\DS_2$ perfectly. We will then show that if $\advA_2$ wins the simulated game, then $\advA_1$ will win its own uf-cma game. We first show this for a simplified version of $\advA_2$ that makes no $\SignO$ queries, then generalize to arbitrary $\advA_2$. 
+	
+	First, we assume for simplicity that $\advA_2$ makes no $\SignO$ queries and caches its $\HASH$ queries. Therefore $\advA_1$ only has to simulate random oracle queries. We handle random oracle queries of the form $(\R, \pk, M)$ differently depending on whether $\R$ is an element of the subgroup $\G_\Prime$. If $\R$ is in $\G_\Prime$, we forward the query to our random oracle $\HASH$. If $\R$ is not in $\G_\Prime$, we randomize $\R$ and project it onto $\G_\Prime$ before forwarding the query. We store the randomizer $D$ and its discrete log $x$ in a table $T$ for later use. When $\advA_2$ submits a message $m$ and a forgery $(R, z)$, we check again whether $\R$ is in $\G_\Prime$. If it is, then $(R, z)$ is a forgery on $M$ under $\DS_1$. Otherwise, we can compute a forgery on $M$ under $\DS_1$ using the stored values $D$ and $x$.
+	
+	How well does $\advA_1$ simulate the UF-CMA game for $\DS_2$? The public key $\pk$ is generated honestly by the UF-CMA game for $\DS_1$, so the simulation can only fail when outputs from $\HASH_2UFCMASim$ are distributed differently than those of a real random oracle. Consider two distinct queries to $\HASH_2UFCMASim$: $(\R_1, \pk_1, M_1)$ and $(\R_2, \pk_2, M_2)$. A random oracle would generate uniformly random independent response to each of these two queries. $\HASH_2UFCMASim$ also selects independently random responses, except when the two distinct queries cause $\HASH$ to be queried on identical inputs. We will call this event $F$. 
+		
+	When event $F$ occurs, we can see that $\pk_1$ must equal $\pk_2$ and $M_1$ must equal $M_2$. Let the common values be $M$ and $\pk=\curvepoint{A}$. The possible values of $\R_1$ and $\R_2$ fall into three cases. The first case is that $\R_1$ and $\R_2$ are both in $\G_\Prime$. In this case, $\HASH_2UFCMASim$ returns $\HASH(\R_1\|\curvepoint{A}\|M)$ and $\HASH(\R_2\|\curvepoint{A}\|M)$ for the two distinct queries and event $F$ happens when $\HASH(\R_1\|\curvepoint{A}\|M) = \HASH(\R_2\|\curvepoint{A}\|M)$. Due to the collision resistant property of a random oracle, $F$ happens almost only if $\R_1 = \R_2$ which contradicts our assumptions. Therefore, case 1 is impossible. {\color{red} rephrase case 1.}
+	
+	Case 2 is when neither $\curvepoint{R_1}$ nor $\curvepoint{R_2}$ are  in $\group_{\Prime}$. The randomizers $\curvepoint{D1}$ and $\curvepoint{D2}$ are computed for the two distinct queries, respectively. In this situation, the inputs to $\HASH$ collide when $(2^\cofactor\curvepoint{R_1} + \curvepoint{D_1}) = (2^\cofactor\curvepoint{R_2} + \curvepoint{D_2})$. $(2^\cofactor\curvepoint{R_1} + \curvepoint{D_1})$ and $(2^\cofactor\curvepoint{R_2} + \curvepoint{D_2})$ are randomly distributed points in $\group_{\Prime}$ which has size $\GDesc.\Prime$. During the $(q_s + q)$ $\HASH$ queries, the possibility that two of these elements in $\group_{\Prime}$ collide is exactly $\Pr[F | \curvepoint{R_1}, \curvepoint{R_2} \notin \group_{\Prime}] = C(\Prime, q_s + q) \leq \frac{(q_s + q)^2}{\GDesc.\Prime}$ based on the birthday bound. 	{\color{red} define C?}
+	
+	
+	Case 3 is when one point is in $\group_{\Prime}$ and the other is not. Without loss of generality, we assume that $(\curvepoint{R_1} \in \group_{\Prime})$ and $(\curvepoint{R_2} \in \G \setminus \group_{\Prime})$. There is only a single randomizer $\curvepoint{D}$ computed for $\curvepoint{R_2}$. In this case, $F$ happens when $\curvepoint{R_1} = 2^\cofactor \curvepoint{R_2} + \curvepoint{D}$ and so $\HASH(\curvepoint{R_1}\|\curvepoint{A}\| \msg) =  \HASH((2^\cofactor\curvepoint{R_2} + \curvepoint{D}) \|\curvepoint{A}\| \msg)$. Since $\curvepoint{R_1}$ and $(2^\cofactor\curvepoint{R_2} + \curvepoint{D})$ are also randomly distributed points in $\group_{\Prime}$, $\Pr[F | \curvepoint{R_1} \in \group_{\Prime} \wedge \curvepoint{R_2} \notin \group_{\Prime}] = C(\Prime, q_s + q) \leq \frac{(q_s + q)^2}{\GDesc.\Prime}$ is the probability that two out of $(q_s + q)$ elements in $\group_{\Prime}$ collide based on the birthday bound. Combining case 2 and 3, $\Pr[F] = \Pr[F | \curvepoint{R_1}, \curvepoint{R_2} \notin \group_{\Prime}] + \Pr[F | \curvepoint{R_1} \in \group_{\Prime} \wedge \curvepoint{R_2} \notin \group_{\Prime}] \leq \frac{2(q_s + q)^2}{\GDesc.\Prime}$.
+	
+	{\color{red} We have shown that $\advA_1$ perfectly simulates the UF-CMA game except when event $F$ occurs. We next demonstrate that when $\advA_2$ wins the simulated game, $\advA_1$ wins its own game, again except when event $F$ occurs. (give proof of correctness that $\advA_1$ submits a real forgery here).}
+	
+	Then we can go back to the two cases in $\HASH_2UFCMASim$, both assuming that event $F$ doesn't happen.
+	
+	Case 1: We have $\curvepoint{R} \in \group_{\Prime}$ in this case, and $\advA_1$ outputs the same as $\advA_2$. If $\advA_2$ wins Game $\mUFCMA_{\DS2}$, based on the permissive verification algorithm in Figure~\ref{fig:sVF and pVF}, 
+	\[2^\cofactor(\z \cdot  \generator) = 2^\cofactor (\h_2 \cdot \curvepoint{A} + \curvepoint{R}).\]
+	Multiplying both sides by $I$, we will still be in the same group and obtain
+	\[\z \cdot  \generator = \h_2 \cdot \curvepoint{A} + \curvepoint{R}\] which would pass the strict verification check. We are left to prove that we can do this inverse operation. From algebra, we know every point in the group $\G$ can be uniquely written as the sum of a point in the unique prime-order subgroup $\group_{\Prime}$ and a torsion component. Since the torsion factor $2^\cofactor$ is relatively prime to the order $\Prime$ of the subgroup $\group_{\Prime}$, multiplication of group elements by $2^\cofactor$ is an invertible operation and the inverse operation is multiplication by $I = 2^{-\cofactor} \mod \Prime$. 
+	Therefore, in case 1, if $F$ doesn't happen, $\advA_1$ wins Game $\mUFCMA_{\DS1}$ exactly when $\advA_2$ wins Game $\mUFCMA_{\DS2}$. We then obtain
+	\[\ufAdv{\DS_2}{\advA_2} = \Pr[\mUFCMA_{\DS2}(\advA_2) \cap \neg F] +  \Pr[\mUFCMA_{\DS2}(\advA_2) \cap F] \leq \Pr[\mUFCMA_{\DS1}(\advA_1) \cap \neg F] + \Pr[F] .\] 
+	Since 
+	\[ \Pr[\mUFCMA_{\DS1}(\advA_1) \cap \neg F] \leq \ufAdv{\DS_1}{\advA_1} ,\]
+	\[\ufAdv{\DS_2}{\advA_2} \leq \ufAdv{\DS_1}{\advA_1} + \Pr[F]\]
+	\[\ufAdv{\DS_2}{\advA_2} \leq \ufAdv{\DS_1}{\advA_1} +  \frac{2(q_s + q)^2}{\GDesc.\Prime}\]
+	
+	Case 2: We have $\curvepoint{R} \in \G \setminus \group_{\Prime}$ in this case, and $\advA_1$ outputs $(1, \msg, (2^\cofactor\curvepoint{R} + \curvepoint{D}, 2^\cofactor\z + x))$. Let the signature $(2^\cofactor\curvepoint{R} + \curvepoint{D}, 2^\cofactor\z + x)$ returned by $\advA_1$ be $(\curvepoint{R}', \z')$. $\advA_1$ retrives the intermediate value from $T[\curvepoint{R},  \msg]$ in line 6. Since $\curvepoint{R} \in \G \setminus \group_{\Prime}$, $\HASH_2UFCMASim$ computes 
+	\[\h_1 = \HASH((2^\cofactor\curvepoint{R} + \curvepoint{D}) \|\curvepoint{A}\| \msg) = \HASH(\curvepoint{R}'\|\curvepoint{A}\| \msg)\]
+	and
+	\[\h_2 =  I \cdot h_1 \mod \Prime\]
+	where 
+	\[I = 2^{-\cofactor} \mod \Prime.\] 
+	If $\advA_2$ wins Game $\mUFCMA_{\DS2}$, based on the permissive verification algorithm in Figure~\ref{fig:sVF and pVF}, 
+	\begin{align*} 
+		2^\cofactor(\z \cdot  \generator) &= 2^\cofactor (\h_2 \cdot \curvepoint{A} + \curvepoint{R}) \\
+		&=  2^\cofactor ((I \cdot \h_1 \cdot \curvepoint{A}) + \curvepoint{R}\\
+		&= 2^\cofactor (2^{-\cofactor} \cdot \h_1 \cdot \curvepoint{A} + \curvepoint{R})\\
+		&=  \h_1 \cdot \curvepoint{A} + 2^\cofactor \curvepoint{R}
+	\end{align*}
+	We then add $\curvepoint{D} = x \cdot \generator$ on both sides:
+	\begin{align*} 
+		2^c(\z \cdot  \generator) +  x \cdot \generator &=  \h_1 \cdot \curvepoint{A} + 2^c \curvepoint{R} + \curvepoint{D}\\
+		(2^c \z + x)\generator &=  \h_1 \cdot \curvepoint{A} + (2^c \curvepoint{R} + \curvepoint{D})\\
+		\z' \cdot  \generator &= \h_1 \cdot \curvepoint{A} + \curvepoint{R}'
+	\end{align*}
+	This implies that if event $F$ doesn't happen and $\advA_2$ wins Game $\mUFCMA_{\DS2}$, then $\advA_1$ wins Game $\mUFCMA_{\DS1}$. Similar to case 1:
+	\[\ufAdv{\DS_2}{\advA_2} = \Pr[\mUFCMA_{\DS2}(\advA_2) \cap \neg F] +  \Pr[\mUFCMA_{\DS2}(\advA_2) \cap F] \leq \Pr[\mUFCMA_{\DS1}(\advA_1) \cap \neg F] + \Pr[F]\] 
+	and so
+	\[\ufAdv{\DS_2}{\advA_2} \leq \ufAdv{\DS_1}{\advA_1} +  \frac{2(q_s + q)^2}{\GDesc.\Prime}.\]
+	
+	We show that in both cases, if simulators simulate oracles perfectly, we have
+\[\ufAdv{\DS_2}{\advA_2} \leq \ufAdv{\DS_1}{\advA_1} +  \frac{2(q_s + q)^2}{\GDesc.\Prime}.\]
+
+	Now we discard the assumption that $\advA_2$ makes no $\SignO_2$ queries and add a simulated $\SignO$ oracle to $\advA_1$. , we claim that $\advA_1$ simulates the UF-CMUA game for $\advA_2$ perfectly except when event $K$ happens, which is equivalent to say that $\advA_2$ cannot distinguish between $\HASH_2UFCMASim$ and the random oracle $\HASH_2$ except when event $K$ happens. This is true because $\HASH_2UFCMASim$ satisfies consistency by keeping a table $HT$ to output the same values for the same inputs, but $\advA_2$ will find collisions in $\HASH_2UFCMASim$ when and only when $K$ happens. From Figure~\ref{fig:A1}, collision is only possible in $\HASH_2UFCMASim$ when inputs to $\HASH$ collide, or outputs of $\HASH$ collide while inputs differ. 
+	
+	Finally, we claim that allowing $\advA_2$ to make $\SignO_2$ queries makes no difference on this inequality since each $\SignO_2$ query will always result in a perfect simulation. The simulator $\SignO_2 UFCMASim(\msg)$ begins by making $\SignO$ queries and obtains $(\curvepoint{R}, \z)$ pairs. First notice that since $(\curvepoint{R}, \z)$ is returned by $\SignO$ oracle, it has to be valid under $\SignO_2$ oracle, using the same argument as case 1. We are left to show programming $\HASH_2(\curvepoint{R}\|\curvepoint{A}\| \msg)$ in line 19-21 will not cause inconsistency for $\HASH_2$ queries. That is, we want to make sure that $\HASH_2UFCMASim(\curvepoint{A}, \curvepoint{R},  \msg) = \h = \HASH(\curvepoint{R}\|\curvepoint{A}\| \msg)$. Since $(\curvepoint{R}, \z) = \SignO(\msg)$, and since by the definition of $\SignO$ in $\DS_1$, we have $\curvepoint{R} \in \group_{\Prime}$. Then when $\advA_2$ makes $\HASH_2$ queries for this specific $(\curvepoint{R}, \msg)$ pair, $\HASH_2UFCMASim$ falls under case 1 and returns $\HASH(\curvepoint{R}\|\curvepoint{A}\| \msg)$. Since all the $\curvepoint{R}$ generated by $\SignO_2 UFCMASim(\msg)$ and input to the $\HASH$ are in $\group_{\Prime}$, event $K$ will never happen because of $\SignO_2$ queries and so we still have the same inequality as the theorem claims.
+	
+\end{proof}
+
+\begin{figure}
+	\twoCols{0.49}{0.49}
+	{
+		\begin{algorithm-initial}{$\DS_1.\Vf^{\HASH_1}(\curvepoint{A}, \msg, \sigma)$}
+			\item $(\curvepoint{R}, \z) \gets \sigma$
+			\item if $(\curvepoint{R}, \z) \notin \group_{\Prime} \times \Z_{\Prime}$ then return $\false$
+			\item  $\h \gets \HASH_1(\curvepoint{R}\|\curvepoint{A}\| \msg)$
+			\item Return $\z \cdot \generator = \h \cdot \curvepoint{A} + \curvepoint{R}$
+		\end{algorithm-initial}  \vspace{2pt}
+	}
+	{
+		\begin{algorithm-initial}{$\DS_2.\Vf^{\HASH_2}(\curvepoint{A}, \msg, \sigma)$}
+			\item $(\curvepoint{R}, \z) \gets \sigma$
+			\item if $(\curvepoint{R}, \z) \notin \G \times \Z_{\Prime}$ then return $\false$
+			\item $\h \gets \HASH_2(\curvepoint{R}\|\curvepoint{A}\| \msg)$
+			\item Return $2^\cofactor(\z \cdot  \generator)= 2^\cofactor(\h \cdot \curvepoint{A} + \curvepoint{R})$
+		\end{algorithm-initial} 
+	}
+	\vspace{-8pt}
+	\caption{Let $\GDesc$ be a group descriptor. Left: the verification algorithm of $\DS_1 = \SchSig[\GDesc,\SKS,\pVF]$. Right: the verification algorithm of $\DS_2 = \SchSig[\GDesc,\SKS,\sVF]$}
+	\label{fig:sVF and pVF}
+	\hrulefill
+	\vspace{-10pt}
+\end{figure}
+
+
+	\begin{figure}
+	\oneCol{0.75}
+	{	
+		\begin{algorithm-initial}{adversary $\advA_1[\HASH](\curvepoint{A})$}
+			\item $S \gets \emptyset$
+			\item $(1, \msg, (\curvepoint{R}, \z)) \gets \advA_2[\HASH_2UFCMASim, \SignO_2 UFCMASim](\curvepoint{A})$
+			\item $\HASH_2UFCMASim(\curvepoint{A}, \curvepoint{R},  \msg)$
+			\item if $(\curvepoint{R} \in \group_{\Prime})$ then return $(1, \msg, (\curvepoint{R}, \z))$
+			\item if $(\curvepoint{R} \in \G \setminus \group_{\Prime})$:
+			\item \quad $(x, D) \gets T[\curvepoint{R}, \msg]$
+			\item Return $(1, \msg, (2^\cofactor\curvepoint{R} + \curvepoint{D}, 2^\cofactor\z + x))$
+		\end{algorithm-initial}  \vspace{2pt}
+		\begin{algorithm-subsequent}{$\HASH_2UFCMASim(\curvepoint{A}, \curvepoint{R},  \msg)$}
+			\item if $(HT[\curvepoint{R}, \curvepoint{A}, \msg] \neq \bot)$ then return $HT[\curvepoint{R}, \curvepoint{A}, \msg]$
+			\item $I \gets 2^{-\cofactor} \mod \Prime$
+			\item if $(\curvepoint{R} \in \group_{\Prime})$:
+			\item \quad $h_2 \gets \HASH(\curvepoint{R}\|\curvepoint{A}\| \msg)$
+			\item if $(\curvepoint{R} \in \G \setminus \group_{\Prime})$:
+			\item \quad $x \getsr \Z_{\Prime}$ ; $D \gets x \cdot \generator$; $T[\curvepoint{R}, \msg] \gets (x, D)$
+			\item \quad $h_1 \gets \HASH((2^\cofactor\curvepoint{R} + \curvepoint{D}) \|\curvepoint{A}\| \msg)$
+			\item \quad $h_2 \gets I \cdot h_1 \mod \Prime$
+			\item $HT[\curvepoint{R}, \curvepoint{A}, \msg] \gets h_2$
+			\item return $h_2$
+		\end{algorithm-subsequent}  
+		\begin{algorithm-subsequent}{$\SignO_2 UFCMASim(\msg)$}
+			\item $(\curvepoint{R}, \z) \gets \SignO(\msg)$
+			\item $h \gets \HASH(\curvepoint{R}\|\curvepoint{A}\| \msg)$
+			\item $HT[\curvepoint{R}, \curvepoint{A}, \msg] \gets h$
+			\item $S \gets S \cup \{(1, \msg)\}$
+			\item Return $(\curvepoint{R}, \z)$
+		\end{algorithm-subsequent} 
+	}
+	\vspace{-5pt}
+	\caption{Build adversary $\advA_1$ given $\advA_2$.}
+	%\label{fig:schnorr-sig}
+	\label{fig:A1}
+	\hrulefill
+	\vspace{-10pt}
+\end{figure}
+
+
+ 
+
+
+

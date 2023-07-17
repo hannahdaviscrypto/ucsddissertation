@@ -1,0 +1,248 @@
+%\section{Proof of Theorem~\ref{th-ideal-eddsa}} \label{apx-ts-eddsa}	
+	We prove this theorem using a sequence of code-based games in the Bellare-Rogaway framework.
+	We highlight changes to games in gray, and omit oracles that do not change from the previous game to conserve space.
+	
+	The first game, $\Gm_0$, is the filtered unforgeability game for $\fDS$, so 
+		\[\Pr[\Gm_0(\advB)] = \Pr[\FUFCMA_{\fDS,\roSp_2,\Filter}(\advB)].\]
+
+	In $\Gm_1$, which we define in Figure~\ref{fig:gm-pf-ts-eddsa-0-3} alongside $\Gm_0$, we sample $\e_1$  uniformly from the set $\bits^{k}$ instead of querying $\iHASH((1,\emptystring))$.
+	We also change the filter so that it samples $\e_2$ directly from $\bits^{k}$ instead of querying $\HH(\oseed)$. (This is not shown in the Figure.)
+	In the previous game, $\iHASH$ would compute $\e_1$ and $\e_2$ by partitioning $\HH(\oseed)$, a uniform $2k$-bit string.
+	Then $\e_1$ and $\e_2$ are uniformly random in both games; thus the adversary cannot possibly detect the change without making the query $\eHASH(\oseed)$; as $\oseed$ is a uniformly random $k$-bit string known only to $\Filter$, this is possible with probability no better than $\frac{\Queries{\advB}{\eHASH}}{2^{k}}$ unless $\Filter$ somehow leaks $\oseed$. 
+	$\Filter$ only accesses $\oseed$ while answering queries to \emph{private} ports; thus it does not leak $\oseed$ in the query list $Q$. 
+	It also returns only values dependent on $\HH(\oseed)$ and not $\oseed$ itself; thus $\advB$ can do no better than guessing, and we have	
+	\[\Pr[\Gm_0(\advB)] \leq  \Pr[\Gm_1(\advB)] + \frac{\Queries{\advB}{\eHASH}}{2^{k}}.\]
+	
+	Notice that as of $\Gm_1$, the scheme no longer queries $\PrivO$ with port number $i=1$; thus all queries to $\PrivO$ will have port numbers $2$ or $3$, and the filter will return a value that has been reduced modulo $\Prime$. 
+	The portion of the output which is discarded by the modular reduction has no impact on the behavior of any oracle, and cannot possibly help the adversary.
+	
+	We make this explicit in $\Gm_2$ (Figure~\ref{fig:gm-pf-ts-eddsa-0-3}, on the right side) by changing $\eHASH$ so that it reduces its outputs modulo $\Prime$. 
+	This goes against adversary $\advB$'s expectations of $2k$-bit responses from $\PubO$, so we use a wrapper adversary $\advB_1$ to simulate a $\PubO$ oracle for $\advB$. 
+	$\advB_1$ answers converts elements $Y \in \Z_{\Prime}$ to elements of $\bits^{2k}$ by sampling $Z \gets \bits^{2k}$ and returning $Y + Z -(Z \mod \Prime)$. 
+	In the unlikely event (probability $< \frac{2}{\Prime}$) that the result falls outside of $\bits^{2k}$, the wrapper will resample a new $Z$ and start over; this resampling will not significantly increase its runtime.
+	We therefore estimate that $\Time{\advB_1} \approx \Time{\advB}$ and note that they make the same number of queries to hall oracles.
+	With resampling, the outputs of the simulated $\PubO$ are uniformly random over $\bits^{2k}$, as they should be.
+	Since the oracles perceived by $\advB$ are identical between $\Gm_1$ and $\Gm_2$, we have that
+	\[\Pr[\Gm_1(\advB)] \leq \Pr[\Gm_2(\advB)].\]
+	From this point forward, the queries $\iHASH((3,X))$ and $\eHASH(X)$ will return identical responses for any input $X$.
+	
+%%%% Multi-user only
+% 	However, the set of all users' secret keys are distributed differently between the games: two users have the same secret key in $\Gm_0$ if either a collision occurs between two entries in the $\oseed$ vector or in their outputs under $\HH_1$, so with probability at most $\frac{\numUsers^2}{2^k} + \frac{\numUsers^2}{2^{2k}}$. In $\Gm_1$, collisions occur with probability at most $\frac{\numUsers^2}{2^{2k}}$ by a birthday bound.  Consequently,
+% 	\[\Pr[\Gm_1(\advB)] \leq \Pr[\Gm_0(\advB)] + \frac{\numUsers^2}{2^k}.\]
+
+	
+	\begin{figure}[t]
+		\twoCols{0.45}{0.45}
+		{
+			\ExperimentHeader{Game $\FUFCMA_{\fDS,\roSp_2,\Filter} = \Gm_0$, $\Gm_1$}
+			
+			\begin{oracle}{$\Initialize$}
+				\item 
+				$(\HH,\HH)\getsr \roSp_2$ ;
+				$\oseed \getsr \Filter.\Sg$
+				\item $\e_1 \gets \iHASH((1, \emptystring))$ \comment{In $\Gm_0$ only}
+				\item $\e_1 \getsr \bits^k$\comment{In $\Gm_1$ only}
+				\item $\sk \gets \Clamp(\e_1)$ ; $\pk \gets \sk\cdot \generator$
+				\item $\QL \gets \emptyset$
+				\item Return $\pk$
+			\end{oracle}
+			\ExptSepSpace
+			
+			\begin{oracle}{$\SignOO(\msg)$}
+				\item if ($\msg \in S$) then return $\bot$
+				%\item $\pk \gets \sk \cdot \generator$
+				\item $\littler \gets
+				\iHASH((2, \msg))$ ; $\curvepoint{R} \gets \littler\cdot \generator$
+				\item $c \gets 
+			\iHASH((3,\curvepoint{R}\|\pk\|\msg))$
+				
+				\item $\z \gets (\sk \cdot c + \littler) \mod \Prime$
+				\item $\sigma \gets (\curvepoint{R},\z)$
+				\item $S \gets S \cup \{\msg\}$
+				\item Return $\sigma$
+			\end{oracle}
+			\ExptSepSpace
+			\begin{oracle}{$\iHASH(X)$}
+				\item $(Y;Q) \gets \Filter.\Eval[\HH](\oseed,X)$
+				\item $\QL \gets \QL \concat \{Q\}$
+			\item Return $Y$
+			\end{oracle}
+			\ExptSepSpace
+			
+			\begin{oracle}{$\eHASH(X)$}
+			    \item Return $\HH(X)$
+		        \end{oracle}
+		    \ExptSepSpace
+		    
+		    \begin{oracle}{$\pHASH$}
+    			\item Return $\QL$
+    		\end{oracle}
+    		\ExptSepSpace
+			
+			\begin{oracle}{$\Finalize(\chmsg, \chsig)$}
+			    \item If ($\chmsg\in S$) then return $\false$
+				\item Return $\fDS.\VF[\iHASH](\pk,\chmsg, \chsig)$ \vspace{2pt}
+			\end{oracle}
+		}
+		{
+			\ExperimentHeader{$\Gm_2$}
+			
+			\begin{oracle}{$\eHASH(X)$}
+				\item \gamechange{$Y \gets \HH(X) \mod \Prime$}
+				\item \gamechange{Return $Y$}
+			\end{oracle}
+			\ExptSepSpace
+			
+			\ExperimentHeader{\fbox{$\Gm_3$}, $\Gm_4$}
+			
+			\begin{oracle}{$\SignOO(\msg)$}
+					\item if ($\msg \in S$) then return $\bot$
+				%\item $\pk \gets \sk \cdot \generator$
+				\item \gamechange{$\littler \getsr \Z_{\Prime}$}
+				\item \gamechange{$\e_2\getsr \bits^{2k}$}
+				\item \gamechange{if $L_1[\e_{2}\concat\msg] \neq \bot$ then $\bad \gets \true$}
+				\item \quad \gamechange{\fbox{$\littler \getsr L_1[\e_{2}\concat\msg]$}}
+				\item \gamechange{$L_2[\e_{2}\concat\msg] \gets \littler$}
+				\item $\curvepoint{R} \gets \littler\cdot \generator$
+				\item $c \gets 
+			\iHASH((3,\curvepoint{R}\|\pk\|\msg))$
+				
+				\item $\z \gets (\sk \cdot c + \littler) \mod \Prime$
+				\item $\sigma \gets (\curvepoint{R},\z)$
+				\item $S \gets S \cup \{\msg\}$
+				\item Return $\sigma$
+			\end{oracle}
+			\ExptSepSpace
+			
+			\begin{oracle}{$\eHASH(X)$}
+			    \item $Y \gets \HH(X) \mod \Prime$
+			    \item \gamechange{if $L_2[X] \neq \bot$ then $\bad \gets \true$}
+				\item \quad \gamechange{\fbox{$Y \gets L_2[X]$}}
+				\item \gamechange{$L_1[X] \gets Y$}
+			    \item Return $Y$
+		        \end{oracle}
+		    \ExptSepSpace
+	}
+	\vspace{-5pt}
+	\caption{
+		Left: Game $\Gm_0$ defining Filtered UF security of signature scheme $\fDS$ and $\Gm_1$ in the proof of Theorem~\ref{th-ideal-eddsa}. Line 2 is only in $\Gm_0$, and Line 3 is only in $\Gm_1$. Right: $\Gm_2$, $\Gm_3$, and and $\Gm_4$ for the proof of Theorem~\ref{th-ideal-eddsa}, with changes from $\Gm_1$ highlighted. Boxed code is only in $\Gm_3$. Oracles that are identical to prior games have been omitted.}
+		%\label{fig:schnorr-sig}
+		\label{fig:gm-pf-ts-eddsa-0-3}
+		\hrulefill
+		\vspace{-10pt}
+	\end{figure}
+	
+	\begin{figure}[t]
+		\twoCols{0.45}{0.45}
+		{
+		\ExperimentHeader{$\Gm_5$}
+		
+		\begin{oracle}{$\SignOO(\msg)$}
+			\item if ($\msg \in S$) then return $\bot$
+				
+				%\item $\pk \gets \sk \cdot \generator$
+				\item $\littler \getsr \Z_{\Prime}$; $\curvepoint{R} \gets \littler\cdot \generator$
+				\item $c \gets 
+			\iHASH((3,\curvepoint{R}\|\pk\|\msg))$
+				
+				\item $\z \gets (\sk \cdot c + \littler) \mod \Prime$
+				\item $\sigma \gets (\curvepoint{R},\z)$
+				\item $S \gets S \cup \{\msg\}$
+				\item Return $\sigma$
+		\end{oracle}
+		\ExptSepSpace
+		\begin{oracle}{$\eHASH(X)$}
+			\item Return \gamechange{$\HH(X) \mod \Prime$}
+		\end{oracle}
+    	\ExptSepSpace
+		}
+		{
+			\ExperimentHeader{$\Gm_6$}
+			
+			\begin{oracle}{$\SignOO(\msg)$}
+				\item if ($\msg \in S$) then return $\bot$
+				%\item $\pk \gets \sk \cdot \generator$
+				\item $\littler \getsr \Z_{\Prime}$; $\curvepoint{R} \gets \littler\cdot \generator$
+				\item \gamechange{if $L_3[\curvepoint{R}\|\pk\|\msg] = \bot$ then}
+				\item \quad \gamechange{$L_3[\curvepoint{R}\|\pk\|\msg] \getsr \Z_{\Prime}$}
+				\item \gamechange{$c \gets L_3[\curvepoint{R}\|\pk\|\msg]$}
+				\item $\z \gets (\sk \cdot c + \littler) \mod \Prime$
+				\item $\sigma \gets (\curvepoint{R},\z)$
+				\item $S \gets S \cup \{\msg\}$
+				\item Return $\sigma$
+			\end{oracle}
+			\ExptSepSpace
+			
+			\begin{oracle}{$\eHASH(X)$}
+				\item \gamechange{$Y \getsr \Z_{\Prime}$}
+				\item \gamechange{if $L_3[X] \neq \bot$ then}
+				\item \quad \gamechange{\fbox{$Y \gets L_3[X]$}}
+				\item \gamechange{$L_3[X] \gets Y$}
+				\item Return $Y$
+			\end{oracle}
+			\ExptSepSpace
+		}
+		\vspace{-5pt}
+		\caption{Games $\Gm_5$ and $\Gm_6$ for the proof of Theorem~\ref{th-ideal-eddsa}, with changes from prior games highlighted.}
+%		%\label{fig:schnorr-sig}
+		\label{fig:gm-pf-ts-eddsa-56}
+		\hrulefill
+		\vspace{-10pt}
+	\end{figure}
+	
+	In the next game, $\Gm_3$, we unroll the operation of $\Filter$ on queries with port number $2$, and we alter the $\SignO$ oracle to sample $\littler$ uniformly at random from $\Z_{\Prime}$ instead of calling $\HH(\e_2 \concat \msg)$. 
+	This threatens to make the $\SignO$ oracle inconsistent with the $\eHASH$ oracle, if the adversary should make the two queries $\SignO(\msg)$ and $\eHASH(\e_2||\msg)$ for any message $\msg$.
+	We thus set a $\bad$ flag if these two queries occur and program both oracles using tables $L_1$ and $L_2$.
+	The reprogramming enforces consistency between the oracles $\Gm_2$, but the distribution of $\littler$ changes from the distribution $\distrib_{\Prime, 2k}$ of Section~\ref{sec-prelims} to the uniform distribution $U_{\Z_{\Prime}}$ over $\Z_{\Prime}$. 
+	We can bound the difference in advantage across the two resulting games by the statistical distance between these distributions, which is at most $\frac{\Prime}{2^{2k+2}}$ according to Lemma~\ref{th-distribution-bias} . Therefore
+	\[\Pr[\Gm_2(\advB_1)] \leq \Pr[\Gm_3(\advB_1)] + \frac{\Prime}{2^{2k+2}}.\]
+	In $\Gm_4$, we stop programming $\iHASH((2, \msg))$ after setting the $\bad$  flag. By the Fundamental Lemma of Game-Playing from~\cite{EC:BelRog06} we have 
+		\[\Pr[\Gm_3(\advB)] \leq \Pr[\Gm_4(\advB)] + \Pr[\Gm_4(\advB) \text{ sets } \bad].\]
+	We know that $\Gm_4(\advB)$ sets the $\bad$ flag only if $\advB$ makes two queries $\SignO(\msg)$ and $\eHASH(\e_2||\msg)$. Since $\e_{2}$ is a uniformly random $k$-bit string and is never revealed by any oracle, the probability is at most $\frac{1}{2^k}$ that any one query to $\eHASH$  begins with $\e_2$ . By the union bound over all queries to $\eHASH$, we have 
+	\[ \Pr[\Gm_4(\advB) \text{ sets } \bad] \leq \frac{\Queries{\advB}{\eHASH}}{2^k}. \]
+	
+	In game $\Gm_5$,  we make certain bookkeeping changes that do not alter the behavior of the oracles. We discard the redundant $\bad$ flag, the check that sets it, and tables $L_1$, $L_2$ which are no longer used. 
+	As a result,
+	\[\Pr[\Gm_4(\advB)] \leq \Pr[\Gm_5(\advB)].\]
+	Finally, for $\Gm_6$ we change the $\eHASH$ oracle to implement a random function in $\AllFuncs(\bits^{*},\Z_{\Prime})$ via lazy sampling in table $L_3$.
+	As queries $\iHASH(3, X)$ and $\eHASH(X)$ must return identical responses, we also replace the last remaining query to $\iHASH$ in the $\SignO$ oracle with an update to $L_3$. 
+	This changes the distribution of $c$ from $\distrib_{\Prime, 2k}$ to $U_{\Z_{\Prime}}$; we again rely on Lemma~\ref{th-distribution-bias} to produce the bound
+	\[\Pr[\Gm_5(\advB)] \leq \Pr[\Gm_6(\advB)] + \frac{\Prime}{2^{2k+2}}.\]
+	Combining the bounds from previous gamehops, we see that
+	\[\Pr[\FUFCMA_{\fDS,\roSp_2,\Filter}(\advB)] \leq \Pr[\Gm_6(\advB)] + \frac{2\Queries{\advB}{\eHASH}}{2^k} + \frac{\Prime}{2^{2k+2}}\]
+	
+	We now define in pseudocode (see Figure~\ref{fig:A1}) a new adversary $\advA_1$ which plays the $\UFCMA$ game against $\DS_1$ and simulates $\Gm_6$ for $\advB_1$.
+	This game samples $\HH_1$ from function space $\roSp_3$, so $\HH_1\Colon\bits^*\to\Z_{\Prime}$ is a random function with the same domain and range as the lazily-sampled function of $\Gm_6$.
+	$\advA_1$ simulates $\Gm_6$ for $\advB$.
+	It receives public key $\vk$ from its own $\Initialize$ oracle and forwards this to $\advB$. 
+	It answers queries to $\SignOO_2$ and $\eHASH_2$ by forwarding the response of its own $\SignOO$ and $\eHASH$ oracle, respectively.
+	It has no $\pHASH$ oracle, but it can simulate this perfectly by maintaining a list $\QL$ with an entry $(\curvepoint{R} \concat \vk \concat \msg), \eHASH(\curvepoint{R} \concat \vk \concat \msg)$ for each query $\SignO(\msg)$ which returns $(\curvepoint{R}, z)$.
+	Queries to $\pHASH$ will then simply return the current list $\QL$.
+	This simulation is perfect, so 
+	\[\Pr[\Gm_6(\advB_1)] = \Pr[\UFCMA_{\DS_1, \roSp_3}(\advA_1)].\]
+	Since $\advA$ only forwards queries and maintains a list, its runtime is approximately $\Time{\advB_1} \approx \Time{\advB}$. It makes one query to $\SignO$ and one to $\eHASH$ for each simulated $\SignO$ query, so $\Queries{\advA_1}{\eHASH} = \Queries{\advB}{\eHASH}+ \Queries{\advB}{\SignO}$.
+	
+	 Then by collecting bounds, we have the theorem statement.
+	\begin{figure}[t]
+		\oneCol{0.98}
+		{	
+			\begin{algorithm-initial}{adversary $\advA_1(\vk)$}
+				\item $\advB[\eHASH, \pHASH^{\prime}, \SignO^{\prime}, \Finalize](\vk)$
+			\end{algorithm-initial}  \vspace{2pt} 
+			\begin{algorithm-subsequent}{$\pHASH^{\prime}$}
+				\item return $\QL$
+			\end{algorithm-subsequent}  
+			\begin{algorithm-subsequent}{$\SignO^{\prime}(\msg)$}
+				\item $(\curvepoint{R}, \z) \gets \SignO(\msg)$
+				\item $Q \gets (\curvepoint{R}\|\pk\|\msg, \eHASH(\curvepoint{R}\|\pk\|\msg))$
+				\item $\QL \gets \QL \concat \{Q\}$
+				\item Return $(\curvepoint{R}, \z)$
+			\end{algorithm-subsequent}
+		}
+		\vspace{-5pt}
+		\caption{Adversary $\advA_1$ for $\UFCMA_{\DS_1,\roSp_1}$ given adversary $\advB_1$ for $\FUFCMA_{\fDS,\roSp_2,\Filter}$ in the proof of Theorem~\ref{th-ideal-eddsa}.}
+		%\label{fig:schnorr-sig}
+		\label{fig:A1}
+		\hrulefill
+		\vspace{-10pt}
+	\end{figure}

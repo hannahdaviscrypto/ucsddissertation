@@ -1,0 +1,210 @@
+\section{Introduction}\label{sec:intro}
+
+In designing schemes, and proving them secure, theoreticians implicitly assume certain things, such as on-demand fresh randomness and correct implementation. In practice, these assumptions can fail. Weaknesses in system random-number generators are common and have catastrophic consequences. (An example relevant to this paper is the well-known key-recovery attack on $\Schnorr$ signatures when signing reuses randomness. Another striking example are Ps and Qs attacks~\cite{USENIX:HDWH12,EPRINT:LHABKW12}.) Meanwhile, implementation errors can be exploited, as shown by Bleichenbacher's attack on RSA signatures~\cite{Bl-rump-C06}. 
+
+In light of this, practitioners may try to ``harden'' theoretical schemes before standardization and usage. A prominent and highly successful instance is $\EdDSA$, a hardening of the $\Schnorr$ signature scheme proposed by Bernstein, Duif, Lange, Schwabe, and Yang (BDLSY)~\cite{bernstein2012high}. It incorporates explicit, simple key-derivation, makes signing deterministic, adds protection against sidechannel attacks via ``clamping,'' and for simplicity confines itself to a single hash function, namely $\SHAfive$. The scheme is widely standardized~\cite{NIST:EdDSA,RFC:EDDSA} and used~\cite{Ed-uses}.
+
+There is however a subtle danger here, namely that the hardening attempt introduces new vulnerabilities. In other words, hardening needs to be done right; if not, it may even ``soften'' the scheme! Thus it is crucial that the hardened scheme be vetted via a proof of security. This is of particular importance for $\EdDSA$ given its widespread deployment. In that regard, Brendel, Cremers, Jackson and Zhao (BCJZ)~\cite{SP:BCJZ21} showed that $\EdDSA$ is secure if the Discrete-Log (DL) problem is hard and the hash function is modeled as a random oracle. This is significant as a first step but has at least two important limitations: (1) Due to the extension attack, a random oracle is not an appropriate model for the $\SHAfive$ hash function $\EdDSA$ actually uses, and (2) the reduction is so loose that there is no security guarantee for group sizes in use today. 
+
+Extrapolating $\EdDSA$, the first part of this paper defines a general hardening transform on signature schemes called Derive-then-Derandomize ($\DRTransform$), and proves its soundness. Next we prove the indifferentiability of a general class of constructions, that we call shrink-MD; %  they apply a ``shrinking'' output transform to the result of an MD-style hash function. 
+it includes the well-studied chop-MD construction~\cite{C:CDMP05} and also the modulo-a-prime construction arising in $\EdDSA$. 
+% Furthermore our proof closes a gap in earlier analyses of chop-MD~\cite{hfrobook}. 
+Armed with these results, the second part of the paper returns to give new proofs for $\EdDSA$ that in particular fill the above gaps.
+We begin with some background.
+
+% As part of a broader treatment that delivers more general results, our work will fill these gaps. 
+
+
+ 
+\heading{Respecting hash structure in proofs.} Recall that the MD-transform~\cite{C:Merkle89a,C:Damgaard89b} defines a hash function $\HH = \construct{MD}[\compF] \Colon\bits^*\to\bits^{2k}$ by iterating an underlying compression function $\compF\Colon\bits^{b+2k}\to\bits^{2k}$. (See Section~\ref{sec-prelims} for details.) $\SHAtwo$ and $\SHAfive$ are obtained in this way, with $(b, k)$ being $(512, 128)$ and $(1024, 256)$, respectively. This structure gives rise to attacks, of which the most well known is the extension attack. The latter allows an attacker given $t \gets \MD[\compF](e_2\|M)$, where $e_2$ is a secret unknown to the attacker and $M\in\bits^*$ is public, to compute compute $t'=\MD[\compF](e_2\|M')$, for some $M'\in\bits^{*}$ of its choice. This has been exploited to violate the UF-security of the so-called prefix message authentication code $\pfMAC_{e_2}(M) = \HH(e_2\|M)$ when $\HH$ is an MD-hash function; $\HMAC$~\cite{C:BelCanKra96} was designed to overcome this.
+
+A proof of security of a scheme (such as $\EdDSA$) that uses a hash function $\HH$ will often model $\HH$ as a random oracle~\cite{CCS:BelRog93}, in what we'll call the $(\HH,\HH)$-model: scheme algorithms, and the adversary, both have oracle access to the same random $\HH$.  However the presence of the above-discussed structure in ``real'' hash functions led Dodis, Ristenpart and Shrimpton (DRS) \cite{EC:DodRisShr09} to argue that the ``right'' model in which to prove security of a scheme that uses $\HH = \construct{MD}[\compF]$ is to model the compression function $\compF$ ---rather than the hash function $\HH=\construct{MD}[\compF]$--- as a random oracle. We'll call this the $(\construct{MD}[\compF],\compF)$-model: the adversary has oracle access to a random $\compF$, with scheme algorithms having access to $\construct{MD}[\compF]$. There is now widespread agreement with the DRS thesis that proofs of security of MD-hash-using schemes should use the $(\construct{MD}[\compF],\compF)$ model.
+
+Giving from-scratch proofs in the $(\construct{MD}[\compF],\compF)$ model is, however, difficult. Maurer, Renner and Holenstein (MRH)~\cite{TCC:MauRenHol04} show that if a construction $\construct{F}$ is indifferentiable (abbreviated indiff) and a scheme is secure in the $(\HH,\HH)$ model, then it remains secure in the $(\construct{F}[\compF],\compF)$ model. (This requires the game defining security of the scheme to be single-stage~\cite{EC:RisShaShr11}, which is true for the relevant ones here.)
+Unfortunately, $\construct{F}=\MD$ is provably \textit{not} indiff~\cite{C:CDMP05}, due exactly to the extension attack. So the MRH result does not help with $\MD$. This led to a search for indiff variants. DRS~\cite{EC:DodRisShr09} and YMO~\cite{yoneyama2009leaky} (independently) offer public-indiff and show that it suffices to prove security, in the $(\construct{MD}[\compF],\compF)$ model, of schemes that use $\construct{MD}$ in some restricted way. However, $\EdDSA$ does not obey these restrictions. Thus, other means are needed.
+
+
+
+
+%\begin{figure}[t]
+%\twoCols{0.35}{0.55}
+%{
+%  \begin{algorithm-initial}{$\DS_{\Schnorr}.\Kg$}
+%  \item $\s \getsr \Z_{\Prime}$ ; $\curvepoint{A} \gets \s\cdot \generator$
+%  \item Return $(\curvepoint{A},\s)$
+%  \end{algorithm-initial}
+%  \ExptSepSpace
+%\begin{algorithm-subsequent}{$\DS_{\Schnorr}.\Sign[\HH](\s, \curvepoint{A}, \msg)$}
+%\item $r \getsr \Z_{\Prime}$ ; $\curvepoint{R} \gets \littler\cdot \generator$
+%\item $c \gets \HH(\curvepoint{R}\|\curvepoint{A}\| \msg)$
+%\item $\z \gets (\s c + \littler) \bmod \Prime$
+%\item Return $(\curvepoint{R}, \z)$
+%  \end{algorithm-subsequent}
+%  \ExptSepSpace
+%  \begin{algorithm-subsequent}{$\DS_{\Schnorr}.\Vf[\HH](\curvepoint{A}, \msg, \sigma)$}
+%  \item $(\curvepoint{R}, \z) \gets \sigma$
+%  ;  $c \gets \HH(\curvepoint{R}\|\curvepoint{A}\| \msg)$
+%  \item Return ($\z \cdot\generator = \curvepoint{R}+ c\cdot\curvepoint{A} $)
+%  \end{algorithm-subsequent}  \vspace{2pt}
+% }
+% {
+%	\begin{algorithm-subsequent}{$\DS_{\EdDSA}.\Kg[\HH]$}
+%		\item $\sk \getsr \bits^{k}$ 
+%		;  $\e \gets \HH(\sk)$ 
+%		% \item $\sk\gets  \HH(\emptystring)$ 
+%		; $\e_1 \gets \e[1..k]$ 
+%		\item $\s \gets \Clamp(\e_1)$ ; $\curvepoint{A} \gets \s\cdot \generator$
+%		\item Return $(\curvepoint{A}, \sk)$
+%	\end{algorithm-subsequent}\ExptSepSpace
+%	\begin{algorithm-subsequent}{$\DS_{\EdDSA}.\Sign[\HH](\sk,\curvepoint{A}, \msg)$}
+%		\item $\e \gets \HH(\sk)$ 
+%		; $\e_1 \gets \e[1..k]$ ; $\e_2 \gets \e[k\! +\! 1..2k]$ 
+%		\item $\s \gets \Clamp(\e_1)$ %; $\curvepoint{A} \gets \s\cdot \generator$
+%		\item $\littler \gets \HH(\e_2\|\msg) \bmod \Prime$ 
+%		; $\curvepoint{R} \gets \littler \cdot \generator$
+%		\item $c \gets \HH(\curvepoint{R}\|\curvepoint{A}\|\msg) \bmod \Prime$
+%		; $\z \gets (\s c + \littler) \bmod \Prime$
+%		\item Return $(\curvepoint{R},\z)$
+%	\end{algorithm-subsequent}\ExptSepSpace
+%	\begin{algorithm-subsequent}{$\DS_{\EdDSA}.\Vf[\HH](\curvepoint{A}, \msg, \sigma)$}
+%		\item $(\curvepoint{R}, \z) \gets \sigma$
+%		; $c \gets \HH(\curvepoint{R}\|\curvepoint{A}\|\msg) \bmod \Prime$
+%		\item Return ($\z\cdot \generator = \curvepoint{R}+ c\cdot\curvepoint{A} $)
+%	\end{algorithm-subsequent}  \vspace{2pt}
+%	}
+%\vspace{-8pt}
+%\caption{On the left is the $\Schnorr$ signature scheme. On the right is $\EdDSA$. Here $\generator$ is a generator of an additively-written group $\group$ that has prime order $\Prime$. $\HH$ is a hash function. $\Clamp$ is the $\EdDSA$ clamping function.}
+%\label{fig-eddsa-intro}
+%\hrulefill
+%\vspace{-10pt}
+%\end{figure}
+
+ \heading{The $\EdDSA$ scheme.} The Edwards curve Digital Signature Algorithm ($\EdDSA$) is a Schnorr-based signature scheme introduced by Bernstein, Duif, Lange, Schwabe and Yang~\cite{bernstein2012high}. $\Edtwo$, which uses the Curve25519 Edwards curve and $\SHAfive$ as the hash function, is its most popular instance. The scheme is standardized by NIST~\cite{NIST:EdDSA} and the IETF~\cite{RFC:EDDSA}. It is used in TLS 1.3, OpenSSH, OpenSSL, Tor, GnuPGP, Signal and WhatsApp. It is also the preferred signature scheme of the Corda, Tezos, Stellar and Libra blockchain systems. Overall, IANIX~\cite{Ed-uses} reports over 200 uses of $\Edtwo$. Proving security of this scheme is accordingly of high importance.
+ 
+  Figure~\ref{fig-eddsa} shows $\EdDSA$ on the right, and, on the left, the classic $\Schnorr$ scheme~\cite{JC:Schnorr91} on which $\EdDSA$ is based. % (Note there are several $\Schnorr$ variants, that differ in details. See Section~\ref{sec-schemes} for a discussion of how the one used here relates to others.)
+  The schemes are over a cyclic, additively-written group $\group$ of prime order $\Prime$ with generator $\generatorEDSA$. The public verification key is $\curvepoint{A}$. The $\Schnorr$ hash function has range $\Z_{\Prime} = \{0,\ldots,\Prime-1\}$, while, for $\EdDSA$, function $\HH_1$ has range $\bits^{2k}$ where $k$, the bit-length of $\Prime$, is $256$ for $\Edtwo$. Functions $\HH_2,\HH_3$ have range $\Z_{\Prime}$.
+
+$\EdDSA$ differs from $\Schnorr$ in significant ways. While the $\Schnorr$ secret key $\s$ is in $\Z_{\Prime}$, the $\EdDSA$ secret key $\sk$ is a $k$-bit string. This is hashed and the $2k$-bit result is split into $k$-bit halves $e_1\|e_2$. A Schnorr secret-key $\s$ is derived by applying to $e_1$ a clamping function $\Clamp$ that zeroes out the three least significant bits of $e_1$. (Note: This means $\s$ is \textit{not} uniformly distributed over $\Z_{\Prime}$.) Clamping increases resistance to side-channel attacks~\cite{bernstein2012high}. Signing is made deterministic by a standard de-randomization technique~\cite{C:Goldreich86a,SAC:MNPV98,AC:BelPoeSte16,EC:BelTac16}, namely obtaining the Schnorr randomness $\littler$ by hashing the message $\msg$ with a secret-key dependent string $e_2$. We note that all of $\HH_1,\HH_2,\HH_3$ are instantiated via the same hash function, namely $\SHAfive$.
+
+ % function $\HH$ is used in three ways for three purposes: to derive keys (lines~1,12), to de-randomize signing (line~14) and, as in $\Schnorr$, for the Fiat-Shamir hashing (line~15)~\cite{C:FiaSha86}. 
+
+
+% We write the scheme as using three hash functions $\HH_1,\HH_2,\HH_3$, but ---this is important for our proposed work--- in $\Edtwo$ they are all $\SHAfive$. 
+
+\heading{Prior work and our questions.} Recall that the security goal for a signature scheme is UF (UnForgeability under Chosen-Message Attack)~\cite{GolMicRiv88}. $\Schnorr$ is well studied, and proven UF under $\DLP$ (Discrete Log in $\group$) when $\HH$ is a random oracle~\cite{JC:PoiSte00,EC:AABN02}. The provable security of $\EdDSA$, however, received surprisingly little attention until the work of Brendel, Cremers, Jackson and Zhao (BCJZ)~\cite{SP:BCJZ21}. They take the path also used for $\Schnorr$ and other identification-based signature schemes~\cite{JC:PoiSte00,EC:AABN02}, seeing $\EdDSA$ as the result of the Fiat-Shamir transform on an underlying identification scheme $\EdID$ that they define, proving security of the latter under $\DLP$, and concluding UF of $\EdDSA$ under $\DLP$ when $\HH$ is a random oracle. This is an important step forward, but the BCJZ proof~\cite{SP:BCJZ21} remains in the $(\HH,\HH)$ model. We ask and address the following two questions.
+
+
+\medskip
+\textbf{1. Can we prove security in the $(\MD[\compF],\compF)$ model?} The NIST standard~\cite{NIST:EdDSA} mandates that $\Edtwo$ uses $\SHAfive$, which is an MD-hash function. Accordingly, as explained above, the BCJZ proof~\cite{SP:BCJZ21}, being in the $(\HH,\HH)$ model, does not guarantee security; to do the latter, we need a proof in the $(\MD[\compF],\compF)$ model.
+
+The gap is more than cosmetic. As we saw above with the example of the prefix MAC, a scheme could be secure in the $(\HH,\HH)$ model, yet totally insecure in the more realistic $(\MD[\compF],\compF)$ model, and thus also in practice. And $\EdDSA$ skirts close to the edge: line~14 is using the prefix-MAC that the extension attack breaks, and overlaps in inputs across the three uses of $\HH$ could lead to failures. Intuitively what prevents attacks is that the MAC outputs are taken modulo $\Prime$, and inputs to $\HH$ in two of the three uses involve secrets. Thus, we'd expect that the scheme is indeed secure in the $(\MD[\compF],\compF)$ model. 
+
+Proving this, however, is another matter. We already know that $\construct{MD}$ is not indiff. It is public indiff~\cite{EC:DodRisShr09,yoneyama2009leaky}, but this will not suffice for $\EdDSA$ because $\HH_1,\HH_2$ are being called on secrets. We ask, first, can $\EdDSA$ be proved secure in the $(\MD[\compF],\compF)$ model, and second, can this be done in some modular way, rather than from scratch?
+
+\medskip
+\textbf{2. Can we improve reduction tightness?} The reduction of BCJZ~\cite{SP:BCJZ21} is so loose that, in the 256-bit curve over which $\Edtwo$ is implemented, it guarantees little security. Let's elaborate. Given an adversary $\advAUF$ violating the UF-security of $\EdDSA$ with probability $\epsUF$, the reduction builds an adversary $\advADL$ breaking $\DLP$ with probability \smash{$\epsDL = \epsUF^2/q_h$} where $q_h$ is the number of $\HH$-queries of $\advAUF$ and the two adversaries have about the same running time $t$. (The square arises from the use of rewinding, analyzed via the Reset Lemma of~\cite{C:BelPal02}.) In an order $\Prime$ elliptic curve group, \smash{$\epsDL \approx t^2/p$} so we get \smash{$\epsUF = t\cdot \sqrt{q_h/p}$}. $\Edtwo$ has \smash{$p\approx 2^{256}$}. Say $t=q_h=2^{70}$, which (as shown by BitCoin mining capability) is not far from attacker reach. Then $\epsDL = 2^{-116}$ is small but \smash{$\epsUF = 2^{70}\cdot 2^{-(256-70)/2} = 2^{-23}$} is in comparison quite high. 
+
+Now, one might say that one would not expect better because the same reduction loss is present for $\Schnorr$. The classical reductions for $\Schnorr$ \cite{JC:PoiSte00,EC:AABN02} did indeed display the above loss, but that has changed: recent advances for $\Schnorr$ include a tighter reduction from $\DLP$~\cite{C:RotSeg21}, an almost-tight reduction from the MBDL problem~\cite{INDOCRYPT:BelDai20} and a tight reduction from $\DLP$ in the Algebraic Group Model~\cite{EC:FucPloSeu20}. We'd like to put $\EdDSA$ on par with the state of the art for $\Schnorr$. We ask, first, is this possible, and second, is there a modular way to do it that leverages, rather than repeats, the (many, complex) just-cited proofs for $\Schnorr$? 
+
+% \authnote{Reviwer}{Goal 1 is very clear.  Goal 2 not as much.  Setting $q_h = 2^{80}$ seems extreme.  }{red}
+
+%\medskip
+%\textbf{3. Weak multi-user security.} UF-security, the target in all the above, pertains to the classical setting where there is just one user (key) under attack. There is now broad acceptance that the more realistic setting is the multi-user one~\cite{EC:BelBolMic00,galbraith2002public,menezes2004security}, where there are $u\geq 1$ users, with independent keys. (This in particular is the setting in TLS.) Denoting security here by MUF, if $\epsMUF,\epsUF$ are the MUF and UF advantages (success probabilities), respectively, a standard hybrid argument shows that $\epsMUF \leq u\cdot\epsUF$~\cite{galbraith2002public}. But with just $u = 300$ users (TLS has way more), and $\epsUF=2^{-8}$ as above, this fails to even guarantee $\epsMUF<1$. 
+
+%Now, for $\Schnorr$, one can do better than the hybrid argument; it is known that $\epsMUF\approx \epsUF$~\cite{EPRINT:Bernstein15,C:KilMasPan16}. Can we show the same for $\EdDSA$?
+
+
+\heading{Contributions for $\EdDSA$.} We simultaneously simplify and strengthen the security proofs for $\EdDSA$ as follows.  
+\smallskip
+
+\textbf{1. Reduction from $\Schnorr$.} Rather than, as in prior work, give a reduction from $\DLP$ or some other algebraic problem, we give a simple, direct reduction from $\Schnorr$ itself. That is, we show that if the $\Schnorr$ signature scheme is UF-secure, then so is $\EdDSA$. Furthermore, the reduction is \textit{tight} up to a constant factor. This allows us to leverage prior work~\cite{C:RotSeg21,INDOCRYPT:BelDai20,EC:FucPloSeu20} to obtain tight proofs for $\EdDSA$ under various algebraic assumptions and justify security for group sizes in actual use. But there are two further dividends. First, $\Schnorr$~\cite{JC:Schnorr91} is over 30 years old and has withstood the tests of time and cryptanalysis, so our proof that $\EdDSA$ is just as secure as $\Schnorr$ allows the former to inherit, and benefit from, this confidence. Second, our result formalizes and proves what was the intuition and belief in the first place~\cite{bernstein2012high}, namely that, despite the algorithmic differences, $\EdDSA$ is a sound hardening of $\Schnorr$.
+\smallskip
+
+\textbf{2. Accurate modeling of the hash function.} As noted above, BCJZ~\cite{SP:BCJZ21} assume the hash function $\HH$ is a random oracle, but
+% , as Coron, Dodis, Malinaud and Puniya (CDMP)~\cite{C:CDMP05} explained, 
+this, due to the extension attack, is not an accurate model for the MD-hash function $\SHAfive$ used by $\EdDSA$. We fill this gap by instead proving security in the $(\MD[\compF],\compF)$ model, where $\HH=\MD[\hh]$ is derived via the MD-transform~\cite{C:Merkle89a,C:Damgaard89b} and the compression function $\hh$ is a random oracle.
+% We explain why this is \textit{not} obtained directly by combining the BCJZ result with indifferentiability or public indifferentiability. 
+  
+
+\begin{sloppypar}
+\heading{Approach and broader contributions.} The above-mentioned results on $\EdDSA$ are obtained as a consequence of more general ones.
+\end{sloppypar}
+\smallskip
+\textbf{3. The $\DRTransform$ transform and its soundness.}
+We extend the hardening technique used in $\EdDSA$ to define a general transform that we call Derive-then-Derandomize ($\DRTransform$). It takes an \textit{arbitrary} signature scheme $\DS$, and with the aid of a PRG $\HH_1$ and a PRF $\HH_2$, constructs a hardened signature scheme $\fDS$. We provide (Theorem~\ref{th-dd}) a strong and general validation of $\DRTransform$, showing that $\fDS$ is UF-secure assuming $\DS$ is UF-secure. Moreover \textit{the reduction is tight} and the proof is simple. This shows that the $\EdDSA$ hardening method is generically sound.
+
+\smallskip
+\textbf{4. Indifferentiability of Shrink-MD.} It is well-known that $\MD$ is not indifferentiable~\cite{TCC:MauRenHol04} from a random oracle, but that
+the $\ChopMD$~\cite{C:CDMP05}, which truncates the output of an an $\MD$ hash by some number of bits, is indifferentiable.
+Unfortunately, we identified gaps in two prominent proofs of indifferentiability of $\ChopMD$~\cite{C:CDMP05,hfrobook}.
+$\EdDSA$ uses a similar construction that reduces the $\MD$ hash output modulo a prime $\Prime$ sufficiently smaller than the size of the range of $\MD$, due to which we refer to this construction as $\ModMD$.
+The $\ModMD$ construction has not been proven indifferentiable.
+We simultaneously give new proofs of indifferentiability for $\ChopMD$ and $\ModMD$ as part of a more general class of constructions that we call $\ShrinkMD$ functors.
+These are constructions of the form $\Out(\MD)$ where $\Out$ is some output-processing function, and we prove indifferentiability under certain ``shrinking'' conditions on $\Out$.
+  
+
+\smallskip
+\textbf{5. Application to $\EdDSA$.} $\EdDSA$ is obtained as the result $\fDS$ of the $\DRTransform$ transform applied to the $\DS=\Schnorr$ signature scheme, and with the PRG and PRF defined via $\MD$, specifically $\HH_1(\sk) = \MD[\hh](\sk)$ and $\HH_2(e_2,M) = \MD[\hh](e_2\|M)\bmod\Prime$ where $\Prime$ is the prime order of the underlying group. Additionally, the hash function used in $\Schnorr$ is also $\HH_3(X) = \MD[\hh](X)\bmod\Prime$. Due to Theorem~\ref{th-dd} validating $\DRTransform$, we are left to show the PRG security of $\HH_1$, the PRF security of $\HH_2$ and the UF-security of $\Schnorr$, all with $\hh$ modeled as a random oracle. We do the first directly. We obtain the second as a consequence of the indifferentiability of $\ModMD$. (In principle it follows from the PRF security of AMAC~\cite{EC:BelBerTes16}, but we found it difficult to extract precise bounds via this route.) For the third, we again exploit indifferentiability of $\ModMD$, together with a technique from BCJZ~\cite{SP:BCJZ21} to handle clamping, to reduce to the UF security of regular $\Schnorr$, where the hash function is modeled as a random oracle. Putting all this carefully together yields our above-mentioned results for $\EdDSA$. We note that one delicate and important point is that the idealized compression function $\hh$ is \textit{the same} across $\HH_1,\HH_2$ and $\HH_3$, meaning these are not independent. This is handled through the building blocks in Theorem~\ref{th-dd} being functors~\cite{EC:BelDavGun20} rather than functions.
+
+
+
+
+%\heading{Our answers, in brief.} We give affirmative answers to both questions above. The first element of our approach is that our reduction for $\EdDSA$, rather than being from $\DLP$ or some other algebraic problem, is directly from $\Schnorr$ itself, and is \textit{tight} up to a constant factor. This in one step answers the second question (tightness) discussed above because we immediately inherit, for $\EdDSA$, the guarantees of the known tight(er) proofs of $\Schnorr$~\cite{C:RotSeg21,INDOCRYPT:BelDai20,EC:FucPloSeu20}. Our proof is, moreover, in the $(\MD[\compF],\compF)$-model. To obtain it in a modular way, we introduce filtered indifferentiability (f-indiff), show that f-indiff of $\MD$ suffices to prove security of $\EdDSA$, and separately establish f-indiff of $\MD$ (despite its lack of indiff) using a combination of new techniques and results from the indifferentiability literature~\cite{EC:DodRisShr09,C:CDMP05}. This answers the first question above. We now look at all this in more detail.
+%
+%\heading{Reduction from $\Schnorr$.} Let's write $\probP\reducesTo\DS$ to mean that we prove UF security of signature scheme $\DS$ with a reduction from (i.e., assuming hardness of) problem $\probP$ in the ROM. (The notation says nothing about tightness, which will be discussed separately.) Thus, BCJZ~\cite{SP:BCJZ21} show that $\DLP\reducesTo\EdDSA$. We show instead that $\Schnorr\reducesTo\EdDSA$. That is, if $\Schnorr$ is secure, so is $\EdDSA$. Furthermore, while the BCJZ reduction is loose, ours is \textit{tight} up to a small constant factor. 
+%
+%The immediate dividend is that any (known, or even future) proof $\probP\reducesTo\Schnorr$ automatically yields, via our result, a proof $\probP\reducesTo\EdDSA$, with only a constant factor loss in tightness compared to the original proof. In particular we get a tighter $\DLP\reducesTo\EdDSA$ proof via~\cite{C:RotSeg21}, an almost tight $\MBDLP\reducesTo\EdDSA$ proof via~\cite{INDOCRYPT:BelDai20} and an up-to-constant tight $\DLP\reducesTo\EdDSA$ Algebraic Group Model proof via~\cite{EC:FucPloSeu20}. This answers the second question (tightness) above.
+%
+%%\authnote{Reviwer}{Not the biggest fan of this $X \reducesTo Y$ notation, which conceals both the model (e.g., ROM) and the tightness of the reduction, in a paper that focuses on both the model and the tightness of the reduction.   I'd really like this groundbreaking paper to be more precise/specific documenting the implications in that "Reduction from Schnorr" section.  }{red}
+%
+%But there are two further dividends. First, $\Schnorr$~\cite{JC:Schnorr91} is over 30 years old and has withstood the tests of time and cryptanalysis. Our proof that $\EdDSA$ is just as secure as $\Schnorr$ allows the former to inherit, and benefit from, this confidence. Second, our result formalizes and proves what was the intuition and belief for $\EdDSA$ in the first place, namely that, despite the algorithmic differences, it is ``the same'' as $\Schnorr$ in security.
+%
+%Our proof that $\Schnorr\reducesTo\EdDSA$ would be novel and interesting already even in the basic $(\HH,\HH)$ model. However, we actually prove this in the $(\MD[\compF],\compF)$ model, so that we also answer the first question above. We now turn to this.
+%
+%
+
+
+%\heading{Outline of proof.} Our main result (Theorem~\ref{th-eddsa-md}) is a tight (up to a constant factor) $\Schnorr\reducesTo\EdDSA$ reduction in the $(\MD[\compF],\compF)$ model. (The constant is 16 when $k=256$.)  That is, we show UF-security of $\EdDSA$, assuming only UF-security of $\Schnorr$, even when the hash function used is an MD-style one like $\SHAfive$. The statement of this result does not involve f-indiff or filters; these arise only in the proof. The latter has a few steps that we now outline. A fuller explanation is in Section~\ref{sec-schemes} and a picture is in Figure~\ref{pic-indiff}.
+
+% \authnote{Reviewer}{The repeated claim of being tight "up to a constant factor" for Theorem 2 has me curious what that constant is.  Why not be explicit?}{red}
+
+%Let $\DS$ denote the target $\EdDSA$ scheme, whose security we consider in the UF game. The first step is to cast $\DS$ as an alternative scheme $\fDS$ (shown on the right in Figure~\ref{fig-eddsa}) whose security we consider in a filtered unforgeability (fUF) game that we define via Figure~\ref{fig:fUF}. The idea is that the role of the secret signing key is now played by the filter seed. The filter here is our $\FltEDDSA$ one discussed above, and Lemma~\ref{lm-fUF-eq-UF} says that the schemes have equivalent security. We now need to show fUF security of $\fDS$. 
+%
+%The next step, Theorem~\ref{th-use-findiff}, is an f-indiff composition theorem, in the vein of the indiff composition theorem of~\cite{TCC:MauRenHol04}. This reduces the task to two sub-tasks. The first is to show fUF security of $\fDS$ when the oracle called by the $\FltEDDSA$ filter is a random oracle rather than $\MD[\compF]$. That is, the scheme should be secure in an ``ideal,'' even if still filtered, setting. The second sub-task is to show that $\MD$ is f-indiff relative to the $\FltEDDSA$ filter.
+%
+%The first sub-task is handled by Theorem~\ref{th-ideal-eddsa}, and this is where $\Schnorr$ enters, the reduction being from the latter. As an abstraction boundary, we use a version of $\Schnorr$ in which the signing key is drawn, not uniformly, but via a key-generation algorithm that performs the $\EdDSA$ clamping. A technique of BCJZ~\cite{SP:BCJZ21} separately allows $\Schnorr$ itself to reduce to clamped $\Schnorr$ with the above constant factor loss in advantage. 
+% (The constant is 16 when $k=256$.)
+
+%The final and most technical step is Theorem~\ref{th-md-indiff}, showing that $\MD$ is f-indiff relative to the $\FltEDDSA$ filter. This first exploits the presence of the seed to reduce the task to showing a weak form of public indiff for $\MD$. It concludes by exploiting the public indifferentiability of $\MD$ as shown in DRS~\cite{EC:DodRisShr09}. An alternative proof would first generalize and extend the indiff of truncated $\MD$ shown in~\cite{C:CDMP05} to $\MD$ taken modulo a prime whose bit-length is half that of the $\MD$ output, and then reduce to this.
+
+%\authnote{Reviewer}{Figure~\ref{fig-ge1} appears on page 17, but is really needed to understand the discussion here.  Also this page makes lots of other references (e.g., Lemma~\ref{lm-fUF-eq-UF}) that assume the reader is already familiar with the later main body material.  Can you make this more self-contained with pointers forward?}{red}
+
+ 
+\heading{Discussion and related work.} Both BCJZ~\cite{SP:BCJZ21} and CGN~\cite{10.1007/978-3-030-64357-7_4} note that there are a few versions of $\EdDSA$ out there, the differences being in their verification algorithms. What Figure~\ref{fig-eddsa} shows is the most basic version of the scheme, but we will be able to cover the variants too, in a modular way, by reducing from $\Schnorr$ with the same verification algorithm.
+
+BBT~\cite{EC:BelBerTes16} define the function $\AMAC[\compF]$ to take a key $e_2$ and message $M$, and return $\MD[\compF](e_2\|M)\bmod\Prime$. This is the $\HH_2$ in $\EdDSA$. We could exploit their results to conclude PRF security of $\HH_2$, but it requires putting together many different pieces from their work, and it is easier and more direct to establish PRF security of $\HH_2$ by using our lemma on the indifferentiability of $\ModMD$.
+
+In the Generic Group Model (GGM)~\cite{EC:Shoup97}, it is possible to prove UF-security of $\Schnorr$ under standard (rather than random oracle) model assumptions on the hash functions~\cite{neven2009hash,C:CLMQ21}. But use of the GGM means the result applies to a limited class of adversaries. Our results, following the classical proofs for identification-based signatures~\cite{JC:PoiSte00,C:OhtOka98,EC:AABN02,C:KilMasPan16}, instead use the standard model for the group, while modeling the hash function (in our case, the compression function) as a random oracle. 
+
+In an earlier version of this paper, our proofs had relied on a variant of indifferentiability that we had introduced. At the suggestion of a Crypto 2022 reviewer, this has been dropped in favor of a direct proof based on PRG and PRF assumptions on $\HH_1,\HH_2$. We thank the (anonymous) reviewer for this suggestion.
+
+Theorem~\ref{th-dd} is in the standard model if the PRG, PRF and starting signature scheme $\DS$ are standard-model, hence can be viewed as a standard-model justification of the hardening template underlying $\EdDSA$. However, when we want to justify $\EdDSA$ itself, we need to consider the specific, $\MD$-based instantiations of the PRG, PRF and $\Schnorr$ hash function, and for these we use the model where the compression function is ideal.
+
+Several works study de-randomization of signing by deriving the coins via a PRF applied to the message, considering different ways to key the PRF~\cite{C:Goldreich86a,SAC:MNPV98,AC:BelPoeSte16,EC:BelTac16}. We use their techniques in the proof of Theorem~\ref{th-dd}.
+
+One might ask how to view the UF-security of $\Schnorr$ signatures as an assumption. What is relevant is not its form (it is interactive) but that (1) it can be seen as a hub from where one can bridge to other assumptions that imply it, such as DL (non-tightly)~\cite{JC:PoiSte00,EC:AABN02} or MBDL (tightly)~\cite{INDOCRYPT:BelDai20}, and (2) it is validated by decades of cryptanalysis.
+
+Our results have been stated for UF but extend to SUF (Strong unforgeability), meaning our proofs also show SUF-security of $\EdDSA$ in the $(\MD[\compF],\compF)$ model assuming SUF security of $\Schnorr$, with a tight (up to the usual constant factor) reduction.
+
+$\EdDSA$ could be used with other hash functions such as $\SHAKE{256}$. The extension attack does not apply to the latter, so the proof of BCJZ~\cite{SP:BCJZ21} applies, but gives a loose reduction from DL; our results still add something, namely a tight reduction from $\Schnorr$ and thus improved tightness in several ways as discussed above.
+
+% Given the way our work uses code-based games, it could benefit from being cast in the state-separation~\cite{AC:BDFKK18} or constructive cryptography~\cite{ICS:MauRen11,TCC:MauRen16} frameworks. We leave these as directions for future work.
+
+
+
+
+
+
+
+
+

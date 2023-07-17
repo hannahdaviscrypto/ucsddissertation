@@ -1,0 +1,766 @@
+\def\StepOneTitle{Step 1: Domain-separating the Transcript Hash}
+\iffull
+	\subsubsection{\StepOneTitle}
+\else
+	\subsection{\StepOneTitle}
+\fi
+\label{sec:domsep}
+In the original TLS~1.3 PSK/PSK-(EC)DHE handshake, the hash function~$\abstractHash$ is used in two different ways.
+It is used directly to compute digests of a \emph{transcript} and it is used as a \emph{component} of $\abstractMAC$, $\abstractExtract$, and $\abstractExpand$.
+We will argue now that these two uses are entirely distinct, and we can accordingly write two functions~$\Thash$ and $\Chash$ in place of the two uses of~$\abstractHash$,
+and, following BDG~\cite{EC:BelDavGun20}, go from modeling~$\abstractHash$ as one random oracle to modeling $\Thash$ and $\Chash$ as two independent random oracles.
+
+We will refer to our two new random oracles as $\ROthash$ (modeling the \emph{transcript hash} function~$\Thash$) and $\ROchash$ (modeling the \emph{component hash} $\Chash$).
+Because TLS~1.3 fully specifies the inputs to each hash function call,
+we can show that in PSK-(EC)DHE mode and in PSK-only mode when $\hashlen=256$, TLS~1.3 will never call the same string as an input to both $\Thash$ and $\Chash$. 
+This is due to some fortunate coincidences of formatting in the standard, which we describe in full in Appendix~\ref{app:domsep}. 
+We can therefore define two disjoint sets $\Dom_{\Thash}$ and $\Dom_{\Chash}$ such that $\Dom_{\Thash} \cup \Dom_{\Thash} = \bits^*$ split up $\hash$'s domain. 
+
+If we define the domain of $\ROthash$ to be $\Dom_{\Thash}$ and the domain of $\ROchash$ to be $\Dom_{\Chash}$, we could prove indifferentiability using a construction called the \emph{identity (cloning) functor}~$\construct{I}$ from~\cite{EC:BelDavGun20}.
+The identity functor constructs two or more random oracles $\RO_1, \RO_2,\ldots$ from $\ROhash$ by forwarding all $\RO_i$ queries to $\ROhash$ unchanged.
+However, the definitions of sets $\Dom_{\Thash}$ and $\Dom_{\Chash}$ are somewhat complex, especially in PSK-only mode.
+We would instead prefer to define both $\ROthash$ and $\ROchash$ with domains $\bits^*$.
+This would greatly simplify our later use of $\ROchash$ as a component of $\HMAC$.
+Unfortunately, when the domains of $\ROthash$ and $\ROchash$ overlap, the identity functor is \emph{not} indifferentiable.
+We can however still provide the desired result by turning to the read-only indifferentiability framework of Bellare, Davis, and Günther~\cite{EC:BelDavGun20}.
+
+Read-only indifferentiability (a.k.a. $\rdindiff$) is similar to standard indifferentiability~\cite{TCC:MauRenHol04}.
+One notable change (and the one we will leverage here) is that it is parameterized by a set~$\workDom$ called the ``working domain.''
+The security game places a restriction on the $\PrivO$ oracle so that it only responds to queries within~$\workDom$.
+Read-only indifferentiability supports a broader composition thoerem than Theorem~\ref{thm:indiff-comp}, which covers security games which call their random oracles only within the working domain.
+BDG prove~\cite[Theorem~1]{EC:BelDavGun20}, which states that when $\workDom$ consists of disjoint sets like $\Dom_{\Thash}$ and $\Dom_{\Chash}$, the identity functor is read-only indifferentiable even when the full domains of $\ROthash$ and $\ROchash$ are not disjoint.
+Furthermore, the read-only indifferentiability advantage is upper-bounded by $0$, and BDG give a simulator that runs in linear time on the length of its inputs and makes at most one query per execution. 
+When we apply the read-only indifferentiability composition theorem, the adversary's runtime and query bounds will not increase.
+
+We formalize this with a lemma:
+\begin{lemma}%		Let $\KE$ be the TLS~1.3 key exchange protocol described in Figure~\ref{fig:tls13-psk}. Let $\hh:\bits^{*} \to \KEkeyspace$ be the random oracle used by the protocol. Also, let $\KE'$ be the key exchange protocol of Figure \TODO{?} which uses 2 random oracles $\Thash, \Chash: \bits^* \to bits^{\hashlen}$. Let $\Dom_{\Thash}$ and $\Dom_{\Chash}$ be two disjoint sets such that $\Dom_{\Thash}\cup \Dom_{\Chash} = \bits^*$. For any adversary $\advA$ attacking the $\KESEC$ security of $\KE$, let $t_\advA$ denote the runtime of $\advA$, and let $q_{\RO}$ and $q_{\Send}$ capture the number of queries $\advA$ makes to the $\RO$ and $\Send$ oracles respectively. Then there exists an adversary $\advB$ against the security of $\KE'$ such that
+	%	\[ \genAdv{\KESEC}{\KE}{\advA} \leq \genAdv{\KESEC}{\KE'}{\advB}. \]
+	%	Adversary $\advB$ has runtime approximately equal to $t_{\advA} + q_{\RO}$, and it makes the same number of queries to each of its oracles in the $\KESEC$ game. 
+	
+	\label{thm:ks-indiff-hop-1-comp}
+	Let $\KE$ be the TLS~1.3 key exchange protocol of Theorem~\ref{thm:full-ks-indiff}.
+	Let $\ROthash, \ROchash\colon\allowbreak \bits^* \to \bits^{\hashlen}$ be two random oracles, and
+	let  $\KE_1$ be the protocol on the left-hand side of Figure~\ref{fig:tls-handshake}, where
+	\begin{itemize}
+		\item $\abstractHash := \ROthash$
+		\item $\abstractMAC := \HMAC[\ROchash]$
+	\end{itemize}
+	and $\abstractExpand$ and $\abstractExtract$ are as in $\KE$ (using the new definition of $\abstractMAC$).
+	Let $\Dom_{\Thash}$ and $\Dom_{\Chash}$ be two disjoint sets such that $\KE_1.\KERun$ only queries $\ROthash$, resp. $\ROchash$ in $\Dom_{\Thash}$, resp. $\Dom_{\Chash}$, and $\Dom_{\Thash}\cup \Dom_{\Chash} = \bits^*$.
+	Furthermore, let $\Dom_{\Thash}$ have an efficient membership function.	
+	
+	Let $\advA$ be an adversary against the $\KESEC$ security of~$\KE$, running in time~$t_\advA$ and making $\qRO$ and $\qSend$ queries to its random oracle resp.\ $\Send$ oracle.
+	Then there exists an adversary $\advB$ against the security of $\KE'$, such that 
+	\[
+	\genAdv{\KESEC}{\KE}{\advA}
+	\leq \genAdv{\KESEC}{\KE_1}{\advB}.
+	\]
+	
+	Adversary~$\advB$'s runtime is $\bigO(t_{\advA} + \qRO)$, and it makes the same number of queries to each of its oracles as~$\advA$ in the $\KESEC$ game. 
+\end{lemma}
+\begin{proof}
+	The function space of $\KE$ is $\SSp = \AllFuncs(\bits^*, \bits^{\hashlen})$, and the function space of $\KE_1$ is $\ESp = \AllFuncs( \{\Thash, \Chash\} \times \bits^*, \bits^{\hashlen})$. 
+	We can construct $\ESp$ from $\SSp$ via a construction called the ``identity functor'' defined by BDG~\cite{EC:BelDavGun20}.
+	This construction is parameterized by a set $\workDom:= (\{\Thash \}\times \Dom_{\Thash}) \cup (\{\Chash \}\times \Dom_{\Chash})$.
+	To answer any query $(i, s)$, the identity functor simply forwards $s$ to its own oracle, regardless of whether $i$ is $\Thash$ or $\Chash$.
+	Because $\workDom$ is the union of two disjoint sets with efficient membership functions, the simulator $\Sim$ defined by BDG's Theorem $1$ has the property that for any distinguisher $\advD$,
+	\[\genAdv{\rdindiff}{\construct{I}_\workDom, \workDom, \Sim}{\advD} = 0.\]
+	$\Sim$ works by using the membership function of $\Dom_{\Thash}$ to check which of the two oracles is being simulated; then it forwards the query to the appropriate oracle.
+	
+	For this (or any) simulator, the composition theorem for read-only indifferentiability grants the existence of adversary $\advB$ and a distingisher $\advD$ such that
+	
+	\[
+	\genAdv{\KESEC}{\KE}{\advA} \leq \genAdv{\KESEC}{\KE_1}{\advB} + \genAdv{\rdindiff}{\construct{I}_\workDom, \workDom, \Sim}{\advD}
+	\leq \genAdv{\KESEC}{\KE_1}{\advB}.
+	\]
+	This composition theorem crucially rests on the fact that $\KE_1.\KERun$ queries $\ROthash$ and $\ROchash$ only within $\workDom$. The lemma follows.
+	
+	We require that $\Dom_{\Thash}$ and $\Dom_{\Chash}$ are disjoint sets. We define specific choices of $\Dom_{\Thash}$ and $\Dom_{\Chash}$ based on the low-level formatting of TLS~1.3 in Appendix~\ref{app:domsep}, and there we give detailed arguments that the sets are disjoint for 3 of 4 standardized settings of the PSK/PSK-(EC)DHE handshake. 
+	
+	In the fourth setting, PSK-only mode with hash function~$\SHA{384}$, there are no disjoint choices for $\Dom_{\Thash}$ and $\Dom_{\Chash}$ with efficient membership functions.
+	This is due to a lack of careful domain separation of the hash function calls in TLS~1.3. 
+	We therefore cannot apply this indifferentiability step for the PSK-only/$\SHA{384}$ handshake protocol.
+	Any security proof of this handshake must either rely on stronger, possibly falsifiable abstractions in the random oracle model, or use a model $\SHA{384}$ as a single random oracle, with no guarantees of independence.
+	We avoid the latter approach in order to maintain a modular and readable proof. 
+	
+	The second inequality follows from our choice of simulator and Theorem~1 of~\cite{EC:BelDavGun20}, which makes at most one query to its random oracle per execution.
+	Their simulator, as mentioned above, must efficiently determine for every query $s$ whether to query $\ROthash$ or $\ROchash$. 
+	This induces the requirement that $\Dom_{\Thash} \cup \Dom_{\Chash} = \bits^*$, so every possible query can be routed appropriately, and the requirement that $\Dom_{\Thash}$ has an efficient membership function so that the simulator is itself efficient.
+	$\Dom_{\Thash}$ and $\Dom_{\Chash}$ satisfy these requirements thanks to the rules given in Appendix~\ref{app:domsep}.
+\end{proof}
+
+%\begin{lemma}\label{th-ks-indiff}
+%	Let $\KEkeyspace$ be a set of strings, and let $\SSp$ be the space of all functions with domain $[1] \times \bits^*$ and range $\KEkeyspace$. Additionally, let $\Dom$ be a subset of $\bits^*$. Let $\ESp$ be the space of all functions with domain $(\{1\}\times \Dom) \cup (\{2\} \times (\bits \setminus \Dom))$ and range $\KEkeyspace$.
+%	Given an oracle $\hh \in \SSp$, we define the following construction $\construct{F}: \SSp \to \ESp$
+%	\[ \construct{F}[\hh](i,\Y) := \hh(\Y).\]
+%	 For any adversary $\advD$ making $\qPriv$ queries to the $\PrivO$ oracle and $\qPub$ queries to the $\PubO$ oracle, there exists a simulator $\Sim$ with runtime \TODO{runtime}  \TODO{bound}such that
+%	\[\genAdv{\indiff}{\construct{F}, \SSp, \ESp, \Sim}{\advD}\leq \frac{6q_{\PubO}^2}{|\KEkeyspace|} + \frac{8(q_{\text{max length}} \cdot q_{\PrivO})^2}{\KEkeyspace}.\]
+%\end{lemma}
+%\begin{proof}
+%	The construct $\construct{F}$ is the identity functor defined by ~\cite{EC:BDG20}. Let the ``working domain''  $W$ be the set $\ESp.\Domain$. In that paper, we defined a working domain as one that separates domains when contains no two points $(i_1, \Y)$ and $(i_2, \Y)$ such that $i_1 \neq i_2$. For our choice of $W$, if $i_1 \neq i_2$, then for any two points $(i_1, \Y)$ and $(i_2, \Y')$, exactly one of $\Y$ and $\Y'$ may be an element of $\Dom$. Therefore $W$ separates domains, and the construct $\construct{F}$ is read-only indifferentiable over the working domain $W$ by Theorem 4.2 of~\cite{EC:BDG20}. We also note from that paper that read-only indifferentiability implies standard indifferentiability when the working domain equals $\ESp.\Domain$, as it does here. 
+%\end{proof}
+
+\def\StepTwoTitle{Step 2: Applying the Indifferentiability of HMAC}
+\iffull
+	\subsubsection{\StepTwoTitle}
+\else
+	 \subsection{\StepTwoTitle}
+\fi
+
+\label{sec:hmac}
+Our next key exchange protocol, $\KE_2$, replaces the construction~$\HMAC[\Chash]$ with a single random oracle~$\ROhmac$ in the implementation of $\abstractMAC$ and by extension $\abstractExtract$ and $\abstractExpand$.
+We rely on the proof of $\HMAC$'s indifferentiability by Dodis et al.~\cite[Theorem~3]{C:DRST12}.
+As a prerequisite for this theorem, we need to restrict HMAC to keys of a fixed length less than the block length of the hash function ($512$~bits for $\SHA{256}$ and $1024$~bits for $\SHA{384}$).
+This is consistent with $\HMAC$'s usage in TLS~1.3, where the keys are almost always of length~$\hashlen \in \{256, 384\}$.
+The only exception is when pre-shared keys of another length are negotiated out-of-band; we exclude this case.
+\begin{lemma}
+	\label{thm:ks-indiff-hop-2-comp}
+	Let $\ROthash, \ROchash \colon \bits^* \to \bits^{\hashlen}$ and $\ROhmac \colon \bits^{\hashlen} \times \bits^* \to \bits^{\hashlen}$ be random oracles.
+	Let $\KE_1$ be the TLS~1.3 key exchange protocol described in Theorem~\ref{thm:ks-indiff-hop-1-comp} using random oracles~$\ROthash$ and~$\ROchash$.
+	Let $\KE_2$ be the key exchange protocol given on the left-hand side of  Figure~\ref{fig:tls-handshake}, where
+	\begin{itemize}
+		\item $\abstractHash := \ROthash$
+		\item $\abstractMAC := \ROhmac$
+	\end{itemize}
+	and $\abstractExtract$ and $\abstractExpand$ are defined as Section~\ref{sec:tls13-psk-protocol}.
+	Let $\advA$ be an adversary against the $\KESEC$ security of~$\KE_1$, running in time~$t_\advA$ and making $\qRO$ and $\qSend$ queries to its random oracle resp.\ $\Send$ oracle.
+	Then there exists an adversary $\advB$ against the security of $\KE_2$ such that 
+	\[
+	\genAdv{\KESEC}{\KE_1}{\advA}
+	\leq \genAdv{\KESEC}{\KE_2}{\advB} + \frac{2(12\qSend+\qRO)^2}{2^{\hashlen}}.
+	\]
+	Adversary~$\advB$ has runtime $\bigO(t_{\advA} + \qRO)$ and makes the same number of queries to each of its oracles as~$\advA$ in the $\KESEC$ game.
+\end{lemma}
+\begin{proof}
+	$\KE_1$ uses function space $\ESp$, defined in the proof of Lemma~\ref{thm:ks-indiff-hop-1-comp}, and $\KE_2$ uses function space $\ESp_2 = \AllFuncs((\{\Thash\} \times \bits^*) \cup (\{\HMAC\} \times \bits^{\hashlen} \times \bits^*), \bits^{\hashlen})$.
+	The construction $\construct{C}$ of $\ESp_2$ from $\ESp$ simply forwards all queries to $\ROthash$. It answers $\ROhmac$ queries with $\HMAC [\ROchash ]$.
+	
+	For any simulator~$\Sim$, Theorem $5$ grants the existence of a distinguisher $\advD$ and an adversary $\advB$ such that 
+	\[ \genAdv{\KESEC}{\KE_1}{\advA} \leq \genAdv{\KESEC}{\KE_2}{\advB} + \genAdv{\indiff}{\construct{C},\Sim}{\advD}. \]
+	The distinguisher $\advD$ makes up to $12$ queries to $\PrivO$ for each $\Send$ query made by $\advA$, and makes one $\PubO$ query for each $\RO$ query of $\advA$. 
+	
+	We consider the simulator~$\Sim_2$ defined by Dodis et al. for~\cite[Theorem~4.3]{EPRINT:DRST13} (the full version of~\cite[Theorem~3]{C:DRST12}). 
+	This simulator relies on the requirement that $\HMAC$ keys are a fixed length, and shorter than the block length of the underlying hash function.
+	$\HMAC$ pads its keys with zero bits up to the block length, so each hash function call made by $\HMAC$ contains a segment containing the byte \texttt{0x36} for the first of the two calls and \texttt{0x5c} for the second.
+	$\Sim_2$ uses this segment to identify whether a particular query is intended to simulate the first or second hash function call.
+	It answers the ``first'' calls with random strings and logs these responses.
+	Then it programs the ``second'' calls by using its stored intermediate values to find which $\ROhmac$ query should be simulated.
+	We augment the simulator to forward all queries to $\ROthash$; this does not change its runtime or effectiveness.
+	This simulator works perfectly unless there is a collision among the $2\qPriv+\qPub$ intermediate values, which Dodis et al. bound with a birthday bound.
+	That theorem states that for a distinguisher $\advD$ making $12\qSend$ queries to $\PrivO$ and $\qRO$ queries to $\PubO$, 
+	\[ \genAdv{\indiff}{\construct{C}, \Sim}{\advD} \leq \frac{2(12\qSend+\qRO)^2}{2^{\hashlen}}. \]
+	The lemma follows.
+\end{proof}
+
+\def\StepThreeTitle{Step 3: Applying Indifferentiability to the TLS Key Schedule}
+\iffull
+	\subsubsection{\StepThreeTitle}
+\else
+	 \subsection{\StepThreeTitle}
+\fi
+
+\label{sec:many-ros}
+In the last step, we move to the right-hand side of Figure~\ref{fig:tls-handshake} and introduce $11$ new independent random oracles to model the key schedule.
+We start by rephrasing the TLS key schedule and message authentication codes as eleven functions $\TLSKDF_{\binder}$, \dots, $\TLSKDF_{\rms}$ as in Section~\ref{sec:tls13-psk-protocol}.
+This abstraction does not change any of the operations performed by the key schedule; the $\TLSKDF$ functions simply rename the key derivation steps already performed by $\KE_2$. 
+In our last key exchange protocol $\KE'$, we model each $\TLSKDF$ function as a independent random oracle. 
+We name these oracles after the keys or values they derive:
+{\allowdisplaybreaks
+\begin{align*}
+1.~ &\RO_{\binder}[\ROhmac]	&&\colon \bits^{\hashlen}  \times \bits^{\hashlen}\to \bits^{\hashlen} \\
+2.~ &\RO_{\ets}[\ROhmac]	&&\colon \bits^{\hashlen} \times \bits^{\hashlen} \to \bits^{\hashlen} \\
+3.~ &\RO_{\eems}[\ROhmac]	&&\colon \bits^{\hashlen} \times \bits^{\hashlen}  \to \bits^{\hashlen}\\
+4.~ &\RO_{\chtk}[\ROhmac]	&&\colon \bits^{\hashlen}\times \G \times \bits^{\hashlen} \to \bits^{\hashlen + \ivlen} \\
+5.~ &\RO_{\cfin}[\ROhmac]		&&\colon \bits^{\hashlen} \times \G \times \bits^{\hashlen} \times \bits^{\hashlen} \to \bits^{\hashlen} \\
+6.~ &\RO_{\shtk}[\ROhmac]	&&\colon \bits^{\hashlen} \times \G \times \bits^{\hashlen} \to \bits^{\hashlen + \ivlen} \\
+7.~ &\RO_{\sfin}[\ROhmac]		&&\colon \bits^{\hashlen} \times \G \times \bits^{\hashlen} \times \bits^{\hashlen} \to \bits^{\hashlen} \\
+8.~ &\RO_{\cats}[\ROhmac]	&&\colon \bits^{\hashlen}\times \G \times \bits^{\hashlen} \to \bits^{\hashlen} \\
+9.~ &\RO_{\sats}[\ROhmac] &&\colon \bits^{\hashlen} \times \G \times \bits^{\hashlen} \to \bits^{\hashlen} \\
+10.~ &\RO_{\ems}[\ROhmac]	&&\colon \bits^{\hashlen} \times \G \times \bits^{\hashlen} \to \bits^{\hashlen} \\
+11.~ &\RO_{\rms}[\ROhmac]	&&\colon \bits^{\hashlen} \times \G \times \bits^{\hashlen} \to \bits^{\hashlen}
+\end{align*}
+}
+The $12^\text{th}$ random oracle is $\ROthash$, used to hash transcripts as in $\KE_1$ and $\KE_2$.
+
+
+Now we can state Lemma~\ref{th-ks-indiff}.
+\begin{lemma}\label{th-ks-indiff}
+	Let $\KE_2$ be the key exchange protocol of Lemma~\ref{thm:ks-indiff-hop-2-comp}, and let $\KE'$ be the key exchange protocol of Theorem~\ref{thm:full-ks-indiff}. 
+	
+	For any adversary $\advA$ against the $\KESEC$ security of $\KE_2$, with runtime $t$ and making $\qRO$ random oracle queries and $\qSend$ queries to $\Send$, there exists adversary $\advB$ against the $\KESEC$ security of $\KE'$ such that
+	\[
+	\genAdv{\KESEC}{\KE_1}{\advA}
+	\leq \genAdv{\KESEC}{\KE_2}{\advB} + \frac{2\qPub^2}{2^{\hashlen}} + \frac{8(\qPub+6\qPriv)^2}{2^{\hashlen}}.
+	\]
+	Adversary $\advB$ runs in time at most $t + \qRO t_{\G}$, where $t_{\G}$ is the time to perform one group operation in the Diffie--Hellman group $\G$. 
+	It makes no more queries to each of the oracles in the $\KESEC$ game than does $\advA$.
+\end{lemma}
+
+\begin{proof}
+	We view $\TLSKDF$ as defined in Section~\ref{sec:tls13-psk-protocol} as a construction of the function space $\ESp'$ of $\KE'$:
+	the arity-$12$ function space whose first subspace is $\AllFuncs(\bits^*\cab \bits^\hashlen)$ and whose remaining 11 subspaces are the spaces of all functions with the domains and ranges specified in the above list. 
+	This $\TLSKDF$ construction takes an oracle from $\ESp_2$, the function space of $\KS_2$. 
+	
+	As in the prior two steps, we consider a particular simulator~$\Sim$ (cf.\ Figure~\ref{fig-sim-ks-indiff}) and rely on Theorem $5$ for the existence of a distinguisher $\advD$ and an adversary $\advB$ such that 
+	\[ \genAdv{\KESEC}{\KE_2}{\advA} \leq \genAdv{\KESEC}{\KE'}{\advB} + \genAdv{\indiff}{\construct{\TLSKDF},\Sim}{\advD}. \]
+	The distinguisher $\advD$ will make no more than $12$ queries to $\PrivO$ for each $\Send$ query made by $\advA$ and one query to $\PubO$ per $\RO$ query.
+	
+	Via a sequence of code-based games, we will show that the indifferentiability advantage of any distinguisher $\advD$ making $\qPriv$ queries to the $\PrivO$ oracle and $\qPub$ queries to the $\PubO$ oracle is
+	\[\genAdv{\indiff}{\construct{\TLSKDF}, \SSp, \ESp, \Sim}{\advD}\leq \frac{2\qPub^2}{2^{\hashlen}} + \frac{8(\qPub+6\qPriv)^2}{2^{\hashlen}}.\]
+	We give fully specified pseudocode for each of our games. 
+	
+	First, we explain the high-level strategy of our simulator.
+	Our simulator takes two inputs: an index $\simIndex \in \{\Thash, \HMAC \}$ and a string $\simInString \in \bits^*$. 
+	When $\simIndex = \Thash$, the simulator simulates $\ROthash(\simInString)$ easily; it simply forwards the query to its own random oracle $\ROthash$.
+	When $\simIndex = \HMAC$, the simulator will parse $\simInString$ into a key $\hmackey \in \bits^{\hashlen}$ and a context string $\hmactext \in \bits^*$ and simulate $\ROhmac(\hmackey,\hmactext)$. 
+	This simulation should be compatible with a view of the random oracles $\RO_x$ as computing $\TLSKDF_x[\ROhmac]$. 
+	
+	Initially, $\Sim$ randomly samples the response $\simOut$ to any simulated $\ROhmac$ query from $\bits^{\hashlen}$.
+	Repeated queries are cached in a table $\cachetable$.
+	Next, $\Sim$ checks whether the query could be part of an attempt to compute $\TLSKDF_x[\Sim]$ for some $x$.
+	If so, it may have to program its response for consistency with $\RO_x$, or it may store its response in a lookup table $\rlookuptable$ to enable future programming.
+	
+	The only values that need programming are the first-class keys and MAC values.
+	These are all outputs of $\abstractExpand[\ROhmac]$. 
+	$\Sim$ can tell if a particular $\ROhmac$ query is made by $\abstractExpand$ by checking its formatting.
+	The inputs $\hmactext$ of all $\abstractExpand$'s queries in the key schedule start with $3$ bytes of fixed values and a label $\lbl$ between $8$ and $18$ bytes long that starts with the string \texttt{``tls13''}. They end with a $1$~byte counter that TLS~1.3 fixes to \texttt{0x01}.
+	$\Sim$ pattern-matches this label to determine which key is being derived. 
+	It has a subroutine $\lblT$ to translate the few labels which are used in the last derivation step for multiple keys.	
+	
+	Whenever $\simulator$ detects the label of an intermediate key derivation query like the $\abstractExpand$ calls used to compute $\es$, $\hs$, or $\ms$, it stores the response to this query in table $\rlookuptable$ under the name of the key in question.
+	If $\advD$ computes $\TLSKDF$ honestly, these tables will allow the simulator to backtrack through the execution to identify all of the inputs to $\TLSKDF$. 
+	Inputs to $\ROhmac$ queries made by $\HKDFExtr$ do not contain labels, so some tables contain multiple intermediate values.
+	Even without labels, each intermediate value should only appear in one key derivation except in the unlikely event of a collision in $\ROhmac$.  
+	
+	\begin{figure}[tp]
+		\begin{minipage}[t]{0.45\textwidth}
+			\NewExperiment[$\Sim(\simIndex,\simInString)$]
+			
+			\begin{oracle}{$\Sim[\RO](\simIndex,\simInString)$}
+				\item if $\cachetable[\simInString] \neq \bot$
+				\item \quad then return $\cachetable[\simInString]$
+				\item if $\simIndex=\Thash$ then return $\ROthash(K \| \Y)$
+				\item[] \comment{If not, this query should simulate $\ROhmac$}
+				\item $\hmackey$, $\hmactext \gets \simInString$
+				\item[] \comment{Randomly sample a response}
+				\item $\simOut \getsr \bits^{\hashlen}$
+				
+				%computing ES from PSK
+				\item if $\hmactext = 0$ 
+				\item \quad $\rlookuptable_{\psk}[\simOut] \gets \hmackey$
+				
+				%computing MS from DHS
+				\item else if $\hmackey = 0$ 
+				\item \quad $\rlookuptable_{\dhs}[\simOut] \gets \hmactext$ 
+				
+				% computing MAC tag from BFK, CFK, or SFK
+				\item else if $\rlookuptable_{\bfk/\cfk/\sfk}[\hmackey]\neq \bot$
+				
+				% computing binder from BFK
+				\item \quad $\es \gets \rlookuptable_{\es}[\rlookuptable_{\bk/\chts/\shts}[\hmackey]]$
+				\item \quad $\psk \gets \rlookuptable_{\psk}[\es]$
+				\item \quad if $\psk \neq \bot$ 
+				\item \quad \quad $\simOut \gets \RObinder(\psk, \hmactext)$
+				
+				% computing finished msg from CFK or SFK
+				\item \quad \quad $\hts \gets \rlookuptable_{\bk/\chts/\shts}[\hmackey]$
+				\item \quad $(\kdflbl', \hs, \hash_2) \gets \rlookuptable_{\hs/\hashcontext}[\hts]$
+				\item \quad $(\des, \dhe) \gets \rlookuptable_{\des/\dhe}[\hs]$
+				\item \quad $\psk \gets \rlookuptable_{\psk}[\rlookuptable_{\es/\hs}[ \des]]$
+				\item \quad if $\psk \neq \bot$ 
+				\item \quad \quad $y \gets \RO_{\kdflbl'[1]}(\psk, \dhe,\hash_2, \hmactext)[	\lblT(\kdflbl)]$
+				
+				%computing HS from DES + DHE
+				\item else $\rlookuptable_{\des/\dhe}[\simOut] \gets(\hmackey, \hmactext)$
+				
+				\item if $(\hmactext[0\ldots2] \neq \hashlen)$
+				\item[]\quad$\vee\hmactext[2] < 8) \vee(\hmactext[2] > 18)$
+				\item[] \quad $\vee(\hmactext[3\ldots9] \neq \mathsf{"tls13 "})$
+				\item[]\quad$\vee (\hmactext[|\hmactext|-1] \neq  1)$ 
+				\item[] \quad \comment{This query does not match $\HKDFExpnd$ formatting.}
+				
+				\item \qquad $\cachetable[\simInString] \gets \simOut$
+				\item \qquad return $\simOut$
+				
+				\item[] \comment{Parse the $\abstractExpand$ formatting to find the label.} 
+				\item $\kdflbllen \gets \hmactext[2]$
+				\item $\kdflbl \gets \hmactext[3\ldots (3+\kdflbllen)]$
+				\item $\hashcontext \gets \hmactext[(3+\kdflbllen)\ldots|\hmactext|]$
+				\item[] \ldots \comment{continued in next column}
+			\end{oracle}
+			
+			
+		\end{minipage}
+		\begin{minipage}[t]{0.54\textwidth}
+			\ExptSepSpace
+			\begin{oracle}{$\Sim[\RO](\simIndex,\simInString)$\comment{continued}}
+				%query computes BK from ES
+				\item if $\kdflbl = \kdflbl_{\binder}$ and $\hashcontext = \hash(\emptymessage)$
+				\item \quad  $\rlookuptable_{\es}[\simOut] \gets \hmackey$
+				
+				% query computes dES or dHS from ES or HS
+				\item else if $\kdflbl = \kdflbl_{\des/\dhs}$ and $\hashcontext = \hash(\emptymessage)$
+				\item \quad $\rlookuptable_{\es/\hs}[\simOut] \gets \hmackey$
+				
+				% Computing CHTS or SHTS from HS
+				\item  else if $\kdflbl \in \{\kdflbl_{\chts}, \kdflbl_{\shts}\}$
+				\item \quad $\rlookuptable_{\hs/\hashcontext}[\simOut] \gets (\lblT(\kdflbl), \hmackey, \hashcontext)$
+				
+				% Computing ETS or EEMS from ES
+				\item else if $\exists k \in \{\ets, \eems\}$ with  $\kdflbl  = \kdflbl_k$ and $\rlookuptable_{\psk}[\hmackey] \neq \bot$
+				\item \quad $\simOut \gets \RO_{k}(\rlookuptable_{\psk}[\hmackey],\hashcontext)$
+				
+				% computing CATS, SATS, EMS or RMS from MS
+				\item else if $\exists k \in \{\cats, \sats, \ems, \rms\}$ with  $\kdflbl  = \kdflbl_k$
+				\item \quad $(\des, \dhe) \gets \rlookuptable_{\des/\dhe}[\rlookuptable_{\es/\hs} [ \rlookuptable_{\dhs}[\hmackey]]]$
+				\item \quad $\psk \gets \rlookuptable_{\psk}[\rlookuptable_{\es/\hs}[ \des]]$
+				\item \quad if $\psk\neq \bot$
+				\item \quad \quad  $\simOut \gets \RO_{k}(\psk, \dhe, \hashcontext)$ 
+				
+				% Computing BFK, CFK, or SFK from BK, CHTS, or SHTS
+				\item else if $\kdflbl = \kdflbl_{\fk}$ and $\hashcontext = \emptymessage$ 
+				%\item[] \comment{This query must simulate either the binder key (case 1), or the client or server finished key (case 2)}
+				\item \quad $\rlookuptable_{\bk/\chts/\shts}[\simOut] \gets \hmackey$
+				
+				% computing tkchs or tkshs (key or iv) from CHTS or SHTS
+				\item else if $\kdflbl \in \{\texttt{"tls13 key"}, \texttt{ "tls13 iv"} \}$
+				\item \quad and $\hashcontext = \hash(\emptymessage)$
+				\item \quad $(\kdflbl', \hs, \hash_2) \gets \rlookuptable_{\hs/\hashcontext}[\hmackey]$
+				\item \quad $(\des, \dhe) \gets \rlookuptable_{\des/\dhe}[\hs]$
+				\item \quad $\psk \gets \rlookuptable_{\psk}[\rlookuptable_{\es/\hs}[ \des]]$
+				\item \quad if $\psk \neq \bot$ 
+				\item \quad \quad $y \gets \RO_{\kdflbl'[0]}(\psk, \dhe, \hash_2)[	\lblT(\kdflbl)]$
+				\item []
+				
+				\item $\cachetable[\simInString] \gets \simOut$
+				\item return $\simOut$
+			\end{oracle}
+			
+			\ExptSepSpace	
+			\begin{oracle}{Label translator $\lblT(\kdflbl)$}
+				\item if $\kdflbl  = \kdflbl_{\chts}$
+				\item \quad return $\chtk, \ClientFinished$
+				\item if $\kdflbl  = \kdflbl_{\shts}$
+				\item \quad return $\shtk, \ServerFinished$
+				\item if $\kdflbl =\texttt{"tls13 key"}$
+				\item \quad return $0$
+				\item if $\kdflbl =\texttt{"tls13 iv"}$ 
+				\item \quad return $1$
+				\item return $\bot$
+			\end{oracle}
+		\end{minipage}
+		\label{fig-sim-ks-indiff}
+		\caption{Simulator $\Sim$ used in the proof of Lemma~\ref{th-ks-indiff}.}
+	\end{figure}
+	
+	The first game in our sequence is $\Gm_0$~\, which is the ``ideal world'' setting of the indifferentiability game.
+	Here, $\PrivO$ queries are answered using a random function $\RO$ drawn from $\ESp$, and $\PubO$ queries are answered with $\Sim[\RO]$.
+	
+	In $\Gm_1$ (cf.\ Figure~\ref{fig:gm1-ks-indiff}), we set a bad flag $\bad_C$ and abort whenever $\Sim$ samples a random answer $\simOut$ that collides with the input or output of any previous simulator query. 
+	We track these inputs and outputs in a list $L$. 
+	For each new query, there are at most $2\qPub$ points to collide with.
+	Since $\simOut$ is sampled uniformly from $\bits^{\hashlen}$, the probability of such a collision over all queries is at most $\frac{2\qPub^2}{2^{\hashlen}}$ by a birthday and union bound). Then 
+	
+	\[ |\Pr[\Gm_1] - \Pr[\Gm_0]| \leq \frac{2\qPub^2}{2^{\hashlen}}. \] 
+	
+	In $\Gm_2$ (Figure\ref{fig:gm23-ks-indiff}), the $\Finalize$ oracle computes $\TLSKDF[\ROhmac]$ on the input to every query to the $\PrivO$ oracle, using $\PubO$ as its hash function. It discards the results of this computation, so this change can affect the outcome of the game only if one of the additional $\PubO$ queries sets the $\bad_C$ flag. The $\TLSKDF$ function queries its oracle at most~$6$ times per execution, so there are no more than $6\qPriv$ new queries. There are now a total of $\qPub + 6\qPriv$ queries to $\PubO$, so the probability that $\bad_C$ is set increases by another birthday bound.
+	\[ |\Pr[\Gm_2] - \Pr[\Gm_1]| \leq \frac{2(\qPub+6\qPriv)^2}{2^{\hashlen}}. \] 
+	
+	
+	The next step is the most subtle. 
+	In $\Gm_3$ (Figure~\ref{fig:gm23-ks-indiff}), we move the new computations of $\TLSKDF$ from the $\Finalize$ oracle into $\PrivO$.
+	When $\PrivO$ is called with index $\simIndex$ and input $X$, it still returns $\RO_{\simIndex}(X)$. 
+	First, however, it computes $\TLSKDF_{\simIndex}[\PubO](X)$. 
+	It discards the result of this computation, so the behavior of the $\PrivO$ oracle does not change in the adversary's view.
+	
+	However, queries to $\PrivO$ now run the simulator $\Sim$.
+	They can update its state and set the global $\bad_C$ flag.
+	This has two consequences.
+	First, the changed order of $\PubO$ queries may cause $\bad_C$ to be set in $\Gm_3$ when it was not set in $\Gm_2$, or vice versa. 
+	Second, queries to $\PrivO$ in $\Gm_3$ can add entries to the reverse lookup table $\rlookuptable$.
+	These new entries can be used to satisfy the conditions the simulator uses to check if a full execution of $\TLSKDF$ has been completed.
+	Then the simulator in $\Gm_3$ may program responses that were not programmed in $\Gm_2$. 
+	
+	We claim that despite the changed order of the queries, $\Gm_3$ and $\Gm_2$ behave identically in the adversary's view except when one of them would set the $\bad_C$ flag, assuming that the same random coins are used in both games.
+	Let $E$ denote the event that $\bad_C$ is set either when $\advA$ plays $\Gm_2$ or when $\advA$ plays $\Gm_3$.
+	Differences between the two games about when this flag is set are obviously irrelevant unless event $E$ occurs. 
+	
+	The argument that $\PubO$ responses are identical in both games except when event $E$ occurs is more subtle.
+	Assume event $E$ does not occur.
+	There must be a first adversarial query to $\PubO$ that gives different responses in $\Gm_3$ and $\Gm_2$, all oracles behave identically in both games.
+	We name this query $Q$.
+	Both games sample the same random responses, so query $Q$ has its response programmed by the simulator in at least one of the two games.
+	
+	The simulator decides whether to program based on the entries of reverse lookup table $\rlookuptable$, so we consider the differences in this table between our two games.
+	Let $\rlookuptable_2$ be the table in $\Gm_2$ at the time when Query $Q$ is made, and let $\rlookuptable_3$ be the table at the same point in $\Gm_4$.
+	Entries in the reverse lookup table are indexed by randomly sampled values $\simOut$, so they cannot be overwritten by later queries unless event $E$ occurs.
+	Furthermore, until query $Q$ is made, every $\PubO$ query in $\Gm_2$ that updates $\rlookuptable$ gives the identical response in $\Gm_3$, so every entry in $\rlookuptable_2$ is also an entry in $\rlookuptable_3$.
+	Therefore any query which is programmed in $\Gm_2$, up to and including query $Q$, will be programmed to the same response in $\Gm_3$.
+	The contrapositive statement says that any response which is randomly sampled in $\Gm_3$ will be also be randomly sampled in $\Gm_2$.
+	
+	It follows that query $Q$ must have a randomly sampled response in $\Gm_2$ but be programmed in $\Gm_3$.
+	There must exist a sequence of entries in $\rlookuptable_3$ that correspond to a full execution of $\TLSKDF[\PubO]$ on some input. 
+	We name the queries that created these entries $Q_1, \ldots, Q_i$. 
+	In each execution, our simulator either stores an entry in $\rlookuptable$, or it programs the response $\simOut$, never both.
+	Therefore queries $Q_1, \ldots Q_i$ have randomly sampled responses.
+	By the definition of $\TLSKDF$, the output of each query $Q_j$ is contained in the input of the next query $Q_{j+1}$.
+	The output of $Q_i$ is contained in the input of $Q$, so we identify query $Q$ with $Q_{i+1}$.
+	
+	In $\Gm_2$, one of the entries in the sequence is not present in $\rlookuptable_2$. 
+	Therefore one of the queries $Q_1, \ldots, Q_i$ is not made before query $Q$ in $\Gm_2$.
+	This query, $Q_j$ must have been one of the $\Finalize$ queries of $\Gm_2$ that were moved earlier in $\Gm_3$.
+	It will therefore be made in $\Finalize$, after all of the other queries, including $Q_{j+1}$.
+	The randomly sampled output of $Q_j$ will collide with the input of earlier query $Q_{j+1}$, setting $\bad_C$ and causing event $E$ to occur.
+	
+	The difference in advantage in $\Gm_3$ and $\Gm_2$ is therefore bounded by the probability of event $E$.
+	Both games make $\qPub+6\qPriv$ queries to $\PubO$, each of which sets $\bad_C$ is set with probability at most $\frac{2(\qPub+6\qPriv)}{2^{\hashlen}}$. 
+	By a union bound,
+	\[|\Pr[\Gm_3] - \Pr[\Gm_2]| \leq \frac{4(\qPub+6\qPriv)^2}{2^{\hashlen}}.\]
+	
+	%%% OLD DRAFT
+	%In case $1$, one of the if-conditions in lines $13$, $31$, $36$, or $45$ of our original simulator (cf.\ Figure~\ref{fig-sim-ks-indiff}) must have been satisfied in $\Gm_4$. 
+	%In $\Gm_2$, none of these four if-conditions are satisfied when Query $1$ is made.
+	%For any of the four conditions to be satisfied in $\Gm_4$, there must exist a sequence of table entries in $\rlookuptable$ such that the contents of each entry are the index of the next entry. 
+	%The index of the first entry is $\hmackey_1$, and the contents of the last entry are $\psk_1 \neq \bot$. 
+	%In $\Gm_2$, at least one of the entries in this sequence is not present in $\rlookuptable$.
+	%That means that  
+	%The last query in the sequence must have output either $\hmackey_1$ or $\hmactext_1$. 
+	%We break the logic down by each of the four possible conditions which could be satisfied in $\Gm_4$, starting with line $31$.
+	%If $\rlookuptable_{\psk}[\hmackey^*] = \bot$ in $\Gm_2$ and $\rlookuptable_{\psk}[\hmackey^*]\neq \bot$ in $\Gm_4$, then some query 
+	%$\hmackey^*$ must have been a randomly sampled response to an earlier $\PubO$ query.
+	%However, this earlier query took place only in $\Gm_4$, meaning it must have been made by the $\PrivO$ oracle and not the adversary.
+	%In $\Gm_2$, the same query would be made in the $\Finalize$ oracle at the end of the game.
+	%This means that a query would randomly sample the response $\hmackey*$ \emph{after} the earlier query $\PubO(\hmackey^*, \hmactext^*)$ used the same value as an input. 
+	%The later query will set $\bad_C$, and our claim holds in this case.
+	%
+	%Each of the other three conditions also requires that an entry in $\rlookuptable_{\psk}$ is set to $\bot$ in $\Gm_2$ but not $\Gm_4$. 
+	%In these three cases, however, the entry in $\rlookuptable$ may have index $\bot$ in $\Gm_2$ because an entry in another reverse lookup table was set to $\bot$ in $\Gm_2$ but not $\Gm_4$.
+	%Regardless of which table contains this entry, the value must have been sampled randomly by an earlier $\PubO$ query, one which takes place in $\PrivO$ in $\Gm_4$ and in $\Finalize$ in $\Gm_2$.
+	%Let this be Query $1$.
+	%Let $Z$ be the output of this Query $1$ (the index of the entry).
+	%
+	%There are two situations:
+	%either $Z$ contains one or both values $\hmackey*$ and $\hmactext*$, or $Z$ itself is the contents of a $\rlookuptable$ entry which is identical in $\Gm_2$ and $\Gm_4$.
+	%In the former case, $Z$ will collide with $\hmackey^*$ or $\hmactext^*$ in the $\Finalize$ oracle of $\Gm_2$, and the $\bad_C$ flag will be set.
+	%In the latter case, we give the index of the entry containing $Z$ the name $Z'$
+	%Unlike $Z$, $Z'$ is defined in both $\Gm_2$ and $\Gm_4$.
+	%$Z'$ is added to $\rlookuptable$ in both $\Gm_2$ and $\Gm_4$ before $\Finalize$, so it is an output of some adversarial query Query $2$.
+	%Note that Query $2$ must have occurred before Query $1$; otherwise the entry with index $Z$ would not exist.
+	%The input of Query $2$ is $Z$.
+	%Then when Query $1$ occurs in the $\Finalize$ oracle of $\Gm_2$ and samples response $Z$, it will collide with the logged input of Query $2$ and set the $\bad_C$ flag.
+	%
+	%Therefore any time $\PrivO$ would give different responses in $\Gm_4$ than $\Gm_2$, $\Gm_2$ would have set $\bad_C$. It follows that 
+	%
+	%\[|\Pr[Gm_4] - \Pr[Gm_2]| \leq Pr[\Gm_2\text{ sets }\bad_C] \leq \frac{2(\qPub+6\qPriv)^2}{2^{\hashlen}}.\]
+	
+	%%%% OLDEST DRAFT
+	
+	%If this condition is true in $\Gm_2$ and false in $\Gm_4$, then $\rlookuptable_{\psk}[\hmackey^*]$
+	%
+	%Therefore there is some entry $\rlookuptable_{\psk}[\simOut^*]$ which contains $\bot$ in $\Gm_2$ but does not contain $\bot$ in $\Gm_4$. 
+	%This entry must have been created by one of the $\PubO$ queries we moved from $\Finalize$ to $\PrivO$; it was not created by an adversarial $\PubO$ query or it would have created the entry in both $\Gm_4$ and $\Gm_2$.
+	%$\simOut^*$ was a random response sampled by this query; since the $\PrivO$ oracle discards the output of $\TLSKDF$, it was not returned to the adversary. it also appears as the contents of an entry in either table $\rlookuptable_{\es}$ or table $\rlookuptable_{\es/\hs}$. 
+	%This means $\simOut^*$ was also an input to some $\PubO$ query
+	%
+	%
+	%
+	%We claim that if this events. Let $\PubO(K, \Y)$ be the first query which gives a different response in $\Gm_4$ than in $\Gm_3$. This means that in $\Gm_3$, the response to $\PubO(K, \Y)$ was uniformly distributed, but in $\Gm_4$, the query triggered an if-condition at one of lines $29$, $35$, $41$, $46$, or $53$. 
+	%
+	%Although the exact if-conditions differ, they all require that for some index $j$ and some tuple $t$, $T_j[t] \neq \bot$ and $K \in t$. For $K$ to be stored in a table $T$, some earlier query $\PubO(K', \Y')$ must have randomly sampled $K$ as its response. In $\Gm_3$, where $\PubO(K, \Y)$ is not programmed, the query $\PubO(K', \Y')$ did not occur. The adversary's view is the same in both games until $\PubO(K, \Y)$ occurs, so the order of its queries do not change. Then the query $\PubO(K', \Y')$ was not made by the adversary; instead, it must be one of the queries we moved from $\Finalize$ to $\PrivO$ between games $\Gm_3$ and $\Gm_4$. What happens in $\Gm_3$, when $\PubO(K', \Y')$ is queried in $\Finalize$? There are two possibilities: either it is answered randomly as in $\Gm_4$, or it is programmed. In the former case, the query returns $K$, which is in $L$ thanks to $\PubO(K, \Y)$. This causes a collision and $\bad_C$ is set. In the latter case, $\PubO(K', \Y')$ was itself programmed in $\Gm_3$; its response is therefore different from $K$. We claim that a collision must also have occured in this case.
+	%
+	%Since $\PubO(K', \Y')$ occurs in $\Finalize$ in $\Gm_3$, it arises during an honest computation of $\TLSKDF$. Since it is not programmed in $\Gm_4$, it is not the last query in this computation; its output represents an intermediate value. However, that it is programmed means that this query is also the final query in a different, possibly adversarial computation of $\TLSKDF$. The two computations have distinct inputs (otherwise the queries would be cached), so in order for them to contain identical queries, there must be a collision in the outputs of earlier queries. \hd{this logic is very unsound.} This earlier collision would set $\bad_C$. 
+	%
+	%The changed state of the simulator also affects whether the $\bad_C$ flag will be set in $\Gm_4$. Collisions among outputs are no more or less likely depending on the order of the queries. However, in $\Gm_3$ we also set the $\bad_C$ flag when an output from $\PubO$ collides with a prior input by the adversary. This captures the possibility that the adversary guesses an intermediate state of the KDF. Because the $\PrivO$ oracle also queries $\PubO$, the $\bad_C$ flag now may not be set in the event of such a guess. This decreases $\Pr[\Gm_4]$ by an amount no greater than $\Pr[\Gm_3 \text{sets} \bad_C]$.
+	%
+	%We know that $\Pr[\Gm_4 \text{ sets } \bad_C] \leq \Pr[\Gm_3 \text{ sets } \bad_C] \leq\frac{2\qPub^2}{2^{\hashlen}} + \frac{2(6 \qPriv)^2}{2^{\hashlen}}$, so we have
+	%\[|\Pr[Gm_4] - \Pr[Gm_3]| \leq Pr[\Gm_3\text{ sets }\bad_C] \leq \frac{2(\qPub+6\qPriv)^2}{2^{\hashlen}}.\]
+	Pseudocode for the last three games is given in Figure~\ref{fig:gm456-ks-indiff}.
+	Now we adjust $\PrivO$ in $\Gm_4$ to return the result of $\construct{C}[\PubO]$ instead of querying $\RO$. 
+	Unless $\bad_C$ is set, $\TLSKDF[\PubO](\roIndex, \X) = \RO_{\roIndex}( \X)$. 
+	The function $\TLSKDF$ makes sequential queries to $\PubO$ that are properly formatted, so our $\Sim$ will program the last query in the sequence for consistency with the appropriate $\RO$. 
+	This programming occurs every time $\TLSKDF[\PubO]$ is called, unless the last query is a repeated query.
+	In that case, it will be answered using table $\cachetable$ instead of $\RO$.
+	However, if the queries in the sequence occur out of order, they will always cause $\bad_C$ to be set because the output of a later query will match the input to an earlier query.
+	Then the adversary wins in $\Gm_4$ with the same likelihood as $\Gm_3$, unless $\bad_C$ is set. 
+	If $\bad_C$ is set, both games have a win probability of $0$ thanks to the check in the $\Finalize$ oracle, so
+	\[\Pr[\Gm_4] = \Pr[\Gm_3].\]
+	
+	Starting with $\Gm_5$, we stop returning $0$ in $\Finalize$ when $\bad_C$ is set. This increases the win probability by at most $\Pr[\Gm_4 \text{ sets }\bad_C] \leq \frac{2(\qPub+6\qPriv)^2}{2^{\hashlen}}$, by the same birthday and union bounds over the $\qPub + 6\qPriv$ queries to $\PubO$. 
+	\[|\Pr[\Gm_5] - \Pr[\Gm_4]| \leq \frac{2(\qPub+6\qPriv)^2}{2^{\hashlen}}.\]
+	
+	From $\Gm_4$ onward, all queries to $\ROhmac$ are made by $\simulator$. In $\Gm_6$, therefore, we can inline the lazily sampled $\ROhmac$ oracle as part of the simulator. 
+	Repeated queries to $\simulator$ are cached, so the random oracle does not need to maintain its own lookup table. 
+	Now all responses from $\PubO$ are randomly sampled from $\bits^{\hashlen}$, regardless of the contents of table $\rlookuptable$. 
+	The table and the conditional statements used to maintain it are now redundant bookkeeping, as is the unused $\bad_C$ flag after $\Gm_5$. 
+	We eliminate all of this code from $\Gm_6$ without detection by the adversary.
+	Then 
+	\[ \Pr[\Gm_6] = \Pr[\Gm_5]. \]
+	
+	The remaining code of $\simulator$ just implements random oracles $\ROhmac$ and $\ROthash$.
+	Consequently $\Gm_6$ is identical to the ideal indifferentiability game for the $\TLSKDF$ construction. 
+	Collecting bounds proves the theorem.
+	
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	%In $\Gm_1$, we introduce a private random oracle $\hh'$ with domain $\bits^*$ and range $\KEkeyspace$. The simulator computes the output $y$ by calling $\hh'((\HKDFExtr, \HKDFExpnd)||\Y)$ instead of randomly sampling $y$. Using a random oracle means that repeated queries will receive identical responses; however this was already guaranteed since $\PubO$ caches its responses in table $M$. Then $\Pr[\Gm_0] = \Pr[\Gm_1].$
+	%
+	%Next we exclude collisions among the simulator's responses. Starting with game $\Gm_2$, the simulator stores all its queries and responses in a list $L$. If it generates a response $y$ that collides with a prior response or with part of a prior query, we set a flag called $\bad_C$. In $\Gm_3$, the Finalize oracle returns $0$ if the $\bad_C$ flag has been set. By caching queries as well as responses, we are also excluding the possibility that the adversary can compute $\TLSKDF$ by guessing an intermediate value. Accurate guesses will cause the $\bad_C$ flag to be set. 
+	%We have that $\Pr[\Gm_2]=\Pr[\Gm_1]$ because the list $L$ is fully internal to the game,
+	%and we have $\Pr[\Gm_3] \replace{\leq}{\geq} \Pr[\Gm_2]$ because the Finalize check strictly decreases the probability that the game returns $1$ and no other oracle's behavior is changed.
+	%
+	%In game $\Gm_4$, we execute the construct $\construct{C}$ in the $\PrivO$ oracle using the simulator. The calls to $\simulator$ from $\PrivO$ use a separate, independent state from those in $\PubO$. Therefore repeated queries from $\PrivO$ and $\PubO$ do not cache their responses, and prior queries from $\PrivO$ do not influence programming in $\PubO$. Simulator calls made by $\PubO$, update both states, so programming in $\PrivO$ is dependent on prior queries from $\PubO$. The responses of the $\PrivO$ oracle do not change. For this reason, the adversary's view of $\PrivO$ and $\PubO$ does not change between $\Gm_3$ and $\Gm_4$. However, the simulator calls in $\PrivO$ use the same list $L$ to track collisions as those in $\PubO$, so the additional queries increase the chance that the $\bad_C$ flag will be set. Therefore $\Pr[\Gm_4]\leq \Pr[\Gm_3]$. 
+	%
+	%In game $\Gm_5$, $\Sim$ sets a new flag if it encounters an $\HKDFExpnd$ that should be programmed based on tables $T'$ but not based on tables $T$. In $\Gm_6$, we return $0$ in $\Finalize$ whenever this flag has been set. (This occurs only when the adversary has guessed an intermediate state of some $\TLSKDF$ without obtaining it from $\Sim$.) Also in $\Gm_6$, we do program when the flag is set, meaning that $\Sim$ effectively programs using tables $T'$. 
+	%
+	%In $\Gm_7$, $\Sim$ only uses tables $T'$ and list $M'$. This changes nothing: $\Sim$ was already programming based on tables $T'$ and any value cached in $M'$ would have been identically derived by $\Sim$ because $\Sim$ and $\Sim_2$ use the same private RO to sample random coins. (This could only be untrue if $\Sim_2$ sampled a random output for $y$ because it did not need to be programmed at the time, but later $\Sim$ wished to program $y$. Since $\Sim_2$ is only called in evaluating $\TLSKDF$, however, the last query in the chain is always programmed. Therefore $\Sim$ would need to program a query that was intermediate in a different $\TLSKDF$ execution. This would imply a collision occurred and the $\bad_C$ flag would have been set.) $\Sim$ does still maintain table $T$ in order to set the bad flag from $\Gm_5$.
+	%
+	%In $\Gm_8$, we stop using a private random oracle and return to random sampling. Since all values are cached between $\Sim$ and $\Sim_2$ by means of $M'$, it does not matter that repeated queries become inconsistent. 
+	%
+	%In $\Gm_9$, the Priv oracle returns the output of $\Sim_2$, not of the RO. We claim that the output is always identical unless one of our bad flags is set. (This is true since the last query in any $\TLSKDF$ execution is always programmed except in the event of a collision.) From this point forward, the random oracle $\RO$ is not accessible to the adversary. Additionally, no query to $\RO$ is repeated by $\Sim$ or $\Sim_2$ except when a collision flag would be set. Therefore in $\Gm_{10}$ we replace $\RO$ with random sampling. 
+	%
+	%In $\Gm_{11}$, we stop returning $0$ when the $\bad$ flags have been set. We bound the probability of this event using a birthday bound for collisions and a union bound for guesses. At this point, the checks for programming the queries and setting the bad flags are redundant, so we remove them in $\Gm_{12}$ along with the unused $T$ and $T'$ tables. The remaining code in both $\Sim$ and $\Sim_2$ is just that of a random oracle. Therefore we are now in the real world.
+	
+\end{proof}
+
+We have now established that in order to give a (tight) security proof for TLS~1.3 PSK-only and PSK-(EC)DHE, it suffices to prove (tight) security of the protocol on the right-hand side of Figure~\ref{fig:tls-handshake}. 
+%\tj{With or without encryption? Swap Sections \ref{sec:ks-indiff} and \ref{sec:modularizing}?}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:
+
+
+\begin{figure}[tp]
+	\begin{minipage}[t]{0.48\textwidth}
+		\NewExperiment[Game $\Gm_0$]
+		
+		\begin{algorithm}{$\Initialize()$}
+			\item $b \gets 0$
+			\item $\RO \getsr \ESp$
+			\item $\state \getsr \emptystring$
+		\end{algorithm}
+			\ExptSepSpace
+			\begin{oracle}{$\Sim(\simIndex,\simInString,\state)$}
+				\item if $\simIndex=\Thash$ then return $\ROthash, (\simInString)$
+				\item $\rlookuptable, \cachetable \gets \state$
+				\item if $\cachetable[\simInString] \neq \bot$
+				\item \quad then return $\cachetable[\simInString]$
+				\item $\hmackey,\hmactext \gets \simInString$
+				\item $\simOut \gets \simulator[\RO](\hmackey, \hmactext,\rlookuptable)$
+				\item $\cachetable[\simInString] \gets \simOut$
+				\item return $y$
+			\end{oracle}
+		\ExptSepSpace
+		\begin{oracle}{$\Sim[\RO](\hmackey, \hmactext, \rlookuptable)$}
+		\item[] \comment{Randomly sample a response}
+		\item $\simOut \getsr \bits^{\hashlen}$
+		
+		%computing ES from PSK
+		\item if $\hmactext = 0$ 
+		\item \quad $\rlookuptable_{\psk}[\simOut] \gets \hmackey$
+		
+		%computing MS from DHS
+		\item else if $\hmackey = 0$ 
+		\item \quad $\rlookuptable_{\dhs}[\simOut] \gets \hmactext$ 
+		
+		% computing MAC tag from BFK, CFK, or SFK
+		\item else if $\rlookuptable_{\bfk/\cfk/\sfk}[\hmackey]\neq \bot$
+		
+		% computing binder from BFK
+			\item \quad $\es \gets \rlookuptable_{\es}[\rlookuptable_{\bk/\chts/\shts}[\hmackey]]$
+		\item \quad $\psk \gets \rlookuptable_{\psk}[\es]$
+		\item \quad if $\psk \neq \bot$ 
+		\item \quad \quad $\simOut \gets \RObinder(\psk, \hmactext)$
+		
+		% computing finished msg from CFK or SFK
+		\item \quad \quad $\hts \gets \rlookuptable_{\bk/\chts/\shts}[\hmackey]$
+		\item \quad $(\kdflbl', \hs, \hash_2) \gets \rlookuptable_{\hs/\hashcontext}[\hts]$
+		\item \quad $(\des, \dhe) \gets \rlookuptable_{\des/\dhe}[\hs]$
+		\item \quad $\psk \gets \rlookuptable_{\psk}[\rlookuptable_{\es/\hs}[ \des]]$
+		\item \quad if $\psk \neq \bot$ 
+		\item \quad \quad $y \gets \RO_{\kdflbl'[1]}(\psk, \dhe,  \hash_2, \hmactext)[	\lblT(\kdflbl)]$
+		
+		%computing HS from DES + DHE
+		\item else $\rlookuptable_{\des/\dhe}[\simOut] \gets(\hmackey, \hmactext)$
+		
+		\item if $(\hmactext[0\ldots2] \neq \hashlen)$
+		\item[]\quad$\vee\hmactext[2] < 8) \vee(\hmactext[2] > 18)$
+		\item[] \quad $\vee(\hmactext[3\ldots9] \neq \mathsf{"tls13 "})$
+		\item[]\quad$\vee (\hmactext[|\hmactext|-1] \neq  1)$ 
+		\item[] \quad \comment{This query does not match $\HKDFExpnd$ formatting.}
+		
+		\item \qquad return $\simOut$
+		
+		\item[] \comment{Parse the $\abstractExpand$ formatting to find the label.} 
+		\item $\kdflbllen \gets \hmactext[2]$
+		\item $\kdflbl \gets \hmactext[3\ldots (3+\kdflbllen)]$
+		\item $\hashcontext \gets \hmactext[(3+\kdflbllen)\ldots|\hmactext|]$
+		\item[] \ldots \comment{continued in next column}
+		\end{oracle}
+		
+			
+		\end{minipage}
+		\begin{minipage}[t]{0.49\textwidth}
+			\ExptSepSpace
+			\begin{oracle}{$\simulator[\RO](\hmackey, \hmactext, \rlookuptable)$\comment{...continued}}
+			%query computes BK from ES
+			\item if $\kdflbl = \kdflbl_{\binder}$ and $\hashcontext = \hash(\emptymessage)$
+			\item \quad  $\rlookuptable_{\es}[\simOut] \gets \hmackey$
+			
+			% query computes dES or dHS from ES or HS
+			\item else if $\kdflbl = \kdflbl_{\des/\dhs}$ and $\hashcontext = \hash(\emptymessage)$
+			\item \quad $\rlookuptable_{\es/\hs}[\simOut] \gets \hmackey$
+			
+			% Computing CHTS or SHTS from HS
+			\item  else if $\kdflbl \in \{\kdflbl_{\chts}, \kdflbl_{\shts}\}$
+			\item \quad $\rlookuptable_{\hs/\hashcontext}[\simOut] \gets (\lblT(\kdflbl), \hmackey, \hashcontext)$
+			
+			% Computing ETS or EEMS from ES
+			\item else if $\exists k \in \{\ets, \eems\}$ with  $\kdflbl  = \kdflbl_k$ and $\rlookuptable_{\psk}[\hmackey] \neq \bot$
+			\item \quad $\simOut \gets \RO_{k}(\rlookuptable_{\psk}[\hmackey],\hashcontext)$
+			
+			% computing CATS, SATS, EMS or RMS from MS
+			\item else if $\exists k \in \{\cats, \sats, \ems, \rms\}$ with  $\kdflbl  = \kdflbl_k$
+			\item \quad $(\des, \dhe) \gets \rlookuptable_{\des/\dhe}[\rlookuptable_{\es/\hs}[ \rlookuptable_{\dhs}[\hmackey])]]$
+			\item \quad $\psk \gets \rlookuptable_{\psk}[\rlookuptable_{\es/\hs}[ \des]]$
+			\item \quad if $\psk\neq \bot$
+			\item \quad \quad  $\simOut \gets \RO_{k}(\psk, \dhe, \hashcontext)$ 
+			
+			% Computing BFK, CFK, or SFK from BK, CHTS, or SHTS
+			\item else if $\kdflbl = \kdflbl_{\fk}$ and $\hashcontext = \emptymessage$ 
+			%\item[] \comment{This query must simulate either the binder key (case 1), or the client or server finished key (case 2)}
+			\item \quad $\rlookuptable_{\bk/\chts/\shts}[\simOut] \gets \hmackey$
+			
+			% computing tkchs or tkshs (key or iv) from CHTS or SHTS
+			\item else if $\kdflbl \in \{\texttt{"tls13 key"}, \texttt{ "tls13 iv"} \}$
+			\item \quad and $\hashcontext = \hash(\emptymessage)$
+			\item \quad $(\kdflbl', \hs, \hash_2) \gets \rlookuptable_{\hs/\hashcontext}[\hmackey]$
+			\item \quad $(\des, \dhe) \gets \rlookuptable_{\des/\dhe}[\hs]$
+			\item \quad $\psk \gets \rlookuptable_{\psk}[\rlookuptable_{\es/\hs}[ \des]]$
+			\item \quad if $\psk \neq \bot$ 
+			\item \quad \quad $y \gets \RO_{\kdflbl'[0]}(\psk, \dhe, \hash_2)[	\lblT(\kdflbl)]$
+			\item []
+			
+			\item return $\simOut$
+		\end{oracle}
+			\ExptSepSpace
+	\begin{algorithm}{$\PubO(\simIndex,\simInString)$}
+		\item $(z,\state) \gets \Sim(\simIndex,\simInString,\state)$
+		\item return $z$
+	\end{algorithm}
+	\ExptSepSpace
+	\begin{algorithm}{$\PrivO(\roIndex,\X)$}
+		\item return $\RO_{\roIndex}(\X)$
+	\end{algorithm}	
+			\ExptSepSpace
+	\begin{algorithm}{$\Finalize(b')$}
+		\item return $b'$
+	\end{algorithm}
+		\end{minipage}
+		\label{fig:gm0-ks-indiff}
+		\caption{Indiff game instantiated with simulator $\simulator$, also Game $\Gm_0$ in the proof of Lemma~\ref{th-ks-indiff}.}
+	\end{figure}
+
+\begin{figure}[tp]
+	\begin{minipage}[t]{0.46\textwidth}
+		\NewExperiment[Games $\Gm_1$]
+	
+			\begin{oracle}{$\Sim(\simIndex,\simInString,\state)$}
+			\item if $\simIndex=\Thash$ then return $\ROthash(\simInString)$
+			\item $\rlookuptable, \cachetable, \gamechange{L} \gets \state$
+			\item if $\cachetable[\simInString] \neq \bot$
+			\item \quad then return $\cachetable[\simInString]$
+			\item $\hmackey,\hmactext \gets \simInString$
+			\item $\simOut \gets \simulator[\RO](\hmackey, \hmactext,\rlookuptable, \gamechange{L})$
+			\item $\cachetable[\simInString] \gets \simOut$
+			\item \gamechange{$L \gets L \cup \{\simOut, \simInString\}$}
+			\item return $y$
+		\end{oracle}
+	\end{minipage}
+	\begin{minipage}[t]{0.49\textwidth}
+			\ExptSepSpace
+		\begin{oracle}{$\Sim[\RO](\hmackey, \hmactext, \rlookuptable,\gamechange{L})$}
+			\item $\simOut \getsr \bits^{\hashlen}$
+			\item \gamechange{if $\simOut \in L$ or $\exists t \in L$ such that $\simOut \in t$}
+			\item \quad \gamechange{$\bad_C \gets \true$}
+			\item[] \ldots
+		\end{oracle}
+	\ExptSepSpace
+	\begin{algorithm}{$\Finalize(b')$}
+		\item \gamechange{if $\bad_C$ then return $0$}
+		\item return $b'$
+	\end{algorithm}
+	\end{minipage}
+	\label{fig:gm1-ks-indiff}
+	\caption{ Game $\Gm_1$ in the proof of Lemma~\ref{th-ks-indiff}. }
+\end{figure}
+
+\begin{figure}[tp]
+	\begin{minipage}[t]{0.48\textwidth}
+		\NewExperiment[Game $\Gm_2$]
+		
+			\begin{algorithm}{$\PrivO(\roIndex,\X)$}
+				\item $Q \gets Q \bigcup \{(\roIndex,\X)\}$
+				\item return $\RO_{\roIndex}(\X)$
+			\end{algorithm}	
+			\ExptSepSpace
+			\begin{algorithm}{$\Finalize(b')$}
+				\item \gamechange{for $(\roIndex,\X) \in Q$ do }
+				\item \quad \gamechange{$z \gets\TLSKDF_{\roIndex}[\PubO](\X)$}
+				\item if $\bad_C$ then return $0$
+				\item return $b'$
+			\end{algorithm}
+	
+	\end{minipage}
+\vline
+\hspace{.02\textwidth}
+	\begin{minipage}[t]{0.49\textwidth}
+		\NewExperiment[Game $\Gm_3$]
+	
+		\ExptSepSpace
+	\begin{algorithm}{$\PrivO(\roIndex,\X)$}
+		\item \gamechange{$z \gets\TLSKDF_{\roIndex}[\PubO](\X)$}
+		\item return $\RO_{\roIndex}(\X)$
+	\end{algorithm}	
+	\ExptSepSpace
+\begin{algorithm}{$\Finalize(b')$}
+	\item if $\bad_C$ then return $0$
+	\item return $b'$
+\end{algorithm}
+\end{minipage}
+\label{fig:gm23-ks-indiff}
+\caption{ Games $\Gm_2$ and $\Gm_3$ in the proof of Lemma~\ref{th-ks-indiff}.}
+\end{figure}
+
+\begin{figure}[tp]
+	\begin{minipage}[t]{0.48\textwidth}
+		\NewExperiment[Games \fbox{$\Gm_4$}, $\Gm_5$]
+		
+		\ExptSepSpace
+		\begin{algorithm}{$\PrivO(\roIndex,\X)$}
+			\item $z \gets\TLSKDF_{\roIndex}[\PubO](\X)$
+			\item return \gamechange{$z$}
+		\end{algorithm}	
+		\ExptSepSpace
+		\begin{algorithm}{$\Finalize(b')$}
+			\item \fbox{if $\bad_C$ then return $0$}
+			\item return $b'$
+		\end{algorithm}
+	\end{minipage}
+	\vline
+	\hspace{.02\textwidth}
+	\begin{minipage}[t]{0.8\textwidth}
+		\NewExperiment[Game $\Gm_6$]
+
+		\begin{oracle}{$\simulator[\RO](\simIndex, \simInString,\rlookuptable)$}
+			\item $\simOut \getsr \bits^{\hashlen}$
+			\item return $\simOut$
+		\end{oracle}
+		
+	\end{minipage}
+	
+	\label{fig:gm456-ks-indiff}
+	\caption{ Games $\Gm_4$, $\Gm_5$, and $\Gm_6$ in the proof of Lemma~\ref{th-ks-indiff}.}
+\end{figure}

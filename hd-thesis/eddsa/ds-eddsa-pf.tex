@@ -1,0 +1,358 @@
+\section{Proof of Theorem 2}
+\begin{proof}
+	We prove Theorem 2 using a sequence of code-based games in the framework of Bellare and Rogaway.
+	
+	$\Gm_0$ is the UF game for $\DS_1$. 
+	
+	We transition to $\Gm_1$ from $\Gm_0$ by altering line $4$ in $\Initialize$ to read $\e \getsr \bits^{2k}$ instead of $\e \gets \pF_1^{\HH_1(\cdot)}(\sk)$. Instead of rederiving $\e$ in each query to $\SignOO$, we store $\e$ as the secret key of user $i$. We present adversary $\advA_{\pF_1}$ against the PRG security of $\pF_1$ such that 
+	\[Pr[\Gm_1] \leq \Pr[\Gm_0] +\genAdv{\muPRG}{\pF_1}{\advA_{\pF_1}}.\]
+	
+	
+	In the case that $b=1$ in the PRG game, adversary $\advA$ perfectly simulates $\Gm_1$ because the PRG game samples $\vecSk[\usr]$ for each user, exactly as $\Initialize$ would. When $b=0$, $\advA$ simulates $\Gm_0$, except that it caches $\e$ for each user instead of rederiving it. This does not change the output behavior of the $\SignOO$ oracle, so the simulation of $\Gm_0$ is perfect. $\advA_{\pF_1}$ guesses bit $b$ correctly if $\advA$ wins in the simulated $\Gm_1$ or fails in the simulated $\Gm_0$, and the statement follows.
+	
+	In $\Gm_2$, we sample $\littler$ from $\bits^{\pF_2.\PRFoutlen}$ instead of calling $\pF_2^{\HH_2}$. We also stop sampling the redundant value $\vecSk[\usr]$ in $\Initialize$. We present adversary $\advA_{\pF_2}$ against the PRF security of $\pF_2$ such that
+	
+	\[Pr[\Gm_2] \leq \Pr[\Gm_1] +\genAdv{\muPRF}{\pF_2}{\advA_{\pF_2}}.\]
+	
+	By allowing the $\muPRF$ game to sample $\e_2$ for each user as the PRF secret key, $\advA_{\pF_2}$ honestly simulates $\Gm_2$ when bit $b = 1$ in the $\muPRF$ game and $\Gm_1$ when bit $b=0$. It returns $1$ when $\advA$ wins the siulated game, so the statement follows.
+	
+	
+	In $\Gm_3$, we define a quantity $\ell = \lfloor 2^{\pF_2.\PRFoutlen}/\Prime \rfloor $ such that $\ell\Prime$ is the largest multiple of $\Prime$ less than $2^{\pF_2.\PRFoutlen}$. In the $\SignOO$ oracle, we set a $\bad$ flag  if $\littler$ is larger than $\ell\Prime$. This is just bookkeeping, so 
+	\[ \Pr[\Gm_3] = \Pr[\Gm_2]. \]
+	
+	In $\Gm_4$, after setting the $\bad$ flag, we resample $\littler$ from $\Z_\Prime$. By the Fundamental Lemma of Game Playing,
+	\[\Pr[\Gm_4] \leq \Pr[\Gm_3] + \Pr[\Gm_4 \text{ sets } \bad]. \]
+	
+	The probability that $\bad$ is set by a particular $\SignOO$ query in $\Gm_4$ is $\frac{2^{\pF_2.\PRFoutlen} - \ell\Prime}{2^{\pF_2.\PRFoutlen}}$ because $\littler$ is chosen uniformly at random. 
+	By our choice of $\ell$ here, the numerator is at most $\Prime - 1$. Therefore by the union bound, \[\Pr[\Gm_4 \text{ sets } \bad] \leq \frac{q_s \Prime} {2^{\pF_2.\PRFoutlen}}.\]
+	
+	In $\Gm_4$, we sample $\littler$ at random from $\Z_\Prime$. This does not change the distribution of outputs of the $\SignOO$ oracle, so 
+	
+	\[\Pr[\Gm_4] = \Pr[\Gm_3]. \]
+	
+	Finally, in $\Gm_5$, we derive $\s$ from $\e_1$ only once, in $\Initialize$ and store $\s$ as $\vecSk[\usr]$ instead of $\e_1$. We also stop computing the redundant value $\e_2$. An adversary cannot detect whether $\s$ is computed once or many times, since the result is always the same. Therefore
+	\[ \Pr[\Gm_5]=\Pr[\Gm_4]. \]
+	
+	$\Gm_5$ is the UF game for $\DS_2$, so collecting bounds proves the theorem. \qed
+\end{proof}
+
+\begin{figure}
+\oneCol{0.70}
+{
+	\ExperimentHeader{Game $\mUFCMA_{\DS_1} = \Gm_0$}
+	
+	\begin{oracle}{$\Initialize(\numUsers)$}
+		\item $\oseed\getsr\DS.\HASHSET.\Sg$ ; 
+		$\HH \getsr \DS.\HASHSET.\Funcs$
+		\item For $\usr=1$ to $\numUsers$ do:
+		\item \quad $\vecSk[\usr] \getsr \bits^k$
+		\item \quad $\e\gets \pF_1^{\HASH_1(\cdot)}(\sk)$ 
+		; $\e_1 \gets \e[0..k-1]$ 
+		\item \quad $\s \gets \CF(\e_1)$ ; $\vecPk[\usr] \gets \s\cdot \generator$
+		\item Return $\vecPk$
+	\end{oracle}
+	\ExptSepSpace
+	
+	\begin{oracle}{$\SignOO(\usr, \msg)$}
+		\item if $T[\usr, \msg] \neq \bot$ then return $T[\usr, \msg]$
+		\item $\e\gets \pF_1^{\HASH_1(\cdot)}(\vecSk[\usr])$ 
+		\item $\e_1 \gets \e[0..k-1]$ ; $\e_2 \gets \e[k..2k-1]$ 
+		\item $\s \gets \CF(\e_1)$ ; $\curvepoint{A} \gets \s\cdot \generator$
+		\item $\littler \gets \pF_2^{\HASH_2(\cdot)}(\e_2,\msg)\bmod \Prime$ 
+		; $\curvepoint{R} \gets \littler\cdot \generator$
+		\item $c \gets \HASH_3(\curvepoint{R}\|\curvepoint{A}\|\msg) \bmod \Prime$
+		\item $\z \gets (\s c + \littler) \mod \Prime$
+		\item $\sigma \gets (\curvepoint{R},\z)$
+		\item $S \gets S \cup \{(\usr, \msg)\}$
+		\item $T[\usr, \msg] \gets \sigma$
+		\item Return $\sigma$
+	\end{oracle}
+	\ExptSepSpace
+	
+	\begin{oracle}{$\HASH(i,x)$}
+		\item Return $\HH_i(\oseed,x)$
+	\end{oracle}
+	\ExptSepSpace
+	
+	\begin{oracle}{$\Finalize(\chusr, \chmsg, \chsig)$}
+		\item Return ($(\chusr,\chmsg) \not\in S$) and $\DS_1.\Vf^{\HASH}(\vecPk[\chusr], \chmsg, \chsig)\:$) \vspace{2pt}
+	\end{oracle}
+}
+\vspace{-5pt}
+\caption{%Left: Algorithms of the Schnorr signature scheme $\DS = \SchSig[\G, g]$, where $\G$ is a group of prime order $p=|\G|$ and $g\in\G^*$ is a generator of $\G$. Right:
+	Game defining UF security of signature scheme $\DS_1$.}
+%\label{fig:schnorr-sig}
+\label{fig:gm0}
+\hrulefill
+\vspace{-10pt}
+\end{figure}
+
+\begin{figure}
+	\twoCols{0.46}{0.46}
+	{
+		\ExperimentHeader{$\Gm_1$}
+		
+		\begin{oracle}{$\Initialize(\numUsers)$}
+			\item $\oseed\getsr\DS.\HASHSET.\Sg$ ; 
+			$\HH \getsr \DS.\HASHSET.\Funcs$
+			\item For $\usr=1$ to $\numUsers$ do:
+			\item \quad $\vecSk[\usr] \getsr \bits^k$
+			\item \quad \gamechange{$\e \getsr \bits^{2k}$}
+			\item \quad \gamechange{$\vecSk[\usr] \gets \e$}
+			; $\e_1 \gets \e[0..k-1]$ 
+			\item \quad $\s \gets \CF(\e_1)$ ; $\vecPk[\usr] \gets \s\cdot \generator$
+			\item Return $\vecPk$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\SignOO(\usr, \msg)$}
+			\item if $T[\usr, \msg] \neq \bot$ then return $T[\usr, \msg]$
+			\item \gamechange{$\e \gets \vecSk[\usr]$}
+			\item $\e_1 \gets \e[0..k-1]$ ; $\e_2 \gets \e[k..2k-1]$ 
+			\item $\s \gets \CF(\e_1)$ ; $\curvepoint{A} \gets \s\cdot \generator$
+			\item $\littler \gets \pF_2^{\HASH_2(\cdot)}(\e_2,\msg)\bmod \Prime$ 
+			; $\curvepoint{R} \gets \littler\cdot \generator$
+			\item $c \gets \HASH_3(\curvepoint{R}\|\curvepoint{A}\|\msg) \bmod \Prime$
+			\item $\z \gets (\s c + \littler) \mod \Prime$
+			\item $\sigma \gets (\curvepoint{R},\z)$
+			\item $S \gets S \cup \{(\usr, \msg)\}$
+			\item $T[\usr, \msg] \gets \sigma$
+			\item Return $\sigma$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\HASH(i,x)$}
+			\item Return $\HH_i(\oseed,x)$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(\chusr, \chmsg, \chsig)$}
+			\item Return ($(\chusr,\chmsg) \not\in S$) and $\DS_1.\Vf^{\HASH}(\vecPk[\chusr], \chmsg, \chsig)\:$) \vspace{2pt}
+		\end{oracle}
+	}
+{
+	\ExperimentHeader{$\advA_{\pF_1}$}
+	
+	\begin{oracle}{$\Initialize(\numUsers)$}
+		\item $\oseed\getsr\DS.\HASHSET.\Sg$ ; 
+		$\HH \getsr \DS.\HASHSET.\Funcs$
+		\item For $\usr=1$ to $\numUsers$ do:
+		\item \quad \gamechange{$\e\gets \FnO(\usr)$} 
+		\item \quad $\vecSk[\usr] \gets \e$
+		; $\e_1 \gets \e[0..k-1]$ 
+		\item \quad $\s \gets \CF(\e_1)$ ; $\vecPk[\usr] \gets \s\cdot \generator$
+		\item Return $\vecPk$
+	\end{oracle}
+	\ExptSepSpace
+	
+	\begin{oracle}{$\SignOO(\usr, \msg)$}
+		\item if $T[\usr, \msg] \neq \bot$ then return $T[\usr, \msg]$
+		\item $\e \gets \vecSk[\usr]$
+		\item $\e_1 \gets \e[0..k-1]$ ; $\e_2 \gets \e[k..2k-1]$ 
+		\item $\s \gets \CF(\e_1)$ ; $\curvepoint{A} \gets \s\cdot \generator$
+		\item $\littler \gets \pF_2^{\HASH_2(\cdot)}(\e_2,\msg)\bmod \Prime$ 
+		; $\curvepoint{R} \gets \littler\cdot \generator$
+		\item $c \gets \HASH_3(\curvepoint{R}\|\curvepoint{A}\|\msg) \bmod \Prime$
+		\item $\z \gets (\s c + \littler) \mod \Prime$
+		\item $\sigma \gets (\curvepoint{R},\z)$
+		\item $S \gets S \cup \{(\usr, \msg)\}$
+		\item $T[\usr, \msg] \gets \sigma$
+		\item Return $\sigma$
+	\end{oracle}
+	\ExptSepSpace
+	
+	\begin{oracle}{$\HASH(i,x)$}
+		\item Return $\HH_i(\oseed,x)$
+	\end{oracle}
+	\ExptSepSpace
+	
+	\begin{oracle}{$\Finalize(\chusr, \chmsg, \chsig)$}
+		\item If ($(\chusr,\chmsg) \not\in S$) and $\DS_1.\Vf^{\HASH}(\vecPk[\chusr], \chmsg, \chsig)\:$) then return $1$ \vspace{2pt}
+	\end{oracle}
+}
+	\vspace{-5pt}
+	\caption{Left: $\Gm_1$ for the proof of Theorem~\ref{th-ds-eddsa}, with changes from $\Gm_0$ highlighted. Right: Adversary $\advA_{\pF_1}$ against the PRG security of $\pF_1^{\HH_1}$.}
+	%\label{fig:schnorr-sig}
+	\label{fig:gm1}
+	\hrulefill
+	\vspace{-10pt}
+\end{figure}
+
+
+\begin{figure}
+	\twoCols{0.46}{0.46}
+	{
+		\ExperimentHeader{$\Gm_2$}
+		
+		\begin{oracle}{$\Initialize(\numUsers)$}
+			\item $\oseed\getsr\DS.\HASHSET.\Sg$ ; 
+			$\HH \getsr \DS.\HASHSET.\Funcs$
+			\item For $\usr=1$ to $\numUsers$ do:
+			\item \quad $\e\getsr \bits^{2k}$ ; $\e_1 \gets \e[0..k-1]$ 
+			\item \quad $\vecSk[\usr] \gets \e$
+			\item \quad $\s \gets \CF(\e_1)$ ; $\vecPk[\usr] \gets \s\cdot \generator$
+			\item Return $\vecPk$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\SignOO(\usr, \msg)$}
+			\item if $T[\usr, \msg] \neq \bot$ then return $T[\usr, \msg]$
+			\item $\e\getsr \vecSk[\usr]$ 
+			\item $\e_1 \gets \e[0..k-1]$ ; $\e_2 \gets \e[k..2k-1]$ 
+			\item $\s \gets \CF(\e_1)$ ; $\curvepoint{A} \gets \s\cdot \generator$
+			\item \gamechange{$\littler \getsr \bits^{\pF_2.\PRFoutlen} \bmod \Prime$}
+			; $\curvepoint{R} \gets \littler\cdot \generator$
+			\item $c \gets \HASH_3(\curvepoint{R}\|\curvepoint{A}\|\msg) \bmod \Prime$
+			\item $\z \gets (\s c + \littler) \mod \Prime$
+			\item $\sigma \gets (\curvepoint{R},\z)$
+			\item $S \gets S \cup \{(\usr, \msg)\}$
+			\item $T[\usr, \msg] \gets \sigma$
+			\item Return $\sigma$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\HASH(i,x)$}
+			\item Return $\HH_i(\oseed,x)$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(\chusr, \chmsg, \chsig)$}
+			\item Return ($(\chusr,\chmsg) \not\in S$) and $\DS_1.\Vf^{\HASH}(\vecPk[\chusr], \chmsg, \chsig)\:$) \vspace{2pt}
+		\end{oracle}
+	}
+	{
+		\ExperimentHeader{$\advA_{\pF_2}$}
+		
+		\begin{oracle}{$\Initialize(\numUsers)$}
+			\item $\oseed\getsr\DS.\HASHSET.\Sg$ ; 
+				$\HH \getsr \DS.\HASHSET.\Funcs$
+			\item For $\usr=1$ to $\numUsers$ do:
+			\item \quad $\e\getsr \bits^{2k}$ 
+			\item \quad $\vecSk[\usr] \gets \e$
+				; $\e_1 \gets \e[0..k-1]$ 
+			\item \quad $\s \gets \CF(\e_1)$ ; $\vecPk[\usr] \gets \s\cdot \generator$
+			\item Return $\vecPk$
+	\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\SignOO(\usr, \msg)$}
+			\item if $T[\usr, \msg] \neq \bot$ then return $T[\usr, \msg]$
+			\item $\e\getsr \vecSk[\usr]$ ; $\e_1 \gets \e[0..k-1]$
+			\item $\s \gets \CF(\e_1)$ ; $\curvepoint{A} \gets \s\cdot \generator$
+			\item \gamechange{$\littler \getsr \FnO(\usr, \msg) \bmod \Prime$}
+			; $\curvepoint{R} \gets \littler\cdot \generator$
+			\item $c \gets \HASH_3(\curvepoint{R}\|\curvepoint{A}\|\msg) \bmod \Prime$
+			\item $\z \gets (\s c + \littler) \mod \Prime$
+			\item $\sigma \gets (\curvepoint{R},\z)$
+			\item $S \gets S \cup \{(\usr, \msg)\}$
+			\item $T[\usr, \msg] \gets \sigma$
+			\item Return $\sigma$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\HASH(i,x)$}
+			\item Return $\HH_i(\oseed,x)$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(\chusr, \chmsg, \chsig)$}
+			\item If ($(\chusr,\chmsg) \not\in S$) and $\DS_1.\Vf^{\HASH}(\vecPk[\chusr], \chmsg, \chsig)\:$) then return $1$ \vspace{2pt}
+		\end{oracle}
+	}
+	\vspace{-5pt}
+	\caption{Left: $\Gm_2$ for the proof of Theorem~\ref{th-ds-eddsa}, with changes from $\Gm_1$ highlighted. Right: Adversary $\advA_{\pF_2}$ against the PRF security of $\pF_2^{\HH_2}$.}
+	%\label{fig:schnorr-sig}
+	\label{fig:gm2}
+	\hrulefill
+	\vspace{-10pt}
+\end{figure}
+
+
+\begin{figure}
+	\twoCols{0.46}{0.46}
+	{
+		\ExperimentHeader{$\Gm_3$, \fbox{$\Gm_4$}}
+		
+		\begin{oracle}{$\Initialize(\numUsers)$}
+			\item $\oseed\getsr\DS.\HASHSET.\Sg$ ; 
+			$\HH \getsr \DS.\HASHSET.\Funcs$
+			\item For $\usr=1$ to $\numUsers$ do:
+			\item \quad $\e\getsr \bits^{2k}$
+			\item \quad $\vecSk[\usr] \gets \e$
+			; $\e_1 \gets \e[0..k-1]$ 
+			\item \quad $\s \gets \CF(\e_1)$ ; $\vecPk[\usr] \gets \s\cdot \generator$
+			\item Return $\vecPk$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\SignOO(\usr, \msg)$}
+			\item if $T[\usr, \msg] \neq \bot$ then return $T[\usr, \msg]$
+			\item $\e\gets \vecSk[\usr]$ 
+			\item $\e_1 \gets \e[0..k-1]$
+			\item $\s \gets \CF(\e_1)$ ; $\curvepoint{A} \gets \s\cdot \generator$
+			\item $\littler \getsr \bits^{\pF_2.\PRFoutlen} \bmod \Prime$
+			\item \gamechange{If $\littler > \ell\Prime$ then $\bad \gets \true$}
+			\item \quad \fbox{ $\littler \getsr \Z_\Prime$}
+			\item $\curvepoint{R} \gets \littler\cdot \generator$
+			\item $c \gets \HASH_3(\curvepoint{R}\|\curvepoint{A}\|\msg) \bmod \Prime$
+			\item $\z \gets (\s c + \littler) \mod \Prime$
+			\item $\sigma \gets (\curvepoint{R},\z)$
+			\item $S \gets S \cup \{(\usr, \msg)\}$
+			\item $T[\usr, \msg] \gets \sigma$
+			\item Return $\sigma$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\HASH(i,x)$}
+			\item Return $\HH_i(\oseed,x)$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(\chusr, \chmsg, \chsig)$}
+			\item Return ($(\chusr,\chmsg) \not\in S$) and $\DS_1.\Vf^{\HASH}(\vecPk[\chusr], \chmsg, \chsig)\:$) \vspace{2pt}
+		\end{oracle}
+	}
+	{	
+		\ExperimentHeader{$\Gm_5$}
+		
+		\begin{oracle}{$\Initialize(\numUsers)$}
+			\item $\oseed\getsr\DS.\HASHSET.\Sg$ ; 
+			$\HH \getsr \DS.\HASHSET.\Funcs$
+			\item For $\usr=1$ to $\numUsers$ do:
+			\item \quad $\e_1\getsr \bits^{k}$
+			\item \quad $\s \gets \CF(\e_1)$ 
+			\item\quad \gamechange{$\vecSk[\usr]\gets \s$}; $\vecPk[\usr] \gets \s\cdot \generator$
+			\item Return $\vecPk$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\SignOO(\usr, \msg)$}
+			\item if $T[\usr, \msg] \neq \bot$ then return $T[\usr, \msg]$
+			\item \gamechange{$\s \gets \vecSk[\usr]$}; $\curvepoint{A} \gets \s\cdot \generator$
+			\item \gamechange{$\littler \getsr \Z_\Prime$}
+			\item $\curvepoint{R} \gets \littler\cdot \generator$
+			\item $c \gets \HASH_3(\curvepoint{R}\|\curvepoint{A}\|\msg) \bmod \Prime$
+			\item $\z \gets (\s c + \littler) \mod \Prime$
+			\item $\sigma \gets (\curvepoint{R},\z)$
+			\item $S \gets S \cup \{(\usr, \msg)\}$
+			\item $T[\usr, \msg] \gets \sigma$
+			\item Return $\sigma$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\HASH(i,x)$}
+			\item Return $\HH_i(\oseed,x)$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(\chusr, \chmsg, \chsig)$}
+			\item Return ($(\chusr,\chmsg) \not\in S$) and $\DS_1.\Vf^{\HASH}(\vecPk[\chusr], \chmsg, \chsig)\:$) \vspace{2pt}
+		\end{oracle}
+	}
+	\vspace{-5pt}
+	\caption{Left: $\Gm_3$ and $\Gm_4$ for the proof of Theorem~\ref{th-ds-eddsa}, with changes from $\Gm_2$ highlighted. Boxed code is included only in $\Gm_4$. Right: $\Gm_5$ for the proof of Theorem~\ref{th-ds-eddsa}, with changes from $\Gm_4$ highlighted.}
+	%\label{fig:schnorr-sig}
+	\label{fig:gm345}
+	\hrulefill
+	\vspace{-10pt}
+\end{figure}

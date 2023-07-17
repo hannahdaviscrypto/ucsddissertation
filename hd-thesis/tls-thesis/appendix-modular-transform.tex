@@ -1,0 +1,126 @@
+\iffull
+	\subsection{Handshake Encryption as a Modular Transformation}
+\else
+	\section{Handshake Encryption as a Modular Transformation}
+	\label{app:modular-transform}
+\fi
+
+Formally, let $\KE_2 = (\KEKGen, \KEActivate, \KERun)$ be a key exchange protocol with no internal keys. 
+We define another key exchange protocol~$\KE_1$ which is parameterized by two functions $\MaulSend$ and $\MaulRecv$ and a list $\MaulKeys \subseteq \{1, \ldots, \STAGES\}$, where $\STAGES$ is the number of stages of $\KE_{2}$. $\KE_1$ inherits its key generation and activation algorithms from $\KE_2$. 
+In its $\KE_1.\KERun$ algorithm, described in Figure~\ref{fig:encrypted-ke}, it essentially applies $\MaulRecv$ to a message before calling $\KE_2.\KERun$, and then $\MaulSend$ to the returned message, to transform the protocol messages as they pass over a wire.
+This transformation may be, for instance, the encryption and decryption of messages of $\KE_{2}$ using an internal key.
+
+\begin{figure}[p]
+	\centering
+	\begin{minipage}[t]{9cm}
+		\begin{algorithm}{$\KE_1.\KERun(u,\pi^i_u, \pskey, m)$}
+			\item $\keys \gets (\pi^i_u.\skey[\stage]$ for $\stage \in \MaulKeys)$
+			\item $\acc \gets (\pi^i_u.\taccepted[\stage] \neq \infty$ for $\stage$ in $[1\ldots\STAGES])$
+			\item $\tilde{m} \gets \MaulRecv(\keys, \pi^i_u.\role, \acc, m)$
+			\item $(\pi^i_u, \tilde{m}') \gets \KE_2.\KERun(u,\pi^i_u, \pskey, \tilde{m})$
+			\item $\keys \gets (\pi^i_u.\skey[\stage]$ for $\stage \in \MaulKeys)$
+			\item $\acc \gets (\pi^i_u.\taccepted[\stage] \neq \infty$ for $\stage$ in $[1\ldots\STAGES])$
+			\item $m' \gets \MaulSend(\keys, \pi^i_u.\role, \acc, \tilde{m}')$
+			\item return $(\pi^i_u, m')$
+		\end{algorithm}
+	\end{minipage}
+	\caption{Key exchange $\KE_1$ built by transforming protocol messages of $\KE_2$.}
+	\label{fig:encrypted-ke}
+\end{figure}
+
+In addition to the messages, both algorithms take as input the list of stages that have been accepted by the current session, its role (initiator or responder) in the protocol, and a list of the keys from all stages in $\MaulKeys$. 
+In the security game for $\KE_1$, the stages in $\MaulKeys$ will produce internal keys; all other keys remain external.
+
+Although $\MaulSend$ and $\MaulRecv$ change the messages as they pass over the wire, the way that the messages are processed after receipt by $\KE_2.\KERun$ must not change.
+In particular, $\KE_2.\KERun$, internally run within~$\KE_1.\KERun$, still expects messages of the same format and content;
+also, $\KE_1$ defines its session and contributive identifiers, as well as all other session-specific information in the same way as $\KE_2$.
+
+
+\paragraph{Correctness.}
+
+Not all choices of $\MaulSend$ and $\MaulRecv$ are ``good choices''. 
+For example, if mauling overwrites critical pieces of the protocol messages, then no honest session would ever accept a key. 
+The resulting key exchange $\KE_2$ would be vacuously ``secure'' because it would be unusable. 
+
+
+For our perspective to be meaningful, we therefore need a correctness property that guarantees that two honest parties executing $\KE_1$ with no adversarial interference will accept at all stages. 
+%
+Informally, we wish that if two sessions honestly executing $\KE_2$ will accept keys for stage $s$ with probability $p$, then two sessions honestly executing $\KE_1$ will accept keys for stage $s$ with probability close to $p$. 
+This property only needs to hold when the protocol messages are relayed honestly, with no changes or delivery failures beyond those caused by the application of $\MaulSend$ and $\MaulRecv$.
+
+We do not give a formal definition or proof of correctness for TLS~1.3, but we note that in TLS~1.3, the transformation algorithms are AEAD encryption and decryption.
+Since decryption failures cannot occur in the standardized AEAD algorithms if messages are honestly relayed (due to their perfect correctness),
+received messages will always match their corresponding sent message, and correctness of $\MaulSend$ and $\MaulRecv$ follows.
+
+
+\paragraph{Security.}
+
+We wish $\KE_1$ to be secure if $\KE_2$ is secure.
+This should be independent of $\MaulSend$ and $\MaulRecv$, i.e., should hold even if $\MaulSend$ leaks its keys and fully overwrites all protocol messages.
+The following theorem established this result, using that the keys used for the transformation are internal and $\MaulSend$ and $\MaulRecv$ have no access to other privileged information.
+Therefore, their behavior can be mimicked by a reduction to the security of~$\KE_2$ as long as $\KE_2$ has ``public session matching'' for the stages in~$\MaulKeys$ of $\KE_1$, i.e., session partnering (or matching) for those stages is decidable from the publicly exchanged messages.%
+\footnote{The property of ``public session matching'' has already already come up when considering the composition of (regular or multi-stage) key exchange protocols with subsequent symmetric-key protocols~\cite{CCS:BFWW11,CCS:DFGS15,EPRINT:DFGS15,thesis:Guenther18}.}
+
+\begin{theorem}
+	\label{thm:maul}
+	Let $\KE_2$ be a key exchange protocol with $\STAGES$ stages, $\KE_2.\INT$ being empty, and public session matching.
+	Let $\MaulSend$ and $\MaulRecv$ be algorithms as above and $\MaulKeys \subseteq \{1, \ldots, \STAGES\}$.
+	Define key exchange $\KE_1$ such that $\KE_1.\KERun$ is described in Figure~\ref{fig:encrypted-ke}, $\KE_1.\INT = \MaulKeys$, and all other attributes of $\KE_1$ are identical to those of $\KE_2$.
+	
+	Let $\advA$ be an adversary with running time $t$ against the multi-stage key exchange security of $\KE_1$, making $\qSend$ queries to the $\Send$ oracle.
+	Then there exists an adversary $\advB$ with running time $\approx t + \qSend m$, where $m$ is the maximum running time of $\MaulSend$ and $\MaulRecv$, such that
+	\[
+	\genAdv{\KESEC}{\KE_1}{\advA} \leq \genAdv{\KESEC}{\KE_2}{\advB}.
+	\]
+	$\advB$ makes at most $\qSend$ queries to $\RevSessionKey$ in addition to queries made by $\advA$
+	and the same number of queries as~$\advA$ to all other oracles in the $\KESEC$ game.
+\end{theorem}
+
+\begin{proof}
+	Adversary $\advB$ runs adversary $\advA$ and relays all of its queries to the appropriate oracles in its own $\KESEC$ game, except for $\Send$ queries.
+	It maintains the time~$\time$ of the $\KESEC$ game itself, incrementing it once per query.
+	For each session $\pi_u^i$, it maintains a list $\keys_u^i$ that is initially empty and a list $\acc_u^i$ in which $\acc_u^i[\stage]$ is initially $\false$ for each $\stage \in \MaulKeys$. 
+	
+	When $\advA$ makes a query $\Send(u, i, m)$, $\advB$ first checks for each $\stage \in \MaulKeys$ with $\acc_u^i[\stage] = \false$ whether $\pi_u^i.\accepted[\stage] \neq \infty$. 
+	For each $\stage$ which satisfies this condition, $\advB$ checks whether $\pi_u^i.\tested[\stage]$ or $\pi_u^i.\revealed[\stage]$ is true and if $\pi_u^i$ has a partnered session (matching $\sid[\stage]$) which has been tested or revealed.
+	(The latter check for partnering is possible because $\KE_1$ has public session matching.)
+	% 	\hd{In order to do this, session IDs must be public. This is true of TLS~1.3, but we may need to make that assumption explicit.}
+	If any of these conditions is true, then $\advB$ knows $\pi_u^i.\skey[\stage]$. 
+	Otherwise, it makes an extra query $\RevSessionKey(u, i, \stage)$ and adds the response to $\keys_u^i$. 
+	Then it marks $\acc_u^i[\stage] \gets \true$ and computes $\tilde{m} \gets \MaulRecv(\keys_u^i, \pi^i_u.\role, \acc_u^i, m)$. 
+	It queries its own $\Send$ oracle on the tuple $(u,i, \tilde{m})$ and captures the response $\tilde{m'}$. 
+	Then it returns $m' \gets \MaulSend(\keys_u^i, \pi^i_u.\role, \acc_u^i, \tilde{m}')$ to $\advA$.
+	
+	$\advB$ perfectly simulates $\KE_1$ for $\advA$, so we wish that if $\advA$ wins its simulated game, $\advB$ should also win its game.
+	%
+	$\advA$ can win the $\KESEC$ game in one of three ways: it can violate the $\Sound$ predicate, it can violate the $\ExplicitAuth$ predicate, or it can satisfy the $\Fresh$ predicate and guess the secret bit $b$. 
+	All of the variables tracked by the $\ExplicitAuth$ and $\Sound$ predicates are maintained by the $\KESEC$ game for $\KE_1$, not by $\advB$.
+	Therefore $\advA$ wins the simulated game by violating $\Sound$ or $\ExplicitAuth$ only if $\Sound$ or $\ExplicitAuth$ is violated in the $\KESEC$ game for $\KE_2$. 
+	In this case, $\advB$ also wins. 
+	
+	If $\advA$ wins by guessing the secret bit $b$, the story is more complicated. 
+	The bit $b$ is chosen by the $\KESEC$ game, so if $\advA$ guesses correctly, then so will $\advB$. 
+	However, a correct guess only matters if the queries do not violate the $\Fresh$ predicate.
+	Even if $\advA$ did not violate the $\Fresh$ predicate, $\advB$ makes up to $\qSend$ additional $\RevSessionKey$ queries.
+	Each of these could cause $\Fresh$ to be set to false. 
+	We claim that none of these queries violate the $\Fresh$ predicate.
+	
+	The $\Fresh$ predicate requires that no session be both tested and revealed.
+	$\advB$ only reveals keys that have not already been tested, so the only  worry is that $\advA$ will test this key later. 
+	However, all keys that $\advB$ reveals are in $\MaulKeys$, which is a subset of $\KE_1.\INT$, meaning they are internal keys.
+	These keys cannot be tested if any session which has accepted it has moved on with the protocol.
+	Since $\advB$ only reveals a key when a session has both accepted that key and received the next protocol message, it will have moved on and $\advA$ can not make any later $\Test$ queries on a key that $\advB$ has revealed.
+	
+	The next condition of $\Fresh$ is that a tested session's partner cannot be tested or revealed. 
+	$\advB$ ensures that such a $\Test$ query does not occur before the $\RevSessionKey$ query. 
+	Again, the $\Test$ query cannot happen after the $\RevSessionKey$ query because the session whose key was revealed has moved on with the protocol.
+	Since all the revealed keys are internal in the simulated game, $\advA$ cannot test them after this point. 
+	
+	The remaining three conditions of the $\Fresh$ predicate establish different levels of forward secrecy. 
+	They check for the existence of a contributive partner.
+	We want to exclude the situation that a contributive partner exists in $\advA$'s simulated game, but not in $\advB$'s game.
+	However, contributive identifiers are defined identically in $\KE_1$ and $\KE_2$. 
+	Therefore if two sessions $\pi_u^i$ and $\pi_v^j$ have matching contributive identifiers in the simulated game for $\KE_2$, they will also have matching identfiers in the game for $\KE_1$.
+	
+	It is therefore not possible for $\advA$ to win its simulated $\KESEC$ game unless $\advB$ also wins its $\KESEC$ game, and the theorem follows.
+\end{proof}

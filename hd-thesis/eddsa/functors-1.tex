@@ -1,0 +1,21 @@
+\section{The functors} \label{sec-functors}
+
+ 
+
+A functor, as per \cite{EC:BelDavGun20}, is a deterministic algorithm $\construct{F}$ that, given oracle access to a ``starting'' function $\functionIn$, defines an ``ending'' function $\functionOut = \construct{F}^{\functionIn}$. An example is the $\construct{MD}_{b,c}$ functor implementing the Merkle-Damg{\aa}rd transform~\cite{C:Merkle89a,C:Damgaard89b}. In this case $\functionIn\Colon\bits^{b+c}\to\bits^c$ is the compression functions with block length $b$ and chaining-variable length $c$. The $\SHA{512}$ hash function is $\construct{MD}_{512,256}^{\sha{512}}$ where $\sha{512}$ is the underlying compression function. 
+
+\heading{MD background.} $\construct{MD}_{b,c}$ is parameterized by a padding function $\padF\Colon\bits^*\to\bits^*$ that takes an input $X$ to the hash function $\functionOut$ and appends a $|X|$-dependent quantity to arrive at a string $X' = \padF(X)$ whose length is a positive multiple of $b$. It also fixes an ``initial vector'' $\initV$. Then $\functionOut(X)$ is defined by:
+
+\begin{tabbing}
+\underline{Function $\construct{MD}_{b,c}^s(X)$} \\[2pt]
+$X'\gets \padF(X)$ ; $X'[1]\ldots X'[m] \gets X'$ \comment{Split $X'$ into $b$-bit blocks} \\
+For $i=1,\ldots,m$ do $c[i] \gets s(X'[i]\|c[i-1])$ \\
+Return $c[m]$
+\end{tabbing}
+
+\noindent
+Indifferentiability assumes $s$ is drawn at random from the set $\AllFuncs(\bits^{b+c},\bits^c)$ of all functions mapping $\bits^{b+c}$ to $\bits^c$. Due to the extension attack, $\construct{MD}_{b,c}$ is \textit{not} indifferentiable from a random function. However, \cite{C:CDMP05} show that it is if (1) it is evaluated only on prefix-free inputs, or (2) if the output is sufficiently truncated.
+
+\heading{M1.} 
+
+ 

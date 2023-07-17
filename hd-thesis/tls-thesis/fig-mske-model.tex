@@ -1,0 +1,143 @@
+\begin{figure}[tp]
+	\begin{minipage}[t]{0.55\textwidth}
+	\NewExperiment[$G^{\KESEC}_{\KE,\advA}$]
+	
+		\begin{oracle}{$\Initialize$}
+			\item $\time \gets 0$;
+			\item $b \sample \bits$
+% 			\item $\RO \sample \KE.\FSp$
+% 				\TODO{either define function spaces in the main body or take out this line}
+% 			\item for $u = 1$ to $n$
+% 			\item \hindent $(pk_u, sk_u) \getsr \KEKGen()$
+% 			\item \hindent $\revltk_u \gets \infty$
+% 			\item return $\vec{pk} = (pk_1, \dots, pk_n)$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\NewSecret(u, v, \pskid)$}
+			\item $\time \gets \time + 1$
+			\item if $\pskeys[(u, v, \pskid)] \neq \bot$
+			\item \hindent return $\bot$
+			\item $\pskeys[(u, v, \pskid)] \getsr \KEpskeyspace$ 
+			\item $\revpsk_{(u,v,\pskid)} \gets \infty$
+			\item return $\pskid$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Send(u, i, m)$}
+			\item $\time \gets \time + 1$
+			\item if $\pi_u^i = \bot$ then
+		%	\item \hindent current\_cid $\gets \undef$
+			\item \hindent $(\peerid,\pskid,\role) \gets m$ 
+			\item \hindent if $\role = \initiator$
+			\item \hindent \hindent then $\pskey \gets \pskeys[(u, \peerid, \pskid)]$
+			\item \hindent \hindent else $\pskey \gets \pskeys[(\peerid, u, \pskid)]$
+			\item \hindent $(\pi_u^i, m') \getsr \KEActivate(u\cab \peerid \cab \pskey  \cab \role)$
+			\item else
+			%\item \hindent current\_cid $\gets \pi_u^i.\cid[\pi_u^i.\stage][-1]$
+			%last element, python notation may be unclear
+			\item \hindent $(\pi_u^i, m') \getsr \KERun(u, \pi_u^i.\pskey, \pi_u^i, m)$
+			\item if $\pi_u^i.\status = \accepted_{\pi_u^i.\stage}$ then
+			\item \hindent $\stage \gets \pi_u^i.\stage$
+			\item \hindent $\pi_u^i.\tacceptedtls[\stage] \gets \time$
+			\item \hindent if $\reprogram[\pi_u^i.\sid[\stage]] \neq \bot$ then
+			\item \hindent \hindent $\pi_u^i.\skey[\stage] \gets \reprogram[\pi_u^i.\sid[\stage]]$
+			\item \hindent $\pi_u^i.\hascontpart[\stage] \gets \exists \pi_v^j$ with $\pi_v^j.\rolecid[\pi_u^i.\role][\stage] = \pi_u^i.\rolecid[\pi_u^i.\role][\stage]$
+%%% old cid_I/R version
+% 			\item \hindent $\pi_u^i.\hascontpart[\stage] \gets \exists \pi_v^j$ with $\pi_v^j.\initcid[\stage] = \pi_u^i.\initcid[\stage]$
+% 			\item \hindent if $\pi_u^i.\role = \initiator$ then
+% 			\item \hindent \hindent $\pi_u^i.\hascontpart[\stage] \gets (\pi_u^i.\hascontpart[\stage]$ AND $\exists \pi_v^j$ with $\pi_v^j.\respcid[\stage] = \pi_u^i.\respcid[\stage]$)
+	
+		%	\item if $\pi_u^i.\cid[\pi_u^i.\stage][-1] \neq$ current\_cid then
+		%	\newline \comment{the cid has changed}
+		%	\item \hindent $\pi_u^i.\tcid[$current\_cid$] \gets \time$
+		%	\newline \comment{We log the time of all acceptances as well as the time of all updates to the contributive identifier.} 
+			% For forward secrecy, we will need to identify whether a tested session's contributive partner existed at the time of the Test query (since the session should be fresh at that time). 
+			% 
+			\item return $m'$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\RevSessionKey(u, i, s)$}
+			\item $\time \gets \time+1$
+			\item if $\pi_u^i = \bot$ or $\pi_u^i.\taccepted[s] = \infty$ then
+			\item \hindent return $\bot$
+			\item $\pi_u^i.\revealed[s] \gets \true$
+			\item return $\pi_u^i.\skey[s]$
+		\end{oracle}
+		
+		\ExptSepSpace
+	\end{minipage}
+%
+	\begin{minipage}[t]{0.44\textwidth}
+		\begin{oracle}{$\RevLongTermKey(u,v, \pskid)$}
+			\item $\time \gets \time + 1$
+			\item $\revpsk_{(u,v,\pskid)} \gets \time$
+			\item return $\pskeys[(u,v,\pskid)]$
+		\end{oracle}
+		
+		\ExptSepSpace
+
+		\begin{oracle}{$\Test(u, i, s)$}
+			\item $\time \gets \time+1$
+			\item if $s \in \INT$ \newline
+			\null \hindent \hindent  and $\exists \pi_v^j: \pi_v^j.\sid[s] = \pi_u^i.\sid[s]$ \newline
+			\null \hindent \hindent  and $\pi_v^j.\taccepted[s] < \infty$ \newline
+			\null \hindent \hindent and $\pi_v^j.\status \neq \accepted_{s}$ then
+% 				\fullonly{\fg{We could make $\status$ ordered and check for $\status > \accepted_{s}$.}}
+			\item \hindent return $\bot$\newline
+			\null {\comment{can only test internal keys if all sessions having accepted that key have not moved on with the protocol}}
+			\item if $\pi_u^i = \bot$ or $\pi_u^i.\taccepted[s] = \infty$ or $\neg \pi_u^i.\tested[s]$ then
+			\item \hindent return $\bot$
+			
+			\item $\pi_u^i.\tested[s] \gets \time$
+			
+			\item $\testedsessions \gets \testedsessions \cup \{(\pi_u^i,s)\}$
+			\item $k_0 \gets \pi_u^i.\skey[s]$
+			\item $k_1 \sample \KEkeyspace[s]$
+			\item if $s \in \INT$ then \newline
+			\null \hindent $\forall \pi_v^j\colon \pi_v^j.\sid[s] = \pi_u^i.\sid[s]$ \newline
+			\null \hindent \hindent \hindent and  $\pi_v^j.\status = \accepted_{s}$
+			\item \hindent \hindent $\pi_v^j.\skey[s] \gets k_b$
+			\item \hindent $\reprogram[\pi_u^i.\sid[s]] \gets k_b$
+			\item return $k_b$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(b')$}
+			\item if $\neg \Sound$ then
+			\iffull\item \hindent\fi return $1$
+			
+			\item if $\neg \ExplicitAuth$ then
+			\iffull\item \hindent\fi return $1$
+			
+			\item if $\neg \Fresh$ then
+			\iffull\item \hindent\fi $b' \gets 0$
+			
+			\item return $[[b = b']]$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\RO(i, \X)$}
+			\item $\time \gets \time+1$
+			\item return $\RO_i(\X)$
+		\end{oracle}
+		
+	\end{minipage}
+	
+	\caption{%
+		Multi-stage key exchange (MSKE) security game for a key exchange protocol~$\KE$ with pre-shared keys.
+		Predicates $\Fresh$, $\ExplicitAuth$, and $\Sound$ are defined in Figure~\ref{fig:MSKE-preds}.
+		The functions~$\RO_i$ correspond to the (independent) random oracles available to the adversary.
+	}
+	\label{fig:MSKE-model}
+\end{figure}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

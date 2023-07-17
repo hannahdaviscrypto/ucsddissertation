@@ -1,0 +1,239 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% main.tex - 
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\newif\ifacm
+\newif\ifllncs
+\newif\ifsubmission
+\newif\ifanonymous
+\newif\iffull
+\newif\ifuseshortbib
+\newif\ifdraft
+
+
+
+\newif\iftikzEnabled
+\tikzEnabledtrue
+
+\useshortbibtrue
+\acmfalse
+\llncstrue
+\submissiontrue
+\anonymousfalse
+\fullfalse
+%\drafttrue
+
+\ifanonymous
+\newcommand{\ourauthors}{}
+\fi
+
+\pagestyle{plain}
+
+\ifacm \documentclass{sig-alternate}
+\else \ifllncs  \documentclass[twoside,envcountsame,runningheads]{llncs}
+\else \documentclass[11pt,twoside]{article}
+         \usepackage[letterpaper,hmargin=1in,vmargin=1in]{geometry}
+\fi\fi
+
+
+\newcommand\hmmax{0} % tried to avoid too many fonts error
+\newcommand\bmmax{0} % tried to avoid too many fonts error
+\usepackage{amsmath}
+\usepackage{enumerate}
+\usepackage{amssymb}
+\usepackage{multirow}
+\usepackage{setspace}
+\usepackage{breakcites}
+\usepackage{color}
+\usepackage{float}
+\usepackage{stmaryrd}
+\usepackage{listings}
+\usepackage{cryptocode}
+\usepackage{crypto-environments}
+\usepackage[normalem]{ulem}
+\usepackage{tikz}
+\usetikzlibrary{matrix,positioning,automata,shapes.geometric}
+%\pgfdeclarelayer{background}
+%\pgfsetlayers{background,main}
+
+\ifanonymous
+ \usepackage[
+    pdftitle={},
+    bookmarks=false,
+    pdfauthor={}, pdfpagelabels=true, linktocpage=true]{hyperref}
+\else
+    \usepackage[
+    pdftitle={},
+    bookmarks=false,
+    pdfauthor={Bellare, Davis, Di},
+    pdfpagelabels=true, linktocpage=true, hyperfootnotes=false,
+    pagebackref% references from biblio to pages where cited
+    ]{hyperref}
+\fi
+
+\def\Bellare{Mihir Bellare}
+\def\BellareEmail{\tt mihir@eng.ucsd.edu}
+\def\BellareWebpage{\tt http://cseweb.ucsd.edu/\textasciitilde mihir/}
+\def\BellareDept{Department of Computer Science \& Engineering}
+\def\BellareCompany{University of California, San Diego}
+\def\BellareAddress{9500 Gilman Drive, La Jolla, California 92093, USA}
+
+
+\def\BellareThanks{
+\BellareDept,
+\BellareCompany,
+\BellareAddress.
+Email: {\tt \BellareEmail}.
+URL: {\tt \BellareWebpage}.
+Supported in part by NSF grant CNS-2154272.
+}
+
+\def\Davis{Hannah Davis}
+\def\DavisEmail{\tt h3davis@eng.ucsd.edu}
+\def\DavisWebpage{\tt http://cseweb.ucsd.edu/\textasciitilde h3davis/}
+\def\DavisDept{Department of Computer Science \& Engineering}
+\def\DavisCompany{University of California, San Diego}
+\def\DavisAddress{9500 Gilman Drive, La Jolla, California 92093, USA}
+
+\def\DavisThanks{
+	\DavisDept,
+	\DavisCompany,
+	\DavisAddress.
+	Email: {\tt \DavisEmail}.
+	URL: {\tt \DavisWebpage}.
+	Supported in part by NSF grant CNS-2154272.
+}
+
+
+\ifllncs\else
+\newcommand{\ourauthors}{
+  \textsc{\Bellare}\thanks{\ \BellareThanks}
+}
+\fi
+
+\input{header}
+
+\newcommand{\titletext}{Hardening Signature Schemes via Derive-then-Derandomize: \\
+Stronger Security Proofs for EdDSA}
+
+\newcommand{\titletextnocr}{Hardening Signature Schemes via Derive-then-Derandomize: Stronger Security Proofs for EdDSA}
+
+%Security Proofs for EdDSA Signatures with MD-hash functions
+%Filtered Indifferentiability: \\  Security Proofs for EdDSA with SHA512
+
+\newcommand{\shorttitletext}{Hardening Signature Schemes}
+% Filtered Indifferentiability:  Security Proofs for EdDSA with SHA512
+
+\ifllncs
+\titlerunning{\shorttitletext}
+\ifanonymous \authorrunning{} \else \authorrunning{Mihir Bellare, Hannah Davis, Zijing Di} \fi
+\fi
+
+
+
+\allowdisplaybreaks
+
+\begin{document}
+
+\setlength{\abovedisplayskip}{2pt}
+\setlength{\belowdisplayskip}{2pt}
+\setlength{\abovedisplayshortskip}{0pt}
+\setlength{\belowdisplayshortskip}{2pt}
+
+
+
+
+\ifllncs
+\ifanonymous
+\author{}
+\institute{}
+\title{\titletext}
+\else
+\title{\titletext}
+\author{Mihir Bellare\inst{1} \and Hannah Davis\inst{1} \and Zijing Di\inst{2}}
+\institute{University of California San Diego \\ \email{mihir@eng.ucsd.edu}, \email{h3davis@eng.ucsd.edu} \and Stanford University\\ \email{zidi@stanford.edu}}
+\fi  % anonymous
+
+\else % not llncs
+\ifacm
+
+\else % not acm
+\title{\textbf{\titletext\protect\vspace{0.3in}}}
+\appearsin{}
+\author{\textsc{Mihir Bellare}\thanks{\ \BellareThanks}\vspace{0.3in}}
+\date{April 2020\vspace{0.2in}}
+\fi % acm
+\fi % llncs
+
+\maketitle
+
+
+% \vspace{-0.55in}
+\begin{abstract}
+\input{abstract}
+
+\ifllncs\ifanonymous\keywords{Standards \and Signatures \and Indifferentiability \and Random-Oracle Model}\fi\fi 
+\end{abstract}
+
+\ifacm\else\ifllncs\else
+\newpage
+\tableofcontents
+\newpage
+\fi\fi
+
+
+\input{intro}
+\input{prelim}
+\input{direct}
+%\input{indiff}
+%\input{sec-indiff}
+\input{schnorr}
+\input{chop}
+
+%\input{our-indiff}
+
+%\input{clamp}
+%\input{mu}
+
+\ifllncs
+
+\section*{Acknowledgments}
+
+\ifllncs Bellare and Davis are supported in part by NSF grant CNS-2154272. \fi We thank the (anonymous) reviewers of Crypto 2022, Asiacrypt 2022 and CT-RSA 2023 for their valuable comments.
+We thank Joseph Jaeger for his helpful comments and discussions about the correctness of chop-MD proofs in the literature.
+
+\fi
+
+\addcontentsline{toc}{section}{References}
+\ifuseshortbib
+\input{refs-short}
+\else
+\begin{small}
+\bibliographystyle{abbrv}
+\bibliography{../bibfiles/abbrev3,../bibfiles/crypto,main}
+\end{small}
+\fi
+
+\appendix
+
+
+%\noindent {\Large\bf Additional Supporting Material}
+%\bigskip\bigskip
+%\input{shrink-proof}
+%\input{vf}
+%\input{prop1-proof}
+%\input{lem3-pf}
+%\input{lem7-pf}
+%\input{apx-sample}
+%\input{gp-instantiation}
+%\input{eddsa-md-proof}
+%\input{comp-proof}
+%\input{f-eddsa-proof}
+%\input{md-indiff}
+%\input{pvf-svf-proof}
+%\input{pub-indiff}
+
+\end{document}

@@ -1,0 +1,12 @@
+*.aux
+*.bbl
+*.blg
+*.brf
+*.log
+*.out
+*.toc
+*.sh
+*.kilepr
+.kile
+*.synctex.gz
+main.pdf

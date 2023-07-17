@@ -1,0 +1,53 @@
+% !TEX root = main.tex
+
+% \section{Notational Preliminaries}
+\section{Preliminaries}\label{sec-prelims}
+
+%We switch gears to provide a theoretical framework that enables us to grasp and confirm methods for instantiating multiple random oracles by a single one, establishing domain separation as a conceptual goal.
+%In order to do so, let us first pause to introduce some helpful notation and concepts.
+
+\heading{Basic notation.} By $[i..j]$ we abbreviate the set $\{i,\ldots,j\}$, for integers $i \leq j$. If $\vecxx$ is a vector then $|\vecxx|$ is its length (the number of its coordinates), $\vecxx[i]$ is its $i$-th coordinate and $[\vecxx]=\set{\vecx[i]}{i\in [1..|\vecxx|]}$ is the set of its coordinates. The empty vector is denoted $()$. If $S$ is a set, then $S^*$ is the set of vectors over $S$, meaning the set of vectors of any (finite) length with coordinates in $S$. Strings are identified with vectors over $\bits$, so that if $x \in \bits^*$ is a string then $|x|$ is its length, $x[i]$ is its $i$-th bit, and $x[i..j]$ is the substring from its $i$-th to its $j$-th bit (including), for $i \leq j$. The empty string is $\emptystring$.  
+%We let $x[i..j] = x[i]\ldots x[j]$ be the concatenation of bits $i$ through $j$ of $x$ if $i\leq j$, and $\emptystring$ otherwise. 
+If $x,y$ are strings then we write $x \prefix y$ to indicate that $x$ is a prefix of $y$. If $S$ is a finite set then $|S|$ is its size (cardinality). A set $S\subseteq\bits^*$ is \textit{length closed} if $\bits^{|x|}\subseteq S$ for all $x\in S$. 
+
+We let $y \gets A[\Oracle_1, \ldots](x_1,\ldots ; r)$ denote executing algorithm $A$ on inputs $x_1,\ldots$ and coins $r$, with access to oracles $\Oracle_1, \ldots$, and letting $y$ be the result. We let $y \getsr A[\Oracle_1, \ldots ](x_1,\ldots)$ be the resulting of picking $r$ at random and letting $y \gets A[\Oracle_1, \ldots ](x_1,\ldots;r)$. We let $\algOutput(A[\Oracle_1, \ldots ](x_1,\ldots))$ denote the set of all possible outputs of algorithm $A$ when invoked with inputs $x_1,\ldots$ and access to oracles $\Oracle_1, \ldots$. Algorithms are randomized unless otherwise indicated. Running time is worst case.
+% ``PT'' stands for ``polynomial-time,'' whether for randomized algorithms or deterministic ones.
+An adversary is an algorithm.
+
+We use the code-based game-playing framework of~\cite{EC:BelRog06}. A game $\Gm$ (see Figure~\ref{fig:cc-indiff} for an example) starts with an $\Initialize$ procedure, followed by a non-negative number of additional procedures, and ends with a $\Finalize$ procedure. Procedures are also called oracles. Execution of adversary $\advA$ with game $\Gm$ consists of running $\advA$ with oracle access to the game procedures, with the restrictions that $\advA$'s first call must be to $\Initialize$, its last call must be to $\Finalize$, and it can call these two procedures at most once. The output of the execution is the output of $\Finalize$. 
+%By $\Pr[\Gm(\advA)\Rightarrow y]$ we denote the probability that the execution of game $\Gm$ with adversary $\advA$ results in this output being $y$, and write just $\Pr[\Gm(\advA)]$ when $y=\true$, meaning  $\Pr[\Gm(\advA)]$ is the probability that the execution of game $\Gm$ with adversary $\advA$ results in the output of the execution being the boolean $\true$. 
+We write $\Pr[\Gm(\advA)]$ to denote the probability that the execution of game $\Gm$ with adversary $\advA$ results in the output being the boolean $\true$.
+Note that our adversaries have no output. The role of what in other treatments is the adversary output is, for us, played by the query to $\Finalize$. We adopt the convention that the running time of an adversary is the worst-case time to execute the game with the adversary, so the time taken by game procedures (oracles) to respond to queries is included.
+
+\heading{Functions.} As usual $g\Colon\domain\to\rangeSet$ indicates that $g$ is a function taking inputs in the domain set $\domain$ and returning outputs in the range set $\rangeSet$. We may denote these sets by $\GGenroSpDom{g}$ and $\GGenroSpRng{g}$, respectively.
+
+We say that $g\Colon \GGenroSpDom{g} \to \GGenroSpRng{g}$ has output length $\ell$ if $\GGenroSpRng{g}=\bits^{\ell}$. We say that $g$ is a single output-length (sol) function if there is some $\ell$ such that $g$ has output length $\ell$ and also the set $\domain$ is length closed. We let $\AllSOLFuncs{\domain}{\ell}$ denote the set of all sol functions $g\Colon\domain\to\bits^{\ell}$. 
+
+We say $g$ is an extendable output length (xol) function if the following are true: (1) $\GGenroSpRng{g}=\bits^*$ (2) there is a length-closed set $\GGenroSpDomP{g}$ such that $\GGenroSpDom{g} = \GGenroSpDomP{g} \cross\N$ (3) $|g(x,\ell)|=\ell$ for all $(x,\ell)\in\GGenroSpDom{g}$, and (4) $g(x,\ell)\prefix g(x,\ell')$ whenever $\ell\leq\ell'$. We let $\AllXOLFuncs{\domain}$ denote the set of all xol functions $g\Colon\domain\to\bits^{*}$. 
+
+
+% The image $\Fimage(f)$ of $f$ is the set $\{f(d):d \in \GGenroSpDom{f}\}$, which is a subset of $\GGenroSpRng{f}$. If the image of $f$ includes $\bot$, we let the support of $f$ be the set $\{d: d \in \GGenroSpDom{f}\text{ and } f(d) \neq \bot\}$.
+%We say that $f$ has $n$ inputs if the members of $\domain$ are $n$-tuples, in this case writing as usual $f(d_1,\ldots,d_n)$ ---rather than the possibly more pedantically correct $f((d_1,\ldots,d_n))$--- for the output of $f$ on input $(d_1,\ldots,d_n)$.
+%We let $\AllFuncs{\domain}{\rangeSet}$ denote the set of all functions $f\Colon \domain\to \rangeSet$.
+%When $\domain,\rangeSet$ are finite, the size of this set is $|\rangeSet|^{|\domain|}$.
+%A \textit{function space} $\roSp$ with domain $\domain$ and range $\rangeSet$ is simply a subset of $\AllFuncs{\domain}{\rangeSet}$.
+%By $\aFunc{f} \getsr \roSp$ we mean that function $f$ is picked at random from $\roSp$.
+%The distribution is uniform unless otherwise indicated.
+%The domain and range of function space $\roSp$ are denoted $\GGenroSpDom{\roSp}$ and $\GGenroSpRng{\roSp}$, respectively.
+%
+%
+%We capture providing oracle access to multiple functions $f_1,\ldots,f_n$ as providing an oracle for a single, two-input function $f$, with $f(i,\cdot)$ playing the role of $f_i$. We say that a function space $\roSp$ with domain $\domain$ and range $\rangeSet$ has \textit{arity $n$} if there are function spaces $\roSp_1, \ldots \roSp_n$ with domains  $\domain_1,\ldots,\domain_n$ such that $\domain = \Aset{(i,x)}{x\in\domain_i\mbox{ and }i\in [1..n]}$ and $f(i,\cdot) \in \roSp_i$ for all $i \in [1..n]$. % This captures the restriction that, regardless of the choice of $\aFunc{f}$ from $\roSp$, the domain of $\aFunc{f}(i,\cdot)$ should depend only on the index $i$.
+%We refer to $\roSp_1,\ldots, \roSp_n$ as the sub-spaces of $\roSp$ and to $\domain_1,\ldots,\domain_n$ as the sub-domains of $\roSp$. If $f\in\roSp$ then we let functions $f_i\Colon\domain_i \to \rangeSet$ be defined by $f_i(\cdot) = f(i,\cdot)$, and refer to them as the sub-functions of $f$.
+%
+%We say that a function space $\FuncSp{RFS}$ with domain $\domain$, range $\rangeSet$, and arity $1$ is a \textit{full random function space} \TODO{better name} if $\FuncSp{RFS} = \AllFuncs{\domain}{\rangeSet}$. Equivalently, this means that when $f$ is drawn randomly from $\FuncSp{RFS}$, for any $x \in \domain$, $f(x)$ is uniformly distributed on $\rangeSet$, and $f(x)$ is independent of $f(y)$ for all $x,y \in \domain$ such that $x \neq y$. 
+%We say that a function space $\FuncSp{XOFS}$ with arity $1$, domain $\domain \times \mathbb{N}$, and range $\bits^*$ is an \textit{extendable-output random function space} if
+%\begin{multline*}
+%\FuncSp{XOFS} = \{ f \in \AllFuncs{\domain \times \mathbb{N}}{\bits^*} \Colon\\
+%(|f(x, n)| = n) \wedge (f(x,n) \prefix f(x,n+1))\forall(x,n) \in \domain \times \mathbb{N}\}.
+%\end{multline*}
+%When $f$ is drawn uniformly at random from $\FuncSp{XOFS}$, the value of $f(x,n)$ is independent of the value of $f(y,n')$ for all $x,y \in \domain$ and $n,n' \in \mathbb{N}$. 
+%We say that a function space $\FuncSp{FS}$ with arity $n$ is a \textit{random function space} if and only if each of its sub-spaces is either a full random function space or an extendable-output random function space. 
+
+
+% Informally, we talk about ``oracles" in a function space $\roSp$ of arity $n> 1$, we mean the $n$ oracles that compute these restrictions of the randomly drawn function $\aFunc{F} \in \roSp$. 
+

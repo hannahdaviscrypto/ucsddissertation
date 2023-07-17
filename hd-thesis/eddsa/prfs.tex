@@ -1,0 +1,73 @@
+
+\headingu{Pseudorandom Functions and Generators} The EdDSA signature scheme uses the hash function $\SHA512$ as both a pseudorandom function and a pseudorandom number generator. We recall syntax and security definitions for PRFs and PRGs, conforming them to our model of oracle spaces. A PRF scheme $\pF$ defines a function $\pF^{\HH}.\PRFexec$ taking oracle access to a random oracle $\HH$ and two arguments: a secret key and an auxiliary input. The scheme specifies the oracle space $\pF.\HASHSET$ from which $\HH$ must be drawn, the length $\pF^{\HH}.\PRFkeylen$ of its secret key, and the output length $\pF.\PRFoutlen$ of $\pF^{\HH}.\PRFexec$. A PRG is syntactically identical to a PRF, except that its function $\pF^{\HH}.\PRGexec$ takes no auxiliary input. 
+We define security for PRFs and PRGs with respect to the games in Figure~\ref{fig:PRF-PRG} and the following advantage functions:
+\[ \genAdv{\muPRF}{\pF}{\advA} = 2\Pr[\GmuPRF_\pF(\advA)]-1.\]
+\[ \genAdv{\muPRG}{\pF}{\advA} = 2\Pr[\GmuPRG_\pF(\advA)]-1.\]
+
+\begin{figure}
+	\twoCols{0.48}{0.48}
+	{
+		\ExperimentHeader{Game $\GmuPRF_{\pF}$}
+		
+		\begin{oracle}{$\Initialize(N)$}
+			\item $\oseed\getsr\pF.\HASHSET.\Sg$ ; 
+			$\HH \getsr \pF.\HASHSET.\Funcs$
+			\item for $\usr=1$ to $N$ do:
+			\item \quad $\vecSk[\usr] \getsr \bits^{\pF.\PRFkeylen}$
+			\item $b \getsr \bits$
+			\item Return
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\FnO(\usr, \PRFinput)$}
+			\item If $T[\usr, \PRFinput] \neq \bot$ then return $T[\usr, \PRFinput]$
+			\item If $b = 0$
+			\item \quad $T[\usr,\PRFinput] \gets \pF.\PRFexec^{\HH}(\vecSk[\usr], \PRFinput)$
+			\item Else $T[\usr, \PRFinput] \getsr \bits^{\pF.\PRFoutlen}$
+			\item Return $T[\usr, \PRFinput]$
+		\end{oracle}
+		\ExptSepSpace
+		\begin{oracle}{$\HASH(i,x)$}
+			\item Return $\HH_i(\oseed,x)$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(b')$}
+			\item Return ($b=b'$) \vspace{2pt}
+		\end{oracle}
+	}{
+		\ExperimentHeader{Game $\GmuPRG_{\pF}$}
+		
+		\begin{oracle}{$\Initialize(N)$}
+			\item $\oseed\getsr\pF.\HASHSET.\Sg$ ; 
+			$\HH \getsr \pF.\HASHSET.\Funcs$
+			\item for $\usr =1$ to $N$ do:
+			\item \quad $\vecSk[\usr] \getsr \bits^{\pF.\PRGkeylen}$
+			\item $b \getsr \bits$
+			\item Return
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\FnO(\usr)$}
+			\item If $b = 0$ then $Y \gets \pF.\PRGexec^{\HH}(\vecSk[\usr])$
+			\item Else $Y \getsr \bits^{\pF.\PRGoutlen}$
+			\item Return $Y$
+		\end{oracle}
+		\ExptSepSpace
+		\begin{oracle}{$\HASH(i, x)$}
+			\item Return $\HH_i(\oseed,x)$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(b')$}
+			\item Return ($b=b'$) \vspace{2pt}
+		\end{oracle}
+	}
+\vspace{-5pt}
+\caption{Left: Game defining PRF security of function $\pF$. Right: Game defining PRG security of function $\pF$. \hd{is $\pF$ a function? I feel like it's not at this point.}}
+%\label{fig:schnorr-sig}
+\label{fig:PRF-PRG}
+\hrulefill
+\vspace{-10pt}
+\end{figure}
+

@@ -1,0 +1,14 @@
+\section{The unique order-$\Prime$ subgroup of $\group$}\label{apx:group}
+Here, we briefly prove that our choice in Section~\ref{sec-prelims} of $\G_{\Prime}$ as the unique subgroup of order $\Prime$ of group $\G$, which has order $\Prime \cdot 2^\cofactor$, is well-defined. (We do not prove that $\G_{\Prime}$ is cyclic as this follows directly from the fact that its order is prime.)
+We also give an efficient test for membership in $\G_{\Prime}$.
+ 
+    \begin{proposition}\label{pr-group} Let $\Prime$ be an odd prime, let $2^\cofactor < \Prime$ be a positive integer, and let $\G$ be a group of order $2^\cofactor \cdot \Prime$. Then (1) the group $\G$ has a unique subgroup of order $\Prime$, and (2) For all $X\in\group$ it is the case that $X$ is in this subgroup iff $\Prime\cdot X = 0_{\group}$.
+    \end{proposition}
+    
+    \begin{enumerate}[label=(\arabic*)]
+    \item Let $n$ be the number of $\Prime$-order subgroups of $\G$. According to Sylow's theorem $n \equiv 1 \mod \Prime$. We now have two cases: either $n = 1$, or $n > 1$. We prove that $n=1$ by contradiction; therefore we assume $n > 1$. It follows that $n \geq \Prime +1$. Two distinct groups of prime order can intersect only at the identity, so each of the $n$ subgroups of $\G$ contains $\Prime-1$ unique elements. Consequently the order of $\G$ is at least $n (\Prime-1) \geq (\Prime+1)(\Prime -1)  \geq \Prime (\Prime+1)$. Since we have already defined the order of $\G$ to be $2^\cofactor \cdot \Prime$, we have that $2^\cofactor \geq \Prime+ 1$. This contradicts our initial assumption that $2^\cofactor < \Prime$; thus our assumption that $n>1$ must be false and $\G$ must have exactly one subgroup of order $\Prime$. This subgroup is $\G_{\Prime}$.
+    
+    \item Let $X \in \G$ be a group element and assume that $\Prime \cdot X = 0_{\G}$. This implies that the order of $X$ divides $\Prime$. Since $\Prime$ is prime, either the order of $X$ is $1$ or it is $\Prime$. In the first case, $x = 0_{\G}$. Otherwise, $X$ generates a subgroup with order $\Prime$, which by part (1) is the unique such subgroup $\G_{\Prime}$. Therefore $X$ generates $\G_{\Prime}$ and must belong to it.
+    	
+    For the reverse direction, assume that $X$ is in $\G^{\Prime}$. The order of $X$ must divide the order of $\G_{\Prime}$; so $X$ must either have order $\Prime$ or order $1$. In either case, $\Prime \cdot X = 0_{\G}$.
+    \end{enumerate}

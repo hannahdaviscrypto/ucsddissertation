@@ -1,0 +1,88 @@
+Labels
+	BK: label = "ext binder" | "res binder" (10)
+	ets: "c e traffic" (11)
+	eems: "e exp master" (12)
+	des: "derived" (7)
+	chts: "c hs traffic" (12)
+	shts: "s hs traffic" (12)
+	dhs: "derived" (7)
+	cats: "c ap traffic" (12)
+	sats: "s ap traffic" (12)
+	ems: "exp master" (10)
+	rms: "res master" (10)
+	traffic keys: "key" (3)
+	traffic iv: "iv" (2)
+	psk: "resumption" (10)
+	MAC: "finished" (8)
+
+
+HMAC		HKDF. Extract		HKDF.Expand
+b.len+h.len		b.len		b.len+h.len
+96 (sha256)	b.len + |PSK|		 + 2 (length-encoding for h.len)
+176 (sha384)	b.len + |DHE|		 + 1 (length-encoding for label)
+					 + 1 (length-encoding for context)
+					 + 2-12 (label)
+					 + 6 ("tls13 ")
+					 + 1 (HKDF.Expand index)
+					=109-119 (SHA256)
+					= 189-199 (SHA384)
+					= b.len + 20 bytes (finishedkeys) (2h.len+1 label len+14 label + 1 context len+1 index) 	
+		
+DHE lengths
+	secp256 32
+	secp384	48
+	secp521 66
+	x25519 32
+	x448 56
+finite field lengths
+	ffdhe2048 128 bytes
+	ffdhe3072 192 bytes
+	ffdhe4096 256 bytes
+	ffdhe6144 384 bytes
+	ffdhe8192 512 bytes
+
+Transcript Hash
+Empty OR
+Always includes a ClientHello (except maybe HelloRetryRequest)
+ 2 (protocol version)
+ 32 (Random nonce)
+ 4+ (ciphersuites, 2 per + 2 length)
+ 2 (legacy_compression_methods)
+ 1 (legacy_session_id, or 32 in compatibility mode with middleboxes)
+ 2 (extensions length)
+     4 per extension (2 length, 2 type)
+     	3+ supported version (2 mandatory version, 1 length)
+     	3+ supported groups (2 mandatory group, 1 length)
+     	6+|dhe| key share (2 NamedGroup, 1 key_exchange, 2 key_exchange length, 2 client_shares length)
+	12+h.len (SHA256/SHA384) (9 for truncated)
+	2 PSK mode
+total
+	PSK-only: 72 + h.len + ...
+	PSK+DHE: 89 + h.len + |DHE|+ ...
+	PSK-only (truncated): 69+...
+	PSK+DHE (truncated): 86+ |DHE|+...
+
+Conflicts:
+Extract(dES, DHE) vs Expand(ES, "derived", H("")) vs Expand(HS, "derived", H(""))
+	- only with curve secp521 and hash SHA384
+	- in general this type of collision occurs only if 13 <= |DHE| - h.len <= 23
+	- Also possible conflicts if |PSK| is allowed to vary (same restrictions).
+
+Extract vs MAC
+	- identical domains; consider as same RO
+
+Extract vs Thash
+	-71 > h.len for both SHA256 and SHA384, so H calls are strictly longer whether or not |DHE| is included in both.
+
+Expand vs Thash
+	-PSK-DHE: minimum ClientHello has length 118 + h.len bytes, so Thash calls are strictly longer.
+	-PSK-only (SHA256): 71 > h.len + 23,  when SHA256 is used, so Thash calls are strictly longer
+	-PSK-only 84): Both Expand and H may make calls of length 119 bytes: when Expand uses a 12-byte label, and a minimal ClientHello with 1 supported version, 1 supported group, 1 PSK, 1 ciphersuite, and no compatibility mode. However, there is still domain separation between the two types of calls based on the 70th byte (1-indexed). In the Expand call, the first 48 bytes are the key. The next 2 bytes contain the length field of the HkdfLabel struct, and the following 19 contain the label and its length. The final field is the "context" field, and the 70th byte is the first byte of this field, which contains its length as a 1-byte integer. Since the context field contains a hash output, the 70th byte contains the integer 48, or 0x30. In the H call, the last 50 bytes contain the "binders" field of the OfferedPSKs struct. This field is a variable-length vector which here contains 48 bytes, so its first 2 bytes encode the integer 48 in big-endian form. Therefore the 70th byte, which is the first byte of this encoding, is 0x0. These two bytes are unequal and the two calls do not collide. 
+
+partial clientHellos are longer than 20 bytes. 
+
+ClientHellos do not collide with HMAC calls because of the ciphersuites
+
+
+
+

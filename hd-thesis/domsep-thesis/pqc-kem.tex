@@ -1,0 +1,305 @@
+\section{Oracle Cloning in NIST PQC Candidates}
+\label{sec-pqc}
+
+\headingg{Notation.} A KEM scheme $\kemScheme$ specifies an encapsulation $\kemEnc$ that, on input a public encryption key $\pk$ returns a session key $K$, and a ciphertext $C^*$ encapsulating it, written $(C^*,K)\getsr \kemEnc(\pk)$. A PKE scheme $\pkeScheme$ specifies an encryption algorithm $\pkeEnc$ that, on input $\pk$, message $M\in\bits^{\pkeML}$ and randomness $R$, deterministically returns ciphertext $C\gets\pkeEnc(\pk,M;R)$. For neither primitive will we, in this section, be concerned with the key generation or decapsulation / decryption algorithm. We might write $\kemScheme[X_1,X_2,\ldots]$ to indicate that the scheme has oracle access to functions $X_1,X_2,\ldots$, and correspondingly then write $\kemEnc[X_1,X_2,\ldots]$, and similarly for $\pkeScheme$.
+
+\subsection{Design process} 
+
+The literature~\cite{TCC:HofHovKil17,IMA:Dent03,EC:SaiXagYam18,C:JZCWM18} provides many transforms that take a public-key encryption scheme $\pkeScheme$, assumed to meet some weaker-than-IND-CCA notion of security we denote $\secPropPKE$ (for example, OW-CPA, OW-PCA or IND-CPA), and, with the aid of some number of random oracles, turn $\pkeScheme$ into a KEM that is guaranteed (proven) to be IND-CCA \textit{assuming the ROs are independent.} We'll refer to such transforms as \textit{sound}. Many (most) KEMs submitted to the NIST Post-Quantum Cryptography standardization process were accordingly designed as follows:
+\begin{bignewenum}
+	\item First, they specify a $\secPropPKE$-secure public-key encryption scheme $\pkeScheme$. 
+\item Second, they pick a sound transform $\pkeToKem$ and obtain KEM $\GkemScheme{4}[\aFunc{H}_1,\aFunc{H}_2,\aFunc{H}_3,\aFunc{H}_4] \allowbreak = \allowbreak \pkeToKem[\pkeScheme,\aFunc{H}_2,\aFunc{H}_3,\aFunc{H}_4]$. (The notation is from~\cite{TCC:HofHovKil17}. The transforms use up to three random oracles that we are denoting $\aFunc{H}_2,\aFunc{H}_3,\aFunc{H}_4$, reserving $\aFunc{H}_1$ for possible use by the PKE scheme.) We refer to $\GkemScheme{4}$ (the subscript refers to its using 4 oracles) as the \textit{base} KEM, and, as we will see, it differs across the transforms.
+\item Finally ---the under-the-radar step that is our concern--- the ROs $\aFunc{H}_1,\ldots,\aFunc{H}_4$ are constructed from cryptographic hash functions to yield what we call the \textit{final} KEM $\GkemScheme{1}$. In more detail, the submissions make various choices of cryptographic hash functions $\aFunc{F}_1,\ldots,\aFunc{F}_m$ that we call the \textit{base functions}, and, for $i=1,2,3,4$, specify constructions $\construct{C}_i$ that, with oracle access to the base functions, define the $\aFunc{H}_i$, which we write as $\aFunc{H}_i \gets \construct{C}_i[\aFunc{F}_1,\ldots,\aFunc{F}_m]$. We call this process oracle cloning, and we call $H_i$ the \textit{final functions.} (Common values of $m$ are $1,2$.) The actual, submitted KEM $\GkemScheme{1}$ (the subscript because $m$ is usually 1) uses the final functions, so that its encapsulation algorithm can be written as: 
+\begin{tabbing}
+	1234\=123\=\kill
+\>	\underline{$\GkemEnc{1}[\aFunc{F}_1,\ldots,\aFunc{F}_m](\pk)$} \\[2pt]
+\> For $i=1,2,3,4$ do $\aFunc{H}_i \gets \construct{C}_i[\aFunc{F}_1,\ldots,\aFunc{F}_m]$ \\
+\> $(C^*,K)\getsr \GkemEnc{4}[\aFunc{H}_1,\aFunc{H}_2,\aFunc{H}_3,\aFunc{H}_4](\pk)$ \\
+\> Return $(C^*,K)$
+\end{tabbing}
+\end{bignewenum} 
+The question now is whether the final $\GkemScheme{1}$ is secure. We will show that, for some submissions, it is not. This is true for the choices of base functions $\aFunc{F}_1,\ldots,\aFunc{F}_m$ made in the submission, but also if these are assumed to be ROs. It is true despite the soundness of the transform, meaning insecurity arises from poor oracle cloning, meaning choices of the constructions $\construct{C}_i$. We will then consider submissions for which we have not found an attack. In the latter analysis, we are willing to assume (as the submissions implicitly do) that $\aFunc{F}_1,\ldots,\aFunc{F}_m$ are ROs, and we then ask whether the final functions are ``close'' to independent ROs.
+
+\begin{figure}[t]
+	\oneCol{0.7}{
+		\begin{algorithm-initial}{Algorithm $\GkemEnc{4}[\aFunc{H}_1,\aFunc{H}_2,\aFunc{H}_3,\aFunc{H}_4](\pk)$}
+\item $M \getsr \bits^{\pkeML}$ ; 
+ % $X\gets\XFunc[H_3,H_4](\pk,M)$ ; 
+ $R\gets\emptystring$ 
+			\item If ($\DFunc=\true$) then $R\concat K' \gets \aFunc{H}_2(X)$ \Comment{$|K'|=\KLenFunc$}
+			\item $\pkeCiph \gets \pkeEnc[\aFunc{H}_1](\pk,M;R)$ % ; $Y\gets\YFunc[H_3](X,M)$ 
+			\item $\kemCiph \gets \pkeCiph\concat Y$  
+			% ; $Z \gets \ZFunc[H_3,H_4](\pk,R,M,C,K',Y)$ 
+			\item $K \gets \aFunc{H}_4(Z)$
+			; Return $(\kemCiph, K)$ \smallskip			
+		\end{algorithm-initial} 
+
+	}
+	\begin{center}
+		\begin{tabular}{|c||c|c|c|c|c|c|}\hline
+			 & $\DFunc$ & $\KLenFunc$  & $X$ & $Y$ & $Z$ & Used in  \\ \hline\hline
+			\multirow{2}{*}{$\QpkeToKem_1$} & \multirow{2}{*}{$\true$} & \multirow{2}{*}{$0$} & \multirow{2}{*}{$M$} & \multirow{2}{*}{$\emptystring$} & \multirow{2}{*}{$M$} & \pqcnameRoundOne{LIMA}, \\
+			& & & & & & \pqcnameRoundOne{Odd Manhattan}\\ \hline
+			$\QpkeToKem_2$ & $\true$ & $0$ & $\pk\|M$ & $\emptystring$ & $\pk\|M$ & \pqcnameRoundTwo{ThreeBears}\\ \hline
+			\multirow{2}{*}{$\QpkeToKem_3$} & \multirow{2}{*}{$\true$} & \multirow{2}{*}{$0$} & \multirow{2}{*}{$M$} & \multirow{2}{*}{$\emptystring$} & \multirow{2}{*}{$M\|\pkeCiph$}  & \pqcnameRoundTwo{BIKE-1-CCA}\\
+			& & & & & &\pqcnameRoundTwo{BIKE-3-CCA}, \pqcnameRoundTwo{LAC} \\ \hline
+			$\QpkeToKem_4$ & $\true$ &$0$ & $M\|\pk$ & $\emptystring$ & $M\|\pkeCiph$ & \pqcnameRoundTwo{SIKE}\\ \hline
+			$\QpkeToKem_5$ & $\true$ & $0$ & $M$ & $\aFunc{H}_3(X)$ & $M\|\pkeCiph$ & \pqcnameRoundTwo{HQC}, \pqcnameRoundTwo{RQC}, \pqcnameRoundTwo{ROLLO-II}, \pqcnameRoundOne{LOCKER} \\ \hline
+			$\QpkeToKem_6$ &$\true$ & $>0$ & $M\|\aFunc{H}_3(\pk)$ & $\emptystring$ & $K'\|\pkeCiph$  & \pqcnameRoundTwo{SABER} \\ \hline
+			$\QpkeToKem_7$ & $\true$ &$>0$ & $\aFunc{H}_3(\pk)\|\aFunc{H}_3(M)$ & $\emptystring$ & $K'\|\aFunc{H}_3(\pkeCiph)$ & \pqcnameRoundTwo{CRYSTALS-Kyber} \\ \hline
+			\multirow{1}{*}{$\QpkeToKem_8$} & \multirow{1}{*}{$\true$} & \multirow{1}{*}{$0$} & \multirow{1}{*}{$M$} & \multirow{1}{*}{$\aFunc{H}_3(X)$} & \multirow{1}{*}{$M$} & \pqcnameRoundOne{DAGS}, \pqcnameRoundOne{NTRU-HRSS-KEM} \\ \hline
+			\multirow{2}{*}{$\QpkeToKem_9$} & \multirow{2}{*}{$\true$} & \multirow{2}{*}{$0$} & \multirow{2}{*}{$M$} & \multirow{2}{*}{$\aFunc{H}_3(X)$} & \multirow{2}{*}{$M\|\pkeCiph\|Y$} & \pqcnameRoundOne{BIG QUAKE}, \pqcnameRoundOne{EMBLEM},\\
+			& & & & & & \pqcnameRoundOne{Lizard}, \pqcnameRoundOne{Titanium} \\ \hline
+			$\QpkeToKem_{10}$ &$\true$ & $>0$ &   $\aFunc{H}_4(M)\|\aFunc{H}_4(\pk)$  & $\aFunc{H}_3(X)$ & $K'\|\aFunc{H}_4(\pkeCiph\|Y)$ & \pqcnameRoundTwo{NewHope} \\ \hline
+			\multirow{2}{*}{$\QpkeToKem_{11}$} & \multirow{2}{*}{$\true$} & \multirow{2}{*}{$>0$} & \multirow{2}{*}{$M\|\pk$} & \multirow{2}{*}{$\aFunc{H}_3(X)$} & \multirow{2}{*}{$K'\|\pkeCiph\|Y$} & \pqcnameRoundOne{FrodoKEM}, \pqcnameRoundOne{Round2}\\
+			& & & & & & \pqcnameRoundTwo{Round5} \\ \hline
+			$\QpkeToKem_{12}$ &$\true$ & $>0$ & $\pk \| M$ & $\aFunc{H}_3(X)$ & $K'\|\pkeCiph$ & \pqcnameRoundOne{KCL} \\ \hline
+			$\QpkeToKem_{13}$ &$\true$ & $>0$ & $\aFunc{H}_3(\pk)\|M$ & $\emptystring$ & $\pkeCiph\|K'$  & \pqcnameRoundTwo{FrodoKEM} \\ \hline
+			$\QpkeToKem_{14}$ &$\false$ & $0$ & $\bot$ & $\aFunc{H}_3(M)$ & $M\|\pkeCiph\|Y$ & \pqcnameRoundTwo{Classic McEliece}\\ \hline
+			$\QpkeToKem_{15}$ &$\true$ & $0$ & $M$ & $\emptystring$ & $R\|M$ & \pqcnameRoundTwo{NTS-KEM} \\ \hline
+			$\QpkeToKem_{16}$ & $\false$ & $0$ & $\bot$ & $\aFunc{H}_3(M\| \pk)$ & $M \| C \| Y$ & \pqcnameRoundTwo{Streamlined NTRU Prime} \\ \hline
+			$\QpkeToKem_{17}$ & $\true$ & $0$ & $M$ & $\aFunc{H}_3(M\|\pk)$ & $M \| C \| Y$ & \pqcnameRoundTwo{NTRU LPRime} \\ \hline
+		\end{tabular}
+	\end{center}
+	\caption{%
+	\textbf{Top:} Encapsulation algorithm of the base KEM scheme produced by our parameterized transform. \textbf{Bottom:} Choices of parameters $X,Y,Z,\DFunc,\KLenFunc$ resulting in specific transforms used by the NIST PQC submissions. Second-round submissions are in \pqcnameRoundTwo{bold}, first-round submissions in \pqcnameRoundOne{gray}. Submissions using different transforms in the two rounds appear twice.}\label{fig:pqc-kems}
+	\hrulefill
+\end{figure}
+%\hnote{ The syntax here, where we give KE four distinct 1-argument oracle, is inconsistent with the KEM syntax in prelims (where we have one two-argument oracle).}
+
+\subsection{The base KEM} 
+
+We need first to specify the base  $\GkemScheme{4}$ (the result of the sound transform, from step~(2) above). The NIST PQC submissions typically cite one of HHK~\cite{TCC:HofHovKil17}, Dent~\cite{IMA:Dent03}, SXY~\cite{EC:SaiXagYam18} or JZCWM~\cite{C:JZCWM18} for the sound transform they use, but our examinations show that the submissions have embellished, combined or modified the original transforms. The changes do \textit{not} (to best of our knowledge) violate soundness (meaning the used transforms still yield an IND-CCA $\GkemScheme{4}$ if $\aFunc{H}_2,\aFunc{H}_3,\aFunc{H}_4$ are independent ROs and $\pkeScheme$ is $\secPropPKE$-secure) but they make a succinct exposition challenging. We address this with a framework to unify the designs via a single, but parameterized, transform, capturing the submission transforms by different parameter choices. 
+
+Figure~\ref{fig:pqc-kems} (top) shows the encapsulation algorithm $\GkemEnc{4}$ of the KEM that our parameterized transform associates to $\pkeScheme$ and $H_1,H_2,H_3,H_4$. The parameters are the variables $X,Y,Z$ (they will be functions of other quantities in the algorithms), a boolean $\DFunc$, and an integer $\KLenFunc$. When choices of these are made, one gets a fully-specified transform and corresponding base KEM $\GkemScheme{4}$. Each row in the table in the same Figure shows one such choice of parameters, resulting in 15 fully-specified transforms. The final column shows the submissions that use the transform. 
+
+The encapsulation algorithm at the top of Figure~\ref{fig:pqc-kems} takes input a public key $\pk$ and has oracle access to functions $H_1,H_2,H_3,H_4$. At line~1, it picks a random seed $M$ of length the message length of the given PKE scheme. Boolean $\DFunc$ being $\true$ (as it is except in two cases) means $\pkeEnc$ is randomized. In that case, line~2 applies $H_2$ to $X$ (the latter, determined as per the table, depends on $M$ and possibly also on $\pk$) and parses the output to get coins $R$ for $\pkeEnc$ and possibly (if the parameter $\KLenFunc\neq 0$) an additional string $K'$. At line~3, a ciphertext $\pkeCiph$ is produced by encrypting the seed $M$ using $\pkeEnc$ with public key $\pk$ and coins $R$. In some schemes, a second portion of the ciphertext, $Y$, often called the ``confirmation", is derived from $X$ or $M$, using $\aFunc{H}_3$, as shown in the table, and line~4 then defines $\kemCiph$. Finally, $\aFunc{H}_4$ is used as a key derivation function to extract a symmetric key $K$ from the parameter $Z$, which varies widely among transforms. 
+
+In total, 26 of the 39 NIST PQC submissions which target KEMs in either the first or second round use transforms which fall into our framework. The remaining schemes do not use more than one random oracle, construct KEMs without transforming PKE schemes, or target security definitions other than \INDCCA. 
+
+%\heading{Oracle cloning in NIST PQC submissions.}
+%In schemes like the above which use up to four random oracles, instantiation with concrete functions is a nontrivial problem. 
+%Some designers chose to implement their multiple random oracles with multiple concrete hash functions; i.e. $H_1 = \SHAKE{256}$, $H_2 = \mathsf{TupleHash256}$, etc.
+%
+%Most, however, following NIST's guidance on choosing symmetric primitives~\cite{NIST-PQC-FAQ17}, preferred to rely on just one or two cryptographic hash functions to implement all the ROs.
+%Implementing multiple ROs via a single hash function implicitly defines a method of implementing multiple ROs via a single RO. 
+%This is the task we call random oracle cloning. 
+%As we discuss in the following, the various submissions differ significantly in the care taken when cloning random oracles. 
+%In the best cases, the specification already is very explicit and commendably describes how implementations shall domain-separate the different oracles.
+%In the most critical cases, a failure to separate domains lead to outright key-recovery attacks.
+%We group the submissions into four groups with increasing success at maintaining independence through the oracle cloning steps.
+%The steps a scheme takes to clone random oracles may be found in either a scheme's specificiation or its implementation.
+%If they are found in the implementation, they are independent of specific implementation choices or particular concrete hash functions.
+
+\subsection{Submissions we break}
+
+We present attacks on \pqcnameRoundOne{BIG QUAKE}~\cite{nistpqc:BIGQUAKE}, \pqcnameRoundOne{DAGS}~\cite{nistpqc:DAGS}, and \pqcnameRoundOne{Round2}~\cite{nistpqc:Round2}. These attacks succeed in full or partial recovery of the encapsulated KEM key from a ciphertext, and are extremely fast. We have implemented the attacks to verify them.
+
+Although none of these schemes progressed to Round~2 of the competition without significant modification, to the best of our knowledge, none of the attacks we described were pointed out during the review process. Given the attacks' superficiality, this is surprising and suggests to us that more attention should be paid to oracle cloning methods and their vulnerabilities during review. 
+
+% All three schemes implement the three functions $H_2,H_3,H_4$ using a single function $F_1$, with no domain separation. 
+
+\heading{Randomness-based decryption.} The PKE schemes used by \pqcnameRoundOne{BIG QUAKE} and \pqcnameRoundOne{Round2} have the property that given a ciphertext $C \gets \pkeEnc(\pk,M;R)$ and also given the coins $R$, it is easy to recover $M$, even without knowledge of the secret key. We formalize this property, saying $\pkeScheme$ allows randomness-based decryption, if there is an (efficient) algorithm $\pkeDecR$ such that $\pkeDecR(\pk,\allowbreak \pkeEnc(\pk, \allowbreak M; R),\allowbreak R) = M$ for any public key $\pk$, coins $R$ and message $m$. This will be used in our attacks.
+
+
+
+
+
+
+\heading{Attack on \pqcnameRoundOne{BIG QUAKE}.} The base KEM $\kemScheme_1[H_1,H_2,H_3,H_4]$ is given by the transform $\QpkeToKem_9$ in the table of Figure~\ref{fig:pqc-kems}. The final KEM $\kemScheme_2[F]$ uses a single function $F$ to instantiate the random oracles, which it does as follows. It sets $H_3=H_4=F$ and $H_2=W[F]\circ F$ for a certain function $W$ (the rejection sampling algorithm) whose details will not matter for us. The notation $W[F]$ meaning that $W$ has oracle access to $F$. The following attack (explanations after the pseudocode) recovers the encapsulated KEM key~$K$ from  ciphertext $C^* \getsr \GkemEnc{1}[F](\pk)$---
+
+\begin{tabbing}
+	123\=123\=\kill
+	\underline{Adversary $\advA[F](\pk,C^*)$} \Comment{Input public key and ciphertext, oracle for $F$} \\[2pt]
+	1. \> $C\|Y\gets C^*$ \Comment{Parse $C^*$ to get PKE ciphertext $C$ and $Y=H_3(M)$} \\
+	2. \> $R\gets W[F](Y)$ \Comment{Apply function $W[F]$ to $Y$ to recover coins $R$} \\
+	3. \> $M\gets \pkeDecR(\pk,C,R)$ \Comment{Use randomness-based decryption for $\pkeScheme$} \\
+	4. \> $K \gets F(M)$ ; Return $K$
+\end{tabbing}
+
+\noindent As per $\QpkeToKem_9$ we have $Y = H_3(M) = F(M)$. The coins for $\pkeEnc$ are $R = H_2(M) = (W[F]\circ F)(M) = W[F](F(M)) = W[F](Y)$. Since $Y$ is in the ciphertext, the coins $R$ can be recovered as shown at line~2. The PKE scheme allows randomness-based decryption, so at line~3 we can recover the message $M$ underlying $C$ using algorithm $\pkeDecR$. But $K = H_4(M) = F(M)$, so $K$ can now be recovered as well. In conclusion, the specific cloning method chosen by \pqcnameRoundOne{BIG QUAKE} leads to complete recovery of the encapsulated key from the ciphertext.
+
+
+%\begin{figure}
+%	\twoCols{0.44}{0.46}{
+%	\begin{oracle}{Adversary $\advA^F_{\pqcname{BIG QUAKE}}$}
+%		\item $\params, \pk, C^* \gets \Initialize()$
+%		\item $C,Y \gets C^*$
+%		\item $R \gets W[F](Y)$
+%		\item $M \gets \pkeDecR(C,R)$
+%		\item $K \gets F(M)$
+%		\item Return $K$ 
+%	\end{oracle}
+%}{	
+%\begin{oracle}{Adversary $\advA^F_{\pqcname{Round2}}$}
+%		\item $\params, \pk, C^* \gets \Initialize()$
+%		\item $C,Y \gets C^*$
+%		\item $R \gets F(Y)$
+%		\item $M \gets \pkeDecR(C,R)$
+%		\item $K \gets F(M)$
+%		\item Return $K$ 
+%	\end{oracle}
+%
+%}
+%	\label{fig-atk-bq}
+%	\caption{Attackers against \pqcname{BIG QUAKE} (left) and \pqcname{Round2} (right) \fg{missing?}.}.
+%\end{figure}
+%In Figure~\ref{fig-atk-bq}, we present an attacker $\advA$ which can win game $\ngameOWCPA{\pqcname{BIGQUAKE},F}$ with probability $1$. This attacker takes advantage of the fact that in transform $\QpkeToKem_9$, the variable $Y=H_3(M) = F(M)$ is included in the ciphertext, and the PKE's coins $R = H_2(M) = W[F](F(M)) = W[F](Y)$ can be computed from $Y$. Then, because \pqcname{BIG QUAKE} allows decryption using the coins of encryption, $\advA$ can correctly derive the random seed $M$ and the encapsulation key $K$.
+%The specific cloning method of the random oracles $\aFunc{H}_2$ $\aFunc{H}_3$, and~$\aFunc{H}_4$ chosen by \pqcname{BIG QUAKE} hence leads to complete key recovery.% of the $\QpkeToKem_9$ transform proven secure in the quantum random oracle model.
+
+\heading{Attack on \pqcnameRoundOne{Round2}.} The base KEM $\kemScheme_1[H_2,H_3,H_4]$ is given by the transform $\QpkeToKem_{11}$ in the table of Figure~\ref{fig:pqc-kems}. The final KEM $\kemScheme_2[F]$ uses a single base function $F$ to instantiate the final functions, which it does as follows. It sets $H_4=F$. The specification and reference implementation differ in how $H_2,H_3$ are defined: In the former, $\aFunc{H}_2(x) = F(F(x))\concat F(x)$ and $\aFunc{H}_3(x) = F(F(F(x)))$, while, in the latter, $\aFunc{H}_2(x) = F(F(F(x))) \concat F(x)$ and $\aFunc{H}_3(x) = F(F(X))$. These differences arise from differences in the way the output of a certain function $W[F]$ is parsed.
+
+
+Our attack is on the reference-implementation version of the scheme. We need to also know that the scheme sets $\KLenFunc$ so that $R\|K'\gets H_2(X)$ with $H_2(X) = F(F(F(X)))\|F(X)$ results in $R = F(F(F(X)))$. But $Y=H_3(X) = F(F(X))$, so $R=F(Y)$ can be recovered from the ciphertext. Again exploiting the fact that the PKE scheme allows randomness-based decryption, we obtain the following attack that recovers the encapsulated KEM key~$K$ from  ciphertext $C^* \allowbreak \getsr \allowbreak \GkemEnc{1}[F](\pk)$--- 
+
+\begin{tabbing}
+	123\=123\=\kill
+	\underline{Adversary $\advA[F](\pk,C^*)$} \Comment{Input public key and ciphertext, oracle for $F$} \\[2pt]
+	1. \> $C\|Y\gets C^*$; $R \gets F(Y)$\\
+	2. \> $M\gets \pkeDecR(\pk,C,R)$ ;
+	 $K \gets F(M)$ ; Return $K$
+\end{tabbing}
+
+%\cite{nistpqc:Round2} sets $\aFunc{H}_4 = F$ for a random oracle $F$.
+%It defines $\aFunc{H}_2$ and $\aFunc{H}_3$, which are queried on the same input, as substrings of the output of a fixed-length function $W[F]$ based on $F$ such that that for all bitstrings $x$, we have $W[F](x) = F(x) \concat F(F(x)) \concat F(F(F(x)))$.
+%In the specification, $W[F](x)$ is parsed such that $\aFunc{H}_2(x) = F(F(x))\concat F(x)$ and $\aFunc{H}_3(x) = F(F(F(x)))$.
+%However, in the reference implementation, $\aFunc{H}_2(x) = F(F(F(x))) \concat F(x)$ and $\aFunc{H}_3(x) = F(F(X))$.
+%As a consequence, $R = F(F(F(X))) = F(Y)$ can be computed from $Y$.
+%Similar to \pqcname{BIG QUAKE}, the PKE scheme underlying \pqcname{Round2} allows to efficently decrypt~$\pkeCiph$ with knowledge of~$R$, enabling a full recovery of the encapsulated key from the KEM ciphertext.
+
+\noindent This attack exploits the difference between the way $H_2,H_3$ are defined across the specification and implementation, which may be a bug in the implementation with regard to the parsing of $W[F](x)$. However, the attack also exploits dependencies between $\aFunc{H}_2$ and $\aFunc{H}_3$, which ought not to exist when instantiating what are required to be distinct random oracles. 
+
+\pqcnameRoundOne{Round2} was incorporated into the second-round submission \pqcnameRoundTwo{Round5}, which specifies a different base function and cloning functor (the latter of which uses the secure method we call ``output splitting") to instantiate oracles $H_2$ and $H_3$. This attack therefore does not apply to \pqcnameRoundTwo{Round5}.
+%When \pqcname{Round2} was merged into the second-round submission~\pqcname{Round5}~\cite{nistpqc:Round5},
+%a variable-length output hash function %SHAKE
+%replaced both~$W$ and~$F$, and the resulting scheme falls into Group~3. 
+%
+
+\heading{Attack on DAGS.} If $x$ is a byte string we let $x[i]$ be its $i$-th byte, and if $x$ is a bit string we let $x_i$ be its $i$-th bit. We say that a function $V$ is an extendable output function if it takes input a string $x$ and an integer $\ell$ to return an $\ell$-byte output, and $\ell_1 \leq \ell_2$ implies that $V(x,\ell_1)$ is a prefix of $V(x,\ell_2)$. If $v = v_1v_2v_3v_4v_5v_6v_7v_8$ is a byte then let $Z(v) = 00v_3v_4v_5v_6v_7v_8$ be obtained by zeroing out the first two bits. If $y$ is a string of $\ell$ bytes then let $Z'(y) = Z(y[1])\| \cdots \| Z(y[\ell])$. Now let $V'(x,\ell) = Z'(V(x,\ell))$. 
+
+The base KEM $\kemScheme_1[H_1,H_2,H_3,H_4]$ is given by the transform $\QpkeToKem_{8}$ in the table of Figure~\ref{fig:pqc-kems}. The final KEM $\kemScheme_2[V]$ uses an extendable output function $V$ to instantiate the random oracles, which it does as follows. It sets $\aFunc{H}_2(x) = V'(x,512)$ and $\aFunc{H}_3(x) = V'(x,32)$. It sets $\aFunc{H}_4(x) = V(x,64)$. 
+
+As per $\QpkeToKem_8$ we have $K = H_4(M)$ and $Y = H_3(M)$. Let $L$ be the first 32 bytes of the 64-byte $K$. Then $Y = Z'(L)$. So $Y$ reveals $32\cdot 6 = 192$ bits of $K$. Since $Y$ is in the ciphertext, this results in a partial encapsulated-key recovery attack. The attack reduces the effective length of $K$ from $64\cdot 8 = 512$ bits to $512-192 = 320$ bits, meaning $37.5\%$ of the encapsulated key is recovered. Also $R = H_2(M)$, so $Y$, as part of the ciphertext, reveals 32 bytes of $R$, which does not seem desirable, even though it is not clear how to exploit it for an attack.
+
+
+\subsection{Submissions with unclear security}
+
+For the scheme \pqcnameRoundTwo{NewHope}~\cite{nistpqc:NewHope}, we can give neither an attack nor a proof of security. However, we can show that the final functions $H_2, H_3, H_4$ produced by the cloning functor $\construct{F}_{\pqcnameRoundTwo{NewHope}}$ with oracle access to a single extendable-output function $V$ are differentiable from independent random oracles. The cloning functor $\construct{F}_{\pqcnameRoundTwo{NewHope}}$ sets $H_1(x)=V(x,128)$ and $H_4 = V(x,32)$. It computes $H_2$ and $H_3$ from $V$ using the output splitting cloning functor. Concretely, $\kemScheme_2$ parses $V(x,96)$ as $H_2(x)\concat H_3(x)$, where $H_2$ has output length 64 bytes and $H_3$ has output length 32 bytes. Because $V$ is an extendable-output function, $H_4(x)$ will be a prefix of $H_2(x)$ for any string $x$.
+
+We do not know how to exploit this correlation to attack the \INDCCA security of the final KEM scheme $\kemScheme_2[V]$, and we conjecture that, due to the structure of~$\QpkeToKem_{10}$, no efficient attack exists. 
+We can, however, attack the rd-indiff security of functor $\construct{F}_{\pqcnameRoundTwo{NewHope}}$, showing that that the security proof for the base KEM $\kemScheme_1[H_2,H_3,H_4]$ does not naturally transfer to $\kemScheme_2[V]$.
+Therefore, in order to generically extend the provable security results for $\kemScheme_1$ to $\kemScheme_2$, it seems advisable to instead apply appropriate oracle cloning methods.
+
+\subsection{Submissions with provable security but ambiguous specification}
+
+In their reference implementations, these submissions use cloning functors which we can and do validate via our framework, providing provable security in the random oracle model for the final KEM schemes. However, the submission documents do not clearly specify a secure cloning functor, meaning that variant implementations or adaptations may unknowingly introduce weaknesses. 
+The schemes
+\pqcnameRoundTwo{BIKE}~\cite{nistpqc:BIKE},
+\pqcnameRoundOne{KCL}~\cite{nistpqc:KCL},
+\pqcnameRoundOne{LAC}~\cite{nistpqc:LAC},
+\pqcnameRoundOne{Lizard}~\cite{nistpqc:Lizard},
+\pqcnameRoundOne{LOCKER}~\cite{nistpqc:LOCKER},
+\pqcnameRoundOne{Odd Manhattan}~\cite{nistpqc:OddM},
+\pqcnameRoundTwo{ROLLO-II}~\cite{nistpqc:ROLLO},
+\pqcnameRoundTwo{Round5}~\cite{nistpqc:Round5},
+\pqcnameRoundTwo{SABER}~\cite{nistpqc:SABER} and
+\pqcnameRoundOne{Titanium}~\cite{nistpqc:Titanium}
+fall into this group.
+
+%When we define the base KEM $\kemScheme_1[H_1\cab H_2\cab H_3\cab H_4]$ via a transform taken from the submission document, and we define the final KEM $\kemScheme_2$ by applying the functors in the reference implementation to $\kemScheme_1$, we can reduce the \INDCCA security of $\kemScheme_2$ from the \INDCCA security of $\kemScheme_1$ via our formalism.
+%This validates the security of the reference implementations. 
+
+%We however make a distinction between these schemes and schemes with clear provable security. Here, the cloning functors are taken from the reference implementations and are often dependent on specific choices of parameters. 
+%These choices may diverge from the submission document, they may vary between implementations, or they may not appear in the submission document at all.
+%All of these ambiguities make it difficult for developers to know which set of parameters provides security and to avoid unknowingly introducing weaknesses by modifying security-critical parameters. 
+
+\heading{Length differentiation.} Many of these schemes use the ``identity" functor in their reference implementations, meaning that they set the final functions $H_1 = H_2 = H_3 = H_4 = F$ for a single base function $F$. 
+If the scheme $\kemScheme_1[H_1,H_2,H_3,H_4]$ never queries two different oracles on inputs of a single length, the  domains of $H_1,\ldots,H_4$ are implicitly separated.
+Reference implementations typically enforce this separation by fixing the input length of every call to $F$. 
+Our formalism calls this query restriction "length differentiation" and proves its security as an oracle cloning method. We also generalize it to all methods which prevent the scheme from querying any two distinct random oracles on a single input. 
+%Concretely, variant implementations with altered parameters or modifications to the schemes' use in different transforms may modify the parameters of the schemes in ways leading the oracles' domains to no longer be disjoint, in which case weaknesses may be introduced unknowingly.
+
+In the following, we discuss two schemes from the group, \pqcnameRoundTwo{ROLLO-II} and \pqcnameRoundOne{Lizard}, where ambiguity about cloning methods between the specification and reference implementation jeopardizes the security of applications using these schemes. It will be important that, like \pqcnameRoundOne{BIG QUAKE} and \pqcnameRoundOne{RoundTwo}, the PKE schemes defined by \pqcnameRoundTwo{ROLLO-II} and \pqcnameRoundOne{Lizard} allow randomness-based decryption. 
+
+
+The scheme \pqcnameRoundTwo{ROLLO-II}
+\cite{nistpqc:ROLLO} defines its base KEM  $\kemScheme_1[H_1,H_2,H_3,H_4]$ using the $\QpkeToKem_5$ transform from Figure~\ref{fig:pqc-kems}. The submission document states that $\aFunc{H}_1$, $\aFunc{H}_2$, $\aFunc{H}_3$, and $\aFunc{H}_4$ are ``typically" instantiated with a single fixed-length hash function~$F$, but does not 
+describe the cloning functors used to do so. 
+If the identity functor is used, so that $H_1 = H_2 = H_3 = H_4 = F$, (or more generally, any functor that sets $H_2=H_3$), an attack is possible.
+In the transform $\QpkeToKem_5$, both $\aFunc{H}_2$ and $\aFunc{H}_3$ are queried on the same input $M$. Then $Y = H_3(M) = F(M) = H_2(M) = R$ leaks the PKE's random coins, so the following attack will allow total key recovery via the randomness-based decryption. 
+\begin{tabbing}
+	123\=123\=\kill
+	\underline{Adversary $\advA[F](\pk,C^*)$} \Comment{Input public key and ciphertext, oracle for $F$} \\[2pt]
+	1. \> $C\|Y\gets C^*$ ; $M\gets \pkeDecR(\pk,C,Y)$ \Comment ($Y=R$ is the coins) \\
+	2. \> $K \gets F(M\concat C \concat Y)$ ; Return $K$
+\end{tabbing}
+%The public key encryption scheme defines two deterministic functions $W$ and $W'$, and defines the ciphertext to be the value $\pkeCiph = (M \xor \aFunc{H}_1(W(R)))\concat W'(R,\pk)$.
+%Since under this instantiation $R = Y$ is published in the KEM ciphertext, the adversary can compute $\aFunc{H}_1(W(R))$ and use it to extract $M$ from the first part of the PKE ciphertext, allowing total key recovery.
+In the reference implementation of \pqcnameRoundTwo{ROLLO-II}, however, $\aFunc{H}_2$ is instantiated using a second, independent function $V$ instead of $F$, which prevents the above attack. 
+Although the random oracles $H_1,H_3$ and $H_4$ are instantiated using the identity functor, they are never queried on the same input thanks to length differentiation.
+As a result, the reference implementation of \pqcnameRoundTwo{ROLLO-II} is provably secure, though alternate implementations could be both compliant with the submission document and completely insecure. 
+The relevant portions of both the specification and the reference implementation were originally found in the corresponding first-round submission (\pqcnameRoundOne{LOCKER}).%, which was one of the contributors to \pqcnameRoundTwo{ROLLO-II} with \pqcnameRoundOne{LAKE} and \pqcnameRoundOne{Rank-Ouroboros}.
+
+\medskip
+
+\pqcnameRoundOne{Lizard}
+\cite{nistpqc:Lizard}
+follows transform~$\QpkeToKem_9$ to produce its base KEM $\kemScheme_1[H_2\cab H_3\cab H_4]$. Its submission document suggests instantiation with a single function $F$ as follows: it sets $H_3 = H_4 = F$, and it sets $H_2 = W \circ F$ for some postprocessing function $W$ whose details are irrelevant here.
+Since, in $\QpkeToKem_9$, $Y = \aFunc{H}_3(M) = F(M)$ and $R = \aFunc{H}_2(M) = W\circ F (M) = W(Y)$, the randomness $R$ will again be leaked through $Y$ in the ciphertext, permitting a key-recovery attack using randomness-based decryption much like the others we have described. This attack is prevented in the reference implementation of \pqcnameRoundOne{Lizard}, which instantiates $H_3$ and $H_4$ using an independent function $G$. The domains of $H_3$ and $H_4$ are separated by length differentiation. This allows us to prove the security of the final KEM $\kemScheme_2[G,F]$, as defined by the reference implementation.
+
+However, the length differentiation of $\aFunc{H}_3$ and $\aFunc{H}_4$ breaks down in the chosen-ciphertext-secure PKE variant specification of \pqcnameRoundOne{Lizard}, which transforms $\kemScheme_1$. The PKE scheme, given a plaintext $P$, chooses a random message $M$, computes $R=H_2(M)$ and $Y=H_3(M)$ according to $\QpkeToKem_9$, but it computes $K = H_4(M)$, then includes the value $B = K \xor P$ as part of the ciphertext $C^*$.
+Both the identity functor and the functor used by the KEM reference implementation set $H_3 = H_4$, so the following attack will extract the plaintext from any ciphertext--
+\begin{tabbing}
+	123\=123\=\kill
+	\underline{Adversary $\advA(\pk,C^*)$} \Comment{Input public key and ciphertext} \\[2pt]
+	1. \> $C\|B\|Y\gets C^*$ \Comment{Parse $C^*$ to get $Y$ and $B = P \xor K$}\\ 
+	2. \> $P\gets Y \xor B$ ; Return $P$ \Comment{$Y = H_3(M) = H_4(M) = K$ is the mask.}
+\end{tabbing}
+
+The reference implementation of the public-key encryption schemes prevents the attack by cloning $\aFunc{H}_3$ and $\aFunc{H}_4$ from $G$ via a third cloning functor, this one using the output splitting method. 
+Yet, the inconsistency in the choice of cloning functors between the specification and both implementations underlines that ad-hoc cloning functors may easily ``get lost'' in modifications or adaptations of a scheme.
+
+\subsection{Submissions with clear provable security}
+Here we place schemes which explicitly discuss their methods for domain separation and follow good practice in their implementations:
+\pqcnameRoundTwo{Classic McEliece}~\cite{nistpqc:ClassicMcEliece},
+\pqcnameRoundTwo{CRYSTALS-Kyber}~\cite{nistpqc:CRYSTALSKyber},
+\pqcnameRoundOne{EMBLEM}~\cite{nistpqc:EMBLEM},
+\pqcnameRoundTwo{FrodoKEM}~\cite{nistpqc:FrodoKEM},
+\pqcnameRoundTwo{HQC}~\cite{nistpqc:HQC},
+\pqcnameRoundOne{LIMA}~\cite{nistpqc:LIMA},
+\pqcnameRoundOne{NTRU-HRSS-\allowbreak{}KEM}~\cite{nistpqc:NTRU-HRSS-KEM},
+\pqcnameRoundTwo{NTRU Prime}~\cite{nistpqc:NTRUPrime},
+\pqcnameRoundTwo{NTS-KEM}~\cite{nistpqc:NTS-KEM},
+\pqcnameRoundTwo{RQC}~\cite{nistpqc:RQC},
+\pqcnameRoundTwo{SIKE}~\cite{nistpqc:SIKE} and
+\pqcnameRoundTwo{ThreeBears}~\cite{nistpqc:ThreeBears}.
+These schemes are careful to account for dependencies between random oracles that are considered to be independent in their security models.
+When choosing to clone multiple random oracles from a single primitive, the schemes in this group use padding bytes, deploy hash functions designed to accommodate domain separation, or restrictions on the length of the inputs which are codified in the specification.
+These explicit domain separation techniques can be cast in the formalism we develop in this work.
+
+% \pqcheading{HQC and RQC}
+\pqcnameRoundTwo{HQC} and \pqcnameRoundTwo{RQC}
+are unique among the PQC KEM schemes in that their specifications warn that the identity functor admits key-recovery attacks. As protection, they recommend that $\aFunc{H}_2$ and $\aFunc{H}_3$ be instantiated with unrelated primitives. %They do not provide an alternative cloning functor, nor discuss how to instantiate $H_4$.
+
+%\heading{The others.}
+%For completeness, we here briefly mention those submissions for \INDCCA KEM schemes which use transforms similar to the ones we discuss, but stand outside our framework.
+%(Another 6 first-round submissions do not target \INDCCA.)
+%\pqcname{KINDI}'s~\cite{nistpqc:KINDI} unique decryption interface returns the ephemeral randomness as well as the message, encapsulating the key in the former rather than the latter.
+%\pqcname{LEDAcrypt}~\cite{nistpqc:LEDAcrypt} uses a Niederreiter~\cite{PCIT:Nieder86}-inspired scheme which uses only one hash function.
+%\pqcname{Lepton}~\cite{nistpqc:Lepton} uses a transformation similar in structure to~$\QpkeToKem_{11}$, but it transforms an IND-CPA KEM scheme.
+%\pqcname{LOTUS}~\cite{nistpqc:LOTUS} uses the Fujisaki--Okamoto transform~\cite{C:FujOka99}, additionally employing a symmetric encryption scheme which we do not capture in our framework.
+%\pqcname{NTRU}~\cite{nistpqc:NTRU}, which builds upon the first-round submission \pqcname{NTRU-HRSS-KEM}, relies on a deterministic public-key encryption scheme, and its model includes only one hash function.
+%\pqcname{QC-MDPC}~\cite{nistpqc:QCMDPC} encrypts a deterministic function of its message and the encryption's randomness, which is outside of our framework for transforms, but otherwise its transformation equals $\QpkeToKem_8$; it also consciously treats domain separation.
+%\pqcname{RLCE}~\cite{nistpqc:RLCE} deviates from Fujisaki--Okamoto-style transforms (and hence our framework) in which the randomness is derived from the same seed as the message.
+%Many of these schemes face the same instantiation hurdles as those in our framework, and have as pressing a need for domain separation when cloning multiple oracles from a single primitive.
+
+\heading{Signatures.}
+Although the main focus of this paper is on domain separation in KEMs, we wish to note that these issues are not unique to KEMs.
+At least one digital signature scheme in the second round of the NIST PQC competition, \pqcnameRoundTwo{MQDSS}~\cite{nistpqc:MQDSS}, models multiple hash functions as independent random oracles in its security proof, then clones them from the same primitive without explicit domain separation.
+We have not analyzed the NIST PQC digital signature schemes' security to see whether more subtle domain separation is present, or whether oracle collisions admit the same vulnerabilities to signature forgery as they do to session key recovery.
+This does, however, highlight that the problem of random oracle cloning is pervasive among more types of cryptographic schemes.% than KEMs in our specific framework.
+
+
+
+
+

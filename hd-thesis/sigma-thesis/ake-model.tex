@@ -1,0 +1,318 @@
+\section{AKE Security Model\fullelse{}{ and Multi-User Building Blocks}}
+\label{sec:ake-model}
+
+We provide our results in a game-based key exchange model formalized in Figure~\ref{fig:AKE-security}, at its core following the seminal work by Bellare and Rogaway~\cite{C:BelRog93} considering an active network adversary that controls all communication (initiating sessions and determining their next inputs through $\Send$ queries) and is able to corrupt long-term secrets ($\RevLongTermKey$) as well as session keys ($\RevSessionKey$).
+The adversary's goal is then to
+(a) distinguish the established shared \emph{session key} in a ``fresh'' (not trivially compromised, captured through a $\Fresh$ predicate) session from a uniformly random key obtained through $\Test$ queries (breaking \emph{key secrecy}),
+or (b) make a session accept without matching communication partner (breaking \emph{explicit authentication}).
+
+Following Cohn-Gordon et al.~\cite{C:CCGJJ19}, we formalize our model in a real-or-random version (following Abdalla, Fouque, and Pointcheval~\cite{PKC:AbdFouPoi05} with added forward secrecy~\cite{SP:AbdBenMac15}) with \emph{many} $\Test$ queries which all answer with a real or uniformly random session key based on the \emph{same} random bit~$b$.
+We focus on the security of the \emph{main} session key established.
+While our proofs (for both \SIGMA and TLS~1.3) establish security of the intermediate encryption and MAC keys, too,
+we do not treat them as first-class keys available to the adversary through $\Test$ and $\RevSessionKey$ queries.
+We expect that our results extend to a multi-stage key exchange (MSKE~\cite{CCS:FisGue14}) treatment
+and refer to the concurrent work by Diemert and Jager~\cite{JC:DieJag20} for tight results for TLS~1.3 in a MSKE model.
+
+In contrast to the work by Cohn-Gordon et al.~\cite{C:CCGJJ19} and Diemert and Jager~\cite{JC:DieJag20}, our model additionally captures explicit authentication through the $\ExplicitAuth$ predicate in Figure~\ref{fig:AKE-security}, ensuring sessions with non-corrupted peer accept with an honest partner session.
+We and~\cite{JC:DieJag20} further treat protocols where the communication partner's identity of a session may be unknown at the outset and only learned during the protocol execution; this setting of ``post-specified peers''~\cite{C:CanKra02} particularly applies to the \SIGMA protocol family~\cite{C:Krawczyk03} as well as TLS~1.3~\cite{rfc8446}.
+
+
+\subsection{Key Exchange Protocols}
+
+\label{sec:ake-syntax}
+We begin by formalizing the syntax of key exchange protocols.
+A key exchange protocol $\KE$ consists of three algorithms~$(\KEKGen\cab \KEActivate\cab \KERun)$
+and an associated key space~$\KEkeyspace$ (where most commonly $\KEkeyspace = \bits^n$ for some $n \in \NN$).
+The key generation algorithm~$\KEKGen() \tor (\pk\cab \sk)$ generates new long-term public/secret key pairs.
+In the security model, we will associate key pairs to distinct \emph{users} (or \emph{parties}) with some identity~$u \in \NN$ running the protocol,
+and log the public long-term keys associated with each user identity in a list $\peerpk$.
+(The adversary will be in control of initializing new users, identified by an increasing counter, and we assume it only references existing user identities.)
+The activation algorithm~$\KEActivate(\id, \sk, \peerid, \peerpk, \role) \tor (\st', m')$ initiates a new session for a given user identity~$\id$ (and associated long-term secret key~$\sk$) acting in a given role~$\role \in \{\initiator\cab \responder\}$ and aiming to communicate with some peer user identity~$\peerid$.
+$\KEActivate$ also takes as input the list $\peerpk$ of all users' public keys; protocols may use this list to look up their own and their peers' public keys. 
+We provide the entire list instead of just the user's and peers' public keys to accommodate protocols with post-specified peer. 
+These protocols may leave $\peerid$ unspecified at the time of session activation; when the peer identity is set at some later point, the list can be used to find the corresponding long-term key. 
+Activation outputs a session state and (if $\role = \initiator$) first protocol message~$m'$, and will be invoked in the security model to create a new session~$\pi_u^i$ at a user~$u$ (where the label~$i$ distinguishes different sessions of the same user).
+Finally, $\KERun(\id, \sk, \st,\peerpk, m) \tor (\st', m')$ delivers the next incoming key exchange message $m$ to the session of user~$\id$ with secret key~$\sk$ and state $\st$, resulting in an updated state~$\st'$ and a response message~$m'$. Like $\KEActivate$, it relies on the list $\peerpk$ to look up its own and its peer's long-term keys. 
+
+The state of each session in a key exchange protocol contains at least the following variables, beyond possibly further, protocol-specific information:
+\begin{description}
+	\setlength{\itemsep}{0.25em} % little more space
+	
+	\item[$\peerid \in \NN$.]
+	Reflects the (intended) partner identity of the session;
+	\fullelse{in protocols with post-specified peers this is learned and set (once) by the session during the protocol execution.}
+	{if post-specified, this is learned and set (once) during protocol execution.}
+	
+	\item[$\role \in \{\initiator,\responder\}$.]
+	The session's role, determined upon activation.
+	
+	\item[$\status \in \{\running,\accepted,\rejected\}$.]
+	The session's status;
+	initially $\status = \running$,
+	a session accepts when it switches to $\status = \accepted$ (once).
+	
+	\item[$\skey \in \KEkeyspace$.]
+	The derived session key (in\fullonly{ the protocol-specific key space~}$\KEkeyspace$), set upon acceptance.
+	
+	\item[$\sid$.]
+	The session identifier used to define partnered session in the security model;
+	initially unset, $\sid$ is determined (once) during protocol execution.
+\end{description}
+
+
+\subsection{Key Exchange Security}
+
+
+We formalize our key exchange security game~$G^{\KESEC}_{\KE,\advA}$ in Figure~\ref{fig:AKE-security},
+based on the concepts introduced above in Figure~\ref{fig:AKE-security}
+and following the framework for code-based game playing by Bellare and Rogaway~\cite{EC:BelRog06}.
+After initializing the game, %generating public/secret keys for~$n$ users,
+the adversary~$\advA$ is given access to queries
+$\NewUser$ (generating a new user's public/secret key pair),
+$\Send$ (controlling activation and message processing of sessions),
+$\RevSessionKey$ (revealing session keys),
+$\RevLongTermKey$ (corrupting user's long-term secrets),
+and~$\Test$ (providing challenge real-or-random session keys),
+as well as a $\Finalize$ query to which it will submit its guess~$b'$ for the challenge bit~$b$, ending the game.
+\begin{figure}[tp]
+	\begin{minipage}[t]{0.5\textwidth}
+		\NewExperiment[$G^{\KESEC}_{\KE,\advA}$]
+		
+		\begin{oracle}{$\Initialize$}
+			\item $\time \gets 0$; $\users \gets 0$
+			\item $b \getsr \bits$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\NewUser$}
+			\item $\users \gets \users + 1$
+			\item $(pk_\users, sk_\users) \getsr \KEKGen()$
+			\item $\revltk_\users \gets \infty$
+			\item $\peerpk[\users] \gets \pk_{\users}$
+			\item return $pk_\users$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Send(u, i, m)$}
+			\item if $\pi_u^i = \bot$ then
+			\item \hindent $(\peerid,\role) \gets m$
+			\item \hindent $(\pi_u^i, m') \getsr \KEActivate(u\cab \sk_u\cab \peerid\cab \peerpk\cab \role)$
+			\item \hindent $\pi_u^i.\taccepted \gets 0$
+			
+			\item else
+			\item \hindent $(\pi_u^i, m') \getsr \KERun(u, \sk_u, \pi_u^i, \peerpk, m)$
+			
+			\item if $\pi_u^i.\status = \accepted$ then
+			\item \hindent $\time \gets \time + 1$
+			\item \hindent $\pi_u^i.\taccepted \gets \time$
+			
+			\item return $m'$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\RevSessionKey(u, i)$}
+			\item if $\pi_u^i = \bot$ or $\pi_u^i.\status \neq \accepted$ then
+			\item \hindent return $\bot$
+			
+			\item $\pi_u^i.\revealed \gets \true$
+			\item return $\pi_u^i.\skey$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\RevLongTermKey(u)$}
+			\item $\time \gets \time + 1$
+			\item $\revltk_u \gets \time$
+			\item return $sk_u$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Test(u, i)$}
+			\item if $\pi_u^i = \bot$ or $\pi_u^i.\status \neq \accepted$ or $\pi_u^i.\tested$ then
+			\item \hindent return $\bot$
+			
+			\item $\pi_u^i.\tested \gets \true$
+			
+			\item $T \gets T \cup \{\pi_u^i\}$
+			\item $k_0 \gets \pi_u^i.\skey$
+			\item $k_1 \sample \KEkeyspace$
+			\item return $k_b$
+		\end{oracle}
+	\end{minipage}
+	\begin{minipage}[t]{0.49\textwidth}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(b')$}
+			\item if $\neg \Sound$ then
+			\iffull\item \hindent\fi return $1$
+			
+			\item if $\neg \ExplicitAuth$ then
+			\iffull\item \hindent\fi return $1$
+			
+			\item if $\neg \Fresh$ then
+			\iffull\item \hindent\fi $b' \gets 0$
+			
+			\item return $[[b = b']]$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{algorithm}{$\Sound$}
+			%%% no triple sid match
+			\item if $\exists$ distinct $\pi_u^i$, $\pi_v^j$, $\pi_w^k$ with $\pi_u^i.\sid = \pi_v^j.\sid = \pi_w^k.\sid$ then
+			\comment{no triple sid match}
+			\item \hindent return $\false$
+			
+			%%% same sid ==> same key
+			\item if $\exists \pi_u^i, \pi_v^j$ with \newline
+				\null\hindent $\pi_u^i.\status = \pi_v^j.\status = \accepted$ \newline
+				\null\hindent and $\pi_u^i.\sid = \pi_v^j.\sid$ \newline
+				\null\hindent and $\pi_u^i.\peerid = v$ and $\pi_v^j.\peerid = u$ \newline
+				\null\hindent and $\pi_u^i.\role \neq \pi_v^j.\role$, but $\pi_u^i.\skey \neq \pi_v^j.\skey$ then  \comment{partnering implies same key}
+			\item \hindent return $\false$
+			
+			\item return $\true$
+		\end{algorithm}
+		
+		\ExptSepSpace
+		
+		\begin{algorithm}{$\ExplicitAuth$}
+			\item return \newline
+			\null \hindent  $\forall \pi_u^i : \pi_u^i.\status = \accepted$ \newline 
+			\null \hindent \hindent \hindent \hindent and $\pi_u^i.\taccepted < \revltk_{\pi_u^i.\peerid}$ \newline \comment{all sessions accepting with a non-corrupted peer \dots} \newline
+			\null\hindent \hindent  $\implies \exists \pi_v^j : \pi_u^i.\peerid = v$ \newline
+			\null \hindent \hindent \hphantom{$\implies$} and $\pi_u^i.\sid = \pi_v^j.\sid$ \newline
+			\null \hindent \hindent \hphantom{$\implies$} and $\pi_u^i.\role \neq \pi_v^j.\role$
+			\newline 	\comment{\dots\ have a partnered session \dots} \newline
+			\null \hindent \hphantom{$\implies$} and $(\pi_v^j.\status = \accepted \!\implies\! \pi_v^j.\peerid = u)$
+				\comment{\dots\ agreeing on the peerid (upon acceptance)}
+		\end{algorithm}
+		
+		\ExptSepSpace
+		
+		\begin{algorithm}{$\Fresh$}
+			\item for each $\pi_u^i \in T$
+			\item \hindent if $\pi_u^i.\revealed$ then
+			\item \hindent \hindent return $\false$
+			\comment{tested session may not be revealed}
+			
+			\item \hindent if $\exists \pi_v^j \neq \pi_u^i : \pi_v^j.sid = \pi_u^i.sid$ 
+			\newline \null \hindent \hindent and ($\pi_v^j.\tested$ or $\pi_v^j.\revealed$) then
+			\item \hindent \hindent return $\false$
+			\comment{tested session's partnered session may not be tested or revealed}
+			
+			\item \hindent if $\revltk_{\pi_u^i.\peerid} < \pi_u^i.\taccepted$ then
+			\item \hindent \hindent return $\false$
+			\comment{tested session's peer may not be corrupted prior to acceptance}
+			
+			\item return $\true$
+		\end{algorithm}
+	\end{minipage}
+	
+	\caption{%
+		Key exchange security game.
+	}
+	\label{fig:AKE-security}
+\end{figure}
+
+The game~$G^{\KESEC}_{\KE,\advA}$ then (in $\Finalize$) determines whether~$\advA$ was successful through the following three predicates,
+formalized in pseudocode in Figure~\ref{fig:AKE-security}:
+\iffull
+\begin{description}
+	\setlength{\itemsep}{0.5em} % little more space
+	
+	\item[$\Sound$.]
+	The soundness predicate~$\Sound$ checks that (a) no three session identifiers collide (hence the session identifier properly serves to identify two partnered sessions).
+	Furthermore, it ensures that (b) accepted sessions with the same session identifier, agreeing partner identities, and distinct roles derive the same session key.
+	\iffull
+	The adversary breaks soundness if it violates either of these properties.
+	\fi
+	
+	\item[$\ExplicitAuth$.]
+	The predicate~$\ExplicitAuth$ captures explicit authentication in that it requires that for any session of some user~$\id$ that accepted while its partner~$\peerid$ was not corrupted (captured through logging relative acceptance time~$\taccepted$ and long-term reveal time~$\revltk_{\peerid}$) has
+	(a) a partnered session run by the intended peer identity and in an opposite role,
+	and (b) if that partnered session accepts, it will do so with peer identity~$\id$.
+	\iffull
+	The adversary breaks explicit authentication if this predicate evaluates to false.
+	\fi
+	
+	\item[$\Fresh$.]
+	Finally, to capture key secrecy, we have to restrict the adversary to testing only so-called \emph{fresh} sessions in order to exclude trivial attacks, which the freshness predicate~$\Fresh$ ensures.
+	A tested session is non-fresh, if
+	(a) its session key has been revealed (in which case~$\advA$ knows the real key),
+	(b) its partnered session (through~$\sid$) has been revealed or tested (in which case~$\advA$ knows the real key or may see two different random keys),
+	or (c) its intended peer identity was compromised prior to accepting (in which case~$\advA$ may fully control the communication partner).
+	\iffull
+	If the adversary violates freshness, we invalidate its guess by overwriting~$b' \gets 0$.
+	\fi
+\end{description}
+\else
+$\Sound$ ensures session identifiers are set in a sound manner (non-colliding, ensuring agreement on session keys).
+$\ExplicitAuth$ encodes explicit authentication, requiring that accepted sessions agree on the intended peer (if non-corrupted).
+Finally, to capture key secrecy, we have to restrict the adversary to testing only \emph{fresh} (i.e., not trivially compromised) sessions in order to exclude trivial attacks; this is ensured through~$\Fresh$.
+\fi
+
+We call two distinct sessions~$\pi_u^i$ and~$\pi_v^j$ \emph{partnered} if $\pi_u^i.\sid = \pi_v^j.\sid$.
+We refer to sessions generated by $\KEActivate$ (i.e., controlled by the game) as \emph{honest} sessions
+to reflect that their behavior is determined honestly by the game and not the adversary.
+The long-term key of an honest session may still be corrupted, or its session key may be revealed without affecting this notion of ``honesty''.
+
+%%% old, non-parameterized version
+% {\color{gray}
+% \begin{definition}[Key exchange security]
+% 	Let $\KE$ be a key exchange protocol
+% 	and $\advA$ an adversary interacting in the key exchange security game~$G^{\KESEC}_{\KE,\advA}$ defined in Figure~\ref{fig:AKE-security}.
+% 	We call $\KE$ secure in our model if the advantage
+% 	\[
+% 		\Adv^{\KESEC}_{\KE,\advA} := 2 \cdot \Pr \left[ \Gm^{\KESEC}_{\KE,\advA} \Rightarrow 1 \right] - 1
+% 	\]
+% 	of winning the game is small.
+% \end{definition}
+% }
+
+\begin{definition}[Key exchange security]
+	\label{def:KE-security}
+	Let $\KE$ be a key exchange protocol and~$G^{\KESEC}_{\KE,\advA}$ be the key exchange security game defined in Figure~\ref{fig:AKE-security}.
+	We define
+	\[
+		\Adv^{\KESEC}_{\KE}(t, \qNewUser, \qSend, \qRevSessionKey, \qRevLongTermKey, \qTest) := 2 \cdot \max_\advA \Pr \left[ \Gm^{\KESEC}_{\KE,\advA} \Rightarrow 1 \right] - 1,
+	\]
+	where the maximum is taken over all adversaries, denoted \emph{$(t, \qNewUser, \qSend, \qRevSessionKey, \qRevLongTermKey, \qTest)$-$\KESEC$-adversaries}, running in time at most~$t$ and making at most $\qNewUser$, $\qSend$, $\qRevSessionKey$, $\qRevLongTermKey$, resp.\ $\qTest$ queries to their oracles $\NewUser$, $\Send$, $\RevSessionKey$, $\RevLongTermKey$, resp.\ $\Test$.
+\end{definition}
+
+
+\subsection{Security Properties}
+
+Let us briefly revisit some core security properties captured in our key exchange security model.
+
+First, we capture regular \emph{key secrecy} of the main session key through $\Test$ queries, incorporating \emph{forward secrecy} (sometimes called ``perfect'' forward secrecy) by allowing the adversary to corrupt any user as long as all tested sessions accept prior to corrupting their respective intended peer.
+This strengthens our model compared to that of Cohn-Gordon et al.~\cite{C:CCGJJ19} which only captures weak forward secrecy where the adversary has to be passive in sessions where it corrupts long-term secrets.
+Diemert and Jager~\cite{JC:DieJag20} additionally treat the security of intermediate keys and further secrets beyond the main session key in a multi-stage approach~\cite{CCS:FisGue14}, but without capturing explicit authentication.
+
+Our model encodes \emph{explicit authentication} (via $\ExplicitAuth$), a strengthening compared to the implicit-authentication model in~\cite{C:CCGJJ19}.
+
+Like~\cite{C:CCGJJ19,JC:DieJag20}, our model captures \emph{key-compromise impersonation} attacks by allowing the session owner's secret key of tested sessions to be corrupted at any point in time.
+Similarly, we do \emph{not} capture \emph{session-state or randomness reveals}~\cite{EC:CanKra01,PROVSEC:LaMLauMit07} or \emph{post-compromise security}~\cite{CSF:CohCreGar16}.
+
+
+
+% \TODO{%
+% To include in intro of model/discussion:
+% \begin{itemize}
+% 	\item BR93-like model~\cite{C:BelRog93} in terms of active adversary, able to corrupt long-term secrets and session keys; we don't consider session state or randomness reveal like in CK/eCK models~\cite{EC:CanKra01,PROVSEC:LaMLauMit07}
+% 	\item like \cite{C:CCGJJ19} we adopt a real-or-random definition from~\cite{PKC:AbdFouPoi05} with forward secrecy~\cite{SP:AbdBenMac15}, allowing multiple $\Test$ queries all answered based on the same challenge bit~$b$
+% 	\item extending the work of Cohn-Gordon~\cite{C:CCGJJ19} that was restricted to implicitly authenticated key exchange, our model however consideres \emph{explicitly authenticated} key exchange protocols
+% 	\item (similar to \cite{C:CCGJJ19} paper:) describe concepts of sessions and their state (variables)
+% 	\item KE definition
+% 	\item define partnering / matching
+% 	\item describe attacker model and oracles in Figure~\ref{fig:AKE-security}
+% 	\item KE security definition
+% 	\item discussion of the model: repeat real-or-random, multiple test queries, describe purpose of $\Sound$, $\ExplicitAuth$, and $\Fresh$; we do regular (``sometimes called `perfect' '') forward secrecy in constrast to only weak fs in \cite{C:CCGJJ19}; like them also capture key compromise impersonation 
+% \end{itemize}
+% }
+
+

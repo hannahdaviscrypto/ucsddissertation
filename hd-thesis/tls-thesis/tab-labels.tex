@@ -1,0 +1,26 @@
+\begin{table}[htp]
+	\centering
+	\setlength{\tabcolsep}{4pt}
+	\renewcommand{\arraystretch}{1.1}
+	\begin{tabular}{@{}ll@{\qquad}ll@{}}
+		\toprule
+		\textbf{Value} & \textbf{Label}                                                  & \textbf{Value}                   & \textbf{Label}                        \\ \midrule
+		$\des$         & $\labelDerived = \labelDerivedText$                             & $\chtk$ &    $\labelk = \labelkText$ \& $\labeliv= \labelivText$                         \\
+		$\bk$          & $\labelExtBinder = \labelExtBinderText$ / $\labelResBinderText$ & $\shtk$                          & $\labelk = \labelkText$ \& $\labeliv= \labelivText$                                    \\
+		$\bfk$         & $\labelFinished = \labelFinishedText$                           & $\sfk$                           & $\labelFinished = \labelFinishedText$ \\
+		$\ets$         & $\labelETS = \labelETSText$                                     & $\cats$                          & $\labelClientATS = \labelClientATSText$         \\
+		$\eems$        & $\labelEEMS = \labelEEMSText$                                   & $\sats$                          & $\labelServerATS = \labelServerATSText$         \\
+		$\chts$        & $\labelClientHTS = \labelClientHTSText$                                   & $\ems$                           & $\labelEMS = \labelEMSText$           \\
+		$\shts$        & $\labelServerHTS = \labelServerHTSText$                                   & $\cfk$                           & $\labelFinished = \labelFinishedText$ \\
+		$\dhs$         & $\labelDerived = \labelDerivedText$                             & $\rms$                           & $\labelRMS = \labelRMSText$           \\ \bottomrule
+	\end{tabular}
+	\medskip
+	\caption{%
+		Definitions of the short labels used in \autoref{fig:tls-handshake}.
+		We simplify the labeling of $\abstractExpand$ in our presentation.
+		In the specification each $\abstractExpand$ is not only labeled by $\labelsym \concat H$ for some label $\labelsym$ and some hash $H$,
+		but it is prefixed by the output length of the respecitive $\abstractExpand$ call and the constant label ``$\labelfont{tls13 }$''.
+		As the output length for all of the above calls is equal (namely, the output length $\hashlen$ of $\abstractHash$), we leave this constant prefix out to reduce complexity.
+		}
+	\label{tab:labels}
+\end{table}

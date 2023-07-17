@@ -1,0 +1,176 @@
+\section{Evaluation Details}
+\label{apx:evaluation}
+
+\subsection{Fully-quantitative CK \SIGMA Bound}
+\label{apx:evaluation:CK-bound}
+
+Recall our security bound for \SIGMA/\SIGMAI from Theorem~\ref{thm:SIGMAI}:
+%\SIGMABound
+{\color{red}\textbf{ADDTHISBACKIN}}
+
+Comparing this bound%
+to the original security proof for \SIGMA by Canetti and Krawczyk~\cite{C:CanKra02} (CK) faces two complications.
+First, we must reconstruct a concrete security bound from the CK proof, which merely refers to the decisional Diffie--Hellman and ``standard security notions'' for digital signatures, MACs, and PRFs (i.e., single-user $\EUFCMA$ and PRF security).
+Second, the CK result is given in a stronger security model for key exchange~\cite{EC:CanKra01} which allows state-reveal attacks.
+%(Technically, the models are incomparable due to specifying a single (CK) vs.\ multiple (ours) $\Test$ queries and our model capturing key-compromise impersonation attacks, but we expect the CK-model results could be likewise extended.%
+% \fg{Do multi-$\Test$s mean that there'd be a factor for $\DDH$ in the number $\Test$ queries??}
+% \fg{Actually, the SIGMA proof defines ``initiator $I_0$'' being corrupted as bad event, as both initiator or responder session can be tested; removing this probably requires further guessing, but only a factor~2?}
+%)
+Further, the CK proof assumes out-of-band unique session identifiers, whereas protocols in practice have to establish those from, e.g., nonces (introducing a corresponding collision bound as in our analysis).
+We are therefore inherently constrained to compare qualitatively different security properties here.
+
+Let us informally consider a game-based definition of the CK model~\cite{EC:CanKra01} in the same style as our AKE model (cf.\ Definition~\ref{def:KE-security}), capturing the same oracles plus an additional state-reveal oracle, with $\qRevState$ denoting the number of queries to this oracle, and session identifiers that, like ours, consist of the session and peers' nonces and DH shares.
+Translating the \SIGMAI security proof from~\cite[Theorem~6 in the full version]{C:CanKra02}, we obtained the following concrete security bound:
+
+\begin{align*}
+	\Adv&^{\text{CK}}_{\mSIGMAI}(t, \qNewUser, \qSend, \qRevSessionKey, \qRevLongTermKey, \qRevState, \qTest)\\
+		\leq
+		&~ \frac{2 \qSend^2}{2^{\nl}\cdot p}				%%% session identifiers		
+		+ \Adv^{\muEUFCMA}_{\SIGScheme}(t_{\advB_1}, \qNewUser, \qSend,\qSend, \qRevLongTermKey)
+			\qquad \text{\comment{sid collision \& property~P1}}\\	%%% property P1
+		&+ \qNewUser \cdot \qSend \cdot \Big(
+		\Adv^{\DDH}_{\group}(t_{\advB_2})				% Lemma 8 (and 10, 12)
+		+ \Adv^{\muPRFSEC}_{\PRF}(t_{\advB_5}, 1, 3)			% Lemma 15 (and 11)
+			\qquad \text{\comment{property~P2 \dots}} \\		%%% property P2
+		&+ (\qNewUser + 1) \cdot \Adv^{\muEUFCMA}_{\SIGScheme}(t_{\advB_3}, 1, \qSend,\qSend, 0)	% Lemma 7
+		+ \Adv^{\muEUFCMA}_{\MACScheme}(t_{\advB_4}, 1, 2,2,2, 2, 0)	% Lemma 11
+		\Big),
+\end{align*}
+where
+	$\nl$ is the nonce length,
+	$\group$ the used Diffie--Hellman group of prime order~$p$,
+	the number of test queries is restricted to~$\qTest = 1$,
+	and $\advB_i$ (for $i = 1,\dots,5$) are the described reductions for property~P1 and~P2 in \cite[Theorem~6 in the full version]{C:CanKra02} all running in time $t_{\advB_i} \approx t$.
+For simplicity, we present the above bound in terms of ``multi-user'' PRF, signature, and MAC advantages for a single user $\qNew = 1$, which are equivalent to the corresponding single-user advantages  (cf.\ Section~\ref{sec:components}).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% fg:: Notes on reconstructing the SIGMA bound from \cite[Theorem~6 (full version)]{C:CanKra02}
+% 
+% Property P1: uncorrupted signature forgery --> mu-EUF-CMA_Sig(t, #users, #sessions, #corrupts)  // or guessing * single-user
+% 
+% Property P2:
+%  - initial guessing of receiver identity and test session (cf. Remark 3)
+%    --> factor #users * #sessions
+%  
+%  - Lemma 7: two reductions to signature forgery (for already guessed responder identity R_0, and initiator identity I_0 -- which I think would need to be guessed here?!)
+%    --> (#users + 1) * mu-EUF-CMA(t, q_New = 1, q_Sign = #sessions, q_Corrupt = 0)
+%  
+%  - Lemma 8: DDH reduction (for already guessed session + uniquely determined responder)
+%    --> DDH(t)
+%  
+%  - Lemma 9: (repeating the #user * #session bound)
+%  - Lemma 10: (repeating Lemma 8, I assume this could be merged into one step)
+%  
+%  - Lemma 11: MAC forgery or PRF distinguishing (for the s_0 session on both sides, using k_1 (for max. two tags) resp. k (for three key derivations of k_0, k_1, k_2))
+%    --> mu-EUF-CMA(t, q_New = 1, q_Tag = 2, q_Verify = 2 ??, q_Corrupt = 0)
+%    --> mu-PRF(t, q_New = 1, q_Fn = 2)
+%  
+%  - Lemma 12: (repeating Lemma 8, I assume this could be merged into one step)
+%  - Lemma 13: -- no loss --
+%  - Lemma 14: -- no loss --
+%  - Lemma 15: (repeating, but more explictily, Lemma 11 PRF security, I assume this could be merged into one step)
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%\paragraph{Simplifying the bounds}
+%
+%For a more focused analysis in practical terms, let us simplify the (difference between the) two security bounds for \SIGMAI as follows:
+%\begin{itemize}
+%	\item $\Adv^{\muPRFSEC}_{\PRF}(t, \qSend, c \cdot \qSend) \approx \qSend \cdot \Adv^{\muPRFSEC}_{\PRF}(t, 1, c)$\\
+%	This holds via a hybrid argument over the number of sessions, given that each session involves at most~$c$ PRF evaluations ($c = 3$ in the case of \SIGMAI).
+%	
+%	\medskip
+%	
+%	\item $\Adv^{\muEUFCMA}_{\SIGScheme}(t, \qNewUser, \qSend, \qRevLongTermKey) \approx \qNewUser \cdot \Adv^{\muEUFCMA}_{\SIGScheme}(t, 1, \qSend, 0)$\\
+%	This holds via a hybrid argument over the number of users.
+%	
+%	\medskip
+%	
+%	\item $\Adv^{\muEUFCMA}_{\MACScheme}(t, \qSend, \qSend, \qSend, 0) \approx \qSend \cdot \Adv^{\muEUFCMA}_{\MACScheme}(t_{\advB_4}, 1, 2, 2, 0)$\\
+%	This holds via a hybrid over the number of sessions, given that each two matching sessions compute and verify at most~$2$ MAC tags each.
+%	
+%	\medskip
+%	
+%	\item We assume, in favor of the bound in~\cite{C:CanKra02}, that the quadratic loss~$\qNewUser^2$ resulting from guessing both initiator and responder identities in the signature-forgery reduction can be optimized to a linear loss.
+%\end{itemize}
+
+%Based on these simplifications, ignoring small constant factors, and simplifying the minimal running time differences to one fixed value~$t$, the difference between $\Adv^{\KESEC}_{\mSIGMAI}(t\cab \qNewUser\cab \qSend\cab \qRevSessionKey\cab \qRevLongTermKey\cab \qTest)$ and $\Adv^{\text{CK~\cite{EC:CanKra01}}}_{\mSIGMAI}(t\cab \qNewUser\cab \qSend\cab \qRevSessionKey\cab \qRevLongTermKey\cab \qRevState\cab \qTest)$ amounts to:
+%\begin{align*}
+%	\Big|
+%	%%% our bound
+%	&\overbrace{%
+%	\Big(
+%		\tfrac{\qSend^2}{2q}
+%		+ \Adv^{\strongDH}_{\group}(t+2\qRO\log_p, \qRO)
+%	\Big)
+%	}^{\text{Our bound}}
+%	%%% CK bound:
+%	&&-
+%		\overbrace{%
+%	\Big(
+%		\qNewUser \qSend \cdot \Adv^{\DDH}_{\group}(t)
+%		\hspace*{3cm}
+%		}^{\text{CK bound~\cite{EC:CanKra01}}}
+%		\\&&&\hphantom{- \Big(}
+%		+ \qNewUser \cdot \Adv^{\muPRFSEC}_{\PRF}(t, \qSend, 3 \qSend)
+%		\\&&&\hphantom{- \Big(}
+%		+ \qSend \cdot \Adv^{\muEUFCMA}_{\SIGScheme}(t, \qNewUser, \qSend, \qRevLongTermKey)
+%		\\&&&\hphantom{- \Big(}
+%		+ \qNewUser \cdot \Adv^{\muEUFCMA}_{\MACScheme}(t, \qSend, \qSend, \qSend, 0)
+%	\Big)
+%	\Big|
+%\end{align*}
+
+
+
+\subsection{Fully-quantitative DFGS TLS~1.3 Bound}
+
+\label{apx:evaluation:DFGS-bound}
+
+%
+Recall our security bound for TLS~1.3 from Theorem~\ref{thm:tls}:
+%\TLSBound
+{\color{red}\textbf{ADDTHISBACKIN}}
+We compare this bound
+with the bound of Dowling et al.~\cite{JC:DFGS21} (DFGS).
+Note that this bound is established in a multi-stage key exchange model~\cite{CCS:FisGue14}, here we focus only on the main application key derivation, as in our proof.
+The DFGS bound needs instantiation through the random oracle only in one step (the PRF-ODH assumption on $\HKDF.\Extract$) while other $\PRF$ steps remain in the standard model.
+Our proof instead models both $\HKDF.\Extract$ and $\HKDF.\Expand$ as random oracles.
+Translating the bound from~\cite[Theorems~5.1, 5.2]{JC:DFGS21} yields:
+	\begin{align*}
+		\Adv&^{\text{DFGS}}_{\mTLS}(t, \qNewUser, \qSend, \qRevSessionKey, \qRevLongTermKey, \qTest)\\
+			&\leq 			
+			\frac{\qSend^2}{2^{\nl} \cdot p}			% Match security bound
+			+			
+			\qSend \cdot						% Game 1 (guess Test session)
+			\bigg(
+				\Adv^{\COLL}_{\Hash}(t_{\advB_1})				% Game 2 (rule out hash collisions)
+			% test without partner
+				+ \qNewUser \cdot \Adv^{\muEUFCMA}_{\SIGScheme}(t_{\advB_2}, 1, \qSend,\qSend, 0)	% Game A.1 (sig forgery in Test session)
+			% test with partner
+			\\&~
+				+ \qSend \cdot \Big(				% Game B.1 (guess partner)
+				\Adv^{\notionstyle{dual{\minus}snPRF{\minus}ODH}}_{\HKDF.\Extract,\group}(t_{\advB_3})		% Game B.2 (replace HS=HandshakeSecret with random)
+				+ \Adv^{\muPRFSEC}_{\HKDF.\Expand}(t_{\advB_4}, 1, 3,3,0)	% Game B.3 (PRF with random HS -> random function, 3 keys derived: CHTS, SHTS, dHS)
+			\\&~
+				+ 2 \cdot \Adv^{\muPRFSEC}_{\HKDF.\Expand}(t_{\advB_5}, 1, 2,2,0)	% Game B.4 (PRF with random CHTS, SHTS -> random function, 2 keys derived each: tk_c/shs, fk_c/s)
+				+ \Adv^{\muPRFSEC}_{\HKDF.\Extract}(t_{\advB_6}, 1, 1,1,0)		% Game B.5 (PRF with random dHS -> random function, 1 key derived: MS=MasterSecret)
+			\\&~
+				+ \Adv^{\muPRFSEC}_{\HKDF.\Expand}(t_{\advB_7}, 1, 1,1,0)		% Game B.6 (PRF with random MS -> random function, 1 key derived: ATS [MSKE proof considers four derived keys, but consistent with our model is one key])
+				\Big)
+			\bigg).
+	\end{align*}
+
+Let us further unpack the PRF-ODH term.
+Following Brendel et al.~\cite{C:BFGJ17}, it can be reduced to the strong Diffie--Hellman assumption modeling $\HKDF.\Extract$ as a random oracle.%
+\footnote{The same paper suggests that a standard-model instantiation of the PRF-ODH assumption via an algebraic black-box reduction to common cryptographic problems is implausible.}
+In this reduction, the single DH oracle query is checked against each random oracle query via the strong-DH oracle, hence establishing the following bound:
+\shortlongeqn[.]{
+	\Adv^{\notionstyle{dual{\minus}snPRF{\minus}ODH}}_{\RO,\group}(t_{\advB_3}, \qRO)
+	\leq \Adv^{\strongDH}_{\group}(t_{\advB_3}, \qRO)
+}\
+
+%% flush tables
+% \clearpage

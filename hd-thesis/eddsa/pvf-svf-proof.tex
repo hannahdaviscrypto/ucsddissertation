@@ -1,0 +1,134 @@
+
+\section{Proof of Theorem~\ref{th-pvf-svf}}\label{sec-pvf-svf}
+
+\begin{proof}
+	
+	We prove Theorem~\ref{th-pvf-svf} by constructing adversary $\advA_1$ given $\advA_2$.  $\advA_1$ is an adversary attacking the uf-cma security of $\DS_1= \SchSig[\SKS,\sVF]$, while $\advA_2$ is an adversary attacking the uf-cma security of $\DS_2= \SchSig[\SKS,\pVF]$. The strict verification algorithm $\sVF$ for $\DS_1$ and the permissive one $\pVF$ for  $\DS_2$ are shown in Figure~\ref{fig:VFs}. The other algorithms defined for $\DS_1$ and $\DS_2$ are specified in Section~\ref{sec-schemes} by the $\SchSig$ family.
+	
+	We give pseudocode for our adversary $\advA_1$ in Figure~\ref{fig:A1}. $\advA_1$ is given the public key $\pk$ and access to random oracle $\HASH$ through $\eHASH$ and signing oracle $\SignOO$. Recall that $\HASH$ accessed by $\eHASH$ and $\iHASH$ is the same in this classical UF-CMA setting. $\advA_1$ simulates the UF-CMA game for $\advA_2$. We refer to the oracles in the simulated game as $\eHASH_2$ and $\SignO_2$ in order to distinguish them from $\advA_1$'s own UF-CMA oracles. Our adversary maintains two look up tables: $HT$ to cache random oracle queries and responses, and $T$ to store query-specific internal state.
+	
+	$\advA_1$'s high-level strategy is to forward all queries to $\SignO_2$ to its own $\SignO$ oracles. It handles random oracle queries of the form $(\pk, \curvepoint{R}, \msg)$ differently depending on whether $\curvepoint{R}$ is an element of the subgroup $\G_\Prime$. If $\curvepoint{R}$ is in $\G_\Prime$, $\advA_1$ forwards the query to its own random oracle $\eHASH$. If $\curvepoint{R}$ is not in $\G_\Prime$, $\advA_1$ randomizes $\curvepoint{R}$ and projects it onto $\G_\Prime$ before forwarding the query. $\advA_1$ stores the randomizer $D$ and its discrete log $x$ in a table $T$ for later use. When $\advA_2$ submits a message $\msg$ and a forgery $(\curvepoint{R}, z)$, $\advA_1$ checks again whether $\curvepoint{R}$ is in $\G_\Prime$. If it is, then $(\curvepoint{R}, z)$ is a forgery on $\msg$ under $\DS_1$. Otherwise, $\advA_1$ can compute a forgery on $\msg$ under $\DS_1$ using the stored values $D$ and $x$, which will pass the strict verification.
+	%It also forwards $\HASH_2$ queries $(\curvepoint{R}, \vk, \msg)$ for which $\curvepoint{R}$ is in the prime-order subgroup $\group_{\Prime}$. When $\curvepoint{R}$ lies outside this subgroup, $\advA_1$ replaces it with a random element $2^\cofactor\curvepoint{R}+\curvepoint{D} \in \group_{\Prime}$. If $\advA_2$ generates a valid forgery in which $\curvepoint{R}$ is not in $\group_{\Prime}$, our adversary uses the discrete logarithm of $\curvepoint{D}$ to produce a forgery containing $2^\cofactor\curvepoint{R}+\curvepoint{D}$, which passes strict verification. 
+	
+	We will show that except with some small probability, our adversary $\advA_1$ simulates the uf-cma game of $\DS_2$ perfectly. We will then show that if $\advA_2$ wins the simulated game, then $\advA_1$ will win its own uf-cma game. We first show this for a simplified version of $\advA_2$ that makes no $\SignO_2$ queries, then generalize to arbitrary $\advA_2$. 
+	
+	When $\advA_2$ makes no queries to $\SignO_2$, how well does $\advA_1$ simulate the UF-CMA game for $\DS_2$? The public key $\pk$ is generated honestly by the UF-CMA game for $\DS_1$, so the simulation can only fail when outputs from $\eHASH_2UFCMASim$ are distributed differently than those of a real random oracle. Consider two distinct queries to $\eHASH_2UFCMASim$: $(\pk, \curvepoint{R}_1, \msg_1)$ and $(\pk, \curvepoint{R}_2, \msg_2)$. A random oracle would generate uniformly random independent response to each of these two queries. $\eHASH_2UFCMASim$ also selects independently random responses, except when the two distinct queries cause $\eHASH$ to be queried on identical inputs. We will call this event $F$. 
+	
+	The query to $\eHASH$ is either $\curvepoint{R}\|\pk\|\msg$ or $(2^\cofactor\curvepoint{R} + \curvepoint{D})\|\pk\|\msg$. When event $F$ occurs, two distinct queries must match on the messages, so we let $\msg_1 = \msg_2 = \msg$. The possible values of $\curvepoint{R}_1$ and $\curvepoint{R}_2$ fall into three cases. The first case is that $\curvepoint{R}_1$ and $\curvepoint{R}_2$ are both in $\G_\Prime$. In this case, $\eHASH$ is queried on $\curvepoint{R}_1\|\pk\|\msg$ and $\curvepoint{R}_2\|\pk\|\msg$ which are different since $\curvepoint{R}_1 \neq \curvepoint{R}_2$. Therefore, event $F$ cannot happen in case 1. 
+	
+	Case 2 is when neither $\curvepoint{R_1}$ nor $\curvepoint{R_2}$ are  in $\group_{\Prime}$. The inputs to $\eHASH$ are $(2^\cofactor\curvepoint{R_1} + \curvepoint{D_1})\|\pk\|\msg$, 
+	$(2^\cofactor\curvepoint{R_2} + \curvepoint{D_2})\|\pk\|\msg$, respectively, and the randomizers $\curvepoint{D_1}$ and $\curvepoint{D_2}$ are computed for each of them. In this situation, the inputs to $\eHASH$ collide when $(2^\cofactor\curvepoint{R_1} + \curvepoint{D_1}) = (2^\cofactor\curvepoint{R_2} + \curvepoint{D_2})$. $(2^\cofactor\curvepoint{R_1} + \curvepoint{D_1})$ and $(2^\cofactor\curvepoint{R_2} + \curvepoint{D_2})$ are randomly distributed points in $\group_{\Prime}$ which has size $\Prime$. During the $(q_s + q)$ $\eHASH$ queries, the possibility that two of these elements in $\group_{\Prime}$ collide is exactly $\Pr[F | \curvepoint{R_1}, \curvepoint{R_2} \notin \group_{\Prime}] \leq \frac{(q_s + q)^2}{\Prime}$ based on the birthday bound.
+	
+	Case 3 is when one point is in $\group_{\Prime}$ and the other is not. Without loss of generality, we assume that $(\curvepoint{R_1} \in \group_{\Prime})$ and $(\curvepoint{R_2} \in \G \setminus \group_{\Prime})$. Then the inputs to $\eHASH$ are $\curvepoint{R_1}\|\pk\|\msg$, 
+	$(2^\cofactor\curvepoint{R_2} + \curvepoint{D})\|\pk\|\msg$, respectively.
+	There is only a single randomizer $\curvepoint{D}$ computed for $\curvepoint{R_2}$. In this case, $F$ happens when $\curvepoint{R_1} = 2^\cofactor \curvepoint{R_2} + \curvepoint{D}$ and so $\eHASH(\curvepoint{R_1}\|\pk\| \msg) =  \eHASH((2^\cofactor\curvepoint{R_2} + \curvepoint{D}) \|\pk\| \msg)$. Since $\curvepoint{R_1}$ and $(2^\cofactor\curvepoint{R_2} + \curvepoint{D})$ are also randomly distributed points in $\group_{\Prime}$, $\Pr[F | \curvepoint{R_1} \in \group_{\Prime} \wedge \curvepoint{R_2} \notin \group_{\Prime}] \leq \frac{(q_s + q)^2}{\Prime}$ is the probability that two out of $(q_s + q)$ elements in $\group_{\Prime}$ collide based on the birthday bound. Combining case 2 and 3, 
+	\[\Pr[F] = \Pr[F | \curvepoint{R_1}, \curvepoint{R_2} \notin \group_{\Prime}] + \Pr[F | \curvepoint{R_1} \in \group_{\Prime} \wedge \curvepoint{R_2} \notin \group_{\Prime}] \leq \frac{2(q_s + q)^2}{\Prime}\].
+	
+	We have shown that $\advA_1$ perfectly simulates the UF-CMA game except when event $F$ occurs. We next demonstrate that when $\advA_2$ wins the simulated game, $\advA_1$ wins its own game, again except when event $F$ occurs. 
+	
+	Assume that $\advA_2$ wins the simulated game and event $F$ doesn't happen. To win the UF-CMA game, $\advA_2$ submits $(\msg, (\curvepoint{R}, z))$ to $\Finalize$ such that $\msg$ is never queried for $\SignO_2$ before and $\DS_2.\pVF[\iHASH](\pk, \msg, (\curvepoint{R}, z)) = 1$. Recall that underlying $\iHASH$ it uses the same $\HASH$ as $\eHASH$. Then for the latter to be true and based on the permissive verification algorithm defined in Figure~\ref{fig:VFs}, the forgery $(\msg, (\curvepoint{R}, z))$ must satisfy 
+	\begin{equation}
+	2^\cofactor(\z \cdot  \generator) = 2^\cofactor (c_2 \cdot \pk + \curvepoint{R}) \label{eq:5}
+	\end{equation}
+	Then $\advA_1$ falls into two cases:
+	
+	Case 1: We have $\curvepoint{R} \in \group_{\Prime}$ in this case, and $\advA_1$ passes over the output of $\advA_2$, $(\msg, (\curvepoint{R}, z))$.
+	If we multiply both sides of Equation\eqref{eq:5} by $I=2^{-\cofactor} \mod \Prime$, we will still be in the same group and obtain
+	\[\z \cdot  \generator = c_2 \cdot \pk + \curvepoint{R}\] which would pass the strict verification check. We are left to prove that multiplying by $I$ is a valid inverse operation. From algebra, we know every point in the group $\G$ can be uniquely written as the sum of a point in the unique prime-order subgroup $\group_{\Prime}$ and an element of $\group$ which falls outside of $\group_{\Prime}$. Since the  cofactor $2^\cofactor$ is relatively prime to the order $\Prime$ of the subgroup $\group_{\Prime}$, multiplication of group elements by $2^\cofactor$ is an invertible operation and the inverse operation is multiplication by $I = 2^{-\cofactor} \mod \Prime$. 
+	Therefore, in case 1, if $F$ doesn't happen, $\advA_1$ wins Game $\mUFCMA_{\DS_1,\roSp}$ exactly when $\advA_2$ wins Game $\mUFCMA_{\DS_2,\roSp}$. We then obtain
+	\[\ufAdv{\DS_2, ,\roSp}{\advA_2} = \Pr[\mUFCMA_{\DS_2,\roSp}(\advA_2) \cap \neg F] +  \Pr[\mUFCMA_{\DS_2,\roSp}(\advA_2) \cap F] \leq \Pr[\mUFCMA_{\DS_1,\roSp}(\advA_1) \cap \neg F] + \Pr[F] .\] 
+	Since 
+	\[ \Pr[\mUFCMA_{\DS_1,\roSp}(\advA_1) \cap \neg F] \leq \ufAdv{\DS_1, \roSp}{\advA_1} ,\]
+	we have
+	\[\ufAdv{\DS_2, \roSp}{\advA_2} \leq \ufAdv{\DS_1, \roSp}{\advA_1} + \Pr[F]\]
+	\[\ufAdv{\DS_2, \roSp}{\advA_2} \leq \ufAdv{\DS_1, \roSp}{\advA_1} +  \frac{2(q_s + q)^2}{\Prime}.\]
+	Case 2: We have $\curvepoint{R} \in \G \setminus \group_{\Prime}$ in this case, and $\advA_1$ passes over $\advA_2$'s output $(\msg, (2^\cofactor\curvepoint{R} + \curvepoint{D}, 2^\cofactor\z + x))$. Let the signature $(2^\cofactor\curvepoint{R} + \curvepoint{D}, 2^\cofactor\z + x)$ returned by $\advA_1$ be $(\curvepoint{R}', \z')$. $\advA_1$ retrives the randomizer $\curvepoint{D}$ and its discrete log $x$ from $T[\curvepoint{R},  \msg]$ in line 6. We assume that $\advA_2$ must have queried the random oracle for its output to gain reasonable advantage. Then since $\curvepoint{R} \in \G \setminus \group_{\Prime}$, a previous query to $\eHASH_2UFCMASim$ enforces 
+	\[c_2 =  I \cdot c_1 \mod \Prime.\]
+	We can hence rewrite Equation\eqref{eq:5}  as follows,
+	\begin{align*} 
+	2^\cofactor(\z \cdot  \generator) &= 2^\cofactor (c_2 \cdot \pk+ \curvepoint{R}) \\
+	&=  2^\cofactor (I \cdot c_1 \cdot \pk + \curvepoint{R})\\
+	&= 2^\cofactor (2^{-\cofactor} \cdot c_1 \cdot\pk + \curvepoint{R})\\
+	&=  c_1 \cdot \pk + 2^\cofactor \curvepoint{R}.
+	\end{align*}
+	We then add $\curvepoint{D} = x \cdot \generator$ on both sides of the equation $2^\cofactor(\z \cdot  \generator) =  c_1 \cdot\pk + 2^\cofactor \curvepoint{R}$:
+	\begin{align*} 
+	2^\cofactor(\z \cdot  \generator) +  x \cdot \generator &=  c_1 \cdot \pk + 2^\cofactor \curvepoint{R} + \curvepoint{D}\\
+	(2^\cofactor \z + x)\generator &=  c_1 \cdot \pk+ (2^\cofactor \curvepoint{R} + \curvepoint{D})\\
+	\z' \cdot  \generator &= c_1 \cdot \pk + \curvepoint{R}'.
+	\end{align*}
+	From Line 11 of $\eHASH_2UFCMASim$, we also have
+	\[c_1 = \eHASH((2^\cofactor\curvepoint{R} + \curvepoint{D}) \|\pk\| \msg) = \eHASH(\curvepoint{R}'\|\pk\| \msg).\]
+	This implies that if event $F$ doesn't happen and $\advA_2$ wins Game $\mUFCMA_{\DS2,\roSp}$, then $\advA_1$ wins Game $\mUFCMA_{\DS1,\roSp}$. Similar to case 1:
+	\begin{align*}
+	\ufAdv{\DS_2,\roSp}{\advA_2} &= \Pr[\mUFCMA_{\DS_2,\roSp}(\advA_2) \cap \neg F] +  \Pr[\mUFCMA_{\DS_2,\roSp}(\advA_2) \cap F]\\
+	& \leq \Pr[\mUFCMA_{\DS_1,\roSp}(\advA_1) \cap \neg F] + \Pr[F]
+	\end{align*}
+	and so
+	\[\ufAdv{\DS_2,\roSp}{\advA_2} \leq \ufAdv{\DS_1,\roSp}{\advA_1} +  \frac{2(q_s + q)^2}{\Prime}.\]
+	
+	We show that in both cases, if simulators simulate oracles perfectly, we have
+	\[\ufAdv{\DS_2,\roSp}{\advA_2} \leq \ufAdv{\DS_1,\roSp}{\advA_1} +  \frac{2(q_s + q)^2}{\Prime}.\]
+	
+	Now we discard the assumption that $\advA_2$ makes no $\SignO_2$ queries and add a simulated $\SignO$ oracle to $\advA_1$. We claim that allowing $\advA_2$ to make $\SignO_2$ queries makes no difference on this inequality since each $\SignO_2$ query will always result in a perfect simulation. The simulator $\SignO_2 UFCMASim(\msg)$ begins by making $\SignO$ queries and obtains $(\curvepoint{R}, \z)$ pairs. First notice that since $(\curvepoint{R}, \z)$ is returned by $\SignO$ oracle, it has to be valid under $\SignO_2$ oracle, using the same argument as Case 1. We are left to show programming $\eHASH_2(\curvepoint{R}\|\pk\| \msg)$ in line 18-19 will not cause inconsistency for $\iHASH_2=\eHASH_2$ queries made by $\SignO_2$. we want to make sure that $\eHASH_2UFCMASim(\pk, \curvepoint{R},  \msg) = c = \eHASH(\curvepoint{R}\|\pk\| \msg)$. Since $(\curvepoint{R}, \z) = \SignO(\msg)$, by the definition of $\SignO$ in $\DS_1$ we have $\curvepoint{R} \in \group_{\Prime}$. Then whenever the scheme $\DS_2$ makes $\iHASH_2$ queries for this specific $(\pk, \curvepoint{R}, \msg)$ pair, $\eHASH_2UFCMASim$ falls under Case 1 and returns $\eHASH(\curvepoint{R}\|\pk\| \msg) = \iHASH(\curvepoint{R}\|\pk\| \msg)$, i.e. $\eHASH_2UFCMASim(\pk, \curvepoint{R},  \msg) = \iHASH(\curvepoint{R}\|\pk\| \msg)$. Hence, as all the $\curvepoint{R}$ generated by $\SignO_2 UFCMASim(\msg)$ are in $\G_\Prime$ and event $F$ never happens, programming will not cause inconsistency and we still have the same inequality as the theorem claims.
+	
+	The running time of $\advA_1$ mainly comes from the running time of simulating $\advA_2$ and the running time of $\eHASH_2UFCMASim$. All the other codes are linear time assignments or calls to oracles. In $\eHASH_2UFCMASim$, it takes $\mathcal{O}((\log(\Prime) \cdot \cofactor)^3)$ for each elliptic curve point multiplication. Hence, the overall running time of $\advA_1$ is that of $\advA_2$ plus $\mathcal{O}((q_s + q)(\log(\Prime) \cdot \cofactor)^3)$.
+\end{proof}
+
+%	\begin{figure}
+%		\twoCols{0.49}{0.49}
+%		{
+%			\begin{algorithm-initial}{$\DS_1.\sVF[\iHASH](\pk, \curvepoint{R}, c, \z)$}
+%				\item Return $\z \cdot \generator = c \cdot \pk + \curvepoint{R}$
+%			\end{algorithm-initial}  \vspace{2pt}
+%		}
+%		{
+%			\begin{algorithm-initial}{$\DS_2.\pVF[\iHASH_2](\pk, \curvepoint{R}, c, \z)$}
+%				\item Return $2^\cofactor(\z \cdot  \generator)= 2^\cofactor(c \cdot \pk + \curvepoint{R})$
+%			\end{algorithm-initial} 
+%		}
+%		\vspace{-8pt}
+%		\caption{Left: the verification algorithm of $\DS_1 = \SchSig[\SKS,\sVF]$. Right: the verification algorithm of $\DS_2 = \SchSig[\SKS,\pVF]$}
+%		\label{fig:sVF and pVF}
+%		\hrulefill
+%		\vspace{-10pt}
+%	\end{figure}
+
+
+\begin{figure}
+	\oneCol{0.77}
+	{	
+		\begin{algorithm-initial}{adversary $\advA_1(\pk)$}
+			\item $(\msg, (\curvepoint{R}, \z)) \gets \advA_2[\eHASH_2UFCMASim, \SignO_2 UFCMASim](\pk)$
+			\item $\eHASH_2UFCMASim(\pk, \curvepoint{R},  \msg)$
+			\item if $(\curvepoint{R} \in \group_{\Prime})$ then return $(\msg, (\curvepoint{R}, \z))$
+			\item if $(\curvepoint{R} \in \G \setminus \group_{\Prime})$:
+			\item \quad $(x, D) \gets T[\curvepoint{R}, \msg]$
+			\item Return $( \msg, (2^\cofactor\curvepoint{R} + \curvepoint{D}, 2^\cofactor\z + x))$
+		\end{algorithm-initial}  \vspace{2pt}
+		\begin{algorithm-subsequent}{$\eHASH_2UFCMASim(\pk, \curvepoint{R},  \msg)$}
+			\item if $(HT[\curvepoint{R}, \pk, \msg] \neq \bot)$ then return $HT[\curvepoint{R}, \pk, \msg]$
+			\item $I \gets 2^{-\cofactor} \mod \Prime$
+			\item if $\curvepoint{R} \notin \group_{\Prime}$:
+			\item \quad $x \getsr \Z_{\Prime}$; $D \gets x \cdot \generator$; $T[\curvepoint{R}, \msg] \gets (x, D)$
+			\item \quad $c_1 \gets \eHASH((2^\cofactor\curvepoint{R} + \curvepoint{D}) \|\pk\| \msg)$
+			\item \quad $c_2 \gets I \cdot c_1 \mod \Prime$
+			\item else:
+			\item \quad $c_2 \gets \eHASH(\curvepoint{R}\|\pk\| \msg)$
+			\item $HT[\curvepoint{R}, \pk, \msg] \gets c_2$
+			\item return $c_2$
+		\end{algorithm-subsequent}  
+		\begin{algorithm-subsequent}{$\SignO_2 UFCMASim(\msg)$}
+			\item $(\curvepoint{R}, \z) \gets \SignO(\msg)$
+			\item $c \gets \eHASH(\curvepoint{R}\|\pk\| \msg)$
+			\item $HT[\curvepoint{R}, \pk, \msg] \gets c$
+			\item Return $(\curvepoint{R}, \z)$
+		\end{algorithm-subsequent} 
+	}
+	\vspace{-5pt}
+	\caption{Adversary $\advA_1$ for $\mUFCMA_{\DS_1,\roSp}$ given adversary $\advA_2$ for $\mUFCMA_{\DS_2,\roSp}$ in the proof of Theorem~\ref{th-pvf-svf}.}
+	%\label{fig:schnorr-sig}
+	\label{fig:A1}
+	\hrulefill
+	\vspace{-10pt}
+\end{figure}

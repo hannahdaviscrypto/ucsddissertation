@@ -1,0 +1,27 @@
+\section{Filtered Indifferentiability RSA-PSS}
+The notion of filtered indifferentiability is applicable beyond just EdDSA.
+Another signature scheme, RSA-PSS, has similar issues. 
+It uses a single Merkle-Damgard-based hash function (SHA1 or SHA256), but most proofs model two independent random oracles which are not susceptible to length-extension attacks.
+One paper~\cite{SSR:Kakvi19} did prove security for RSA-PSS taking the dependencies between the hash and mask generation functions into account; however it still modeled SHA256 as a random oracle without accounting for possible length-extension attacks.
+The paper also required that messages do not begin with a zero-octet; as forgeries can be adversarially chosen this seems like a bad assumption.
+
+We can use filters to naturally extend Kakvi's proof to cover length-extension attacks and remove the zero-octet requirement.
+
+The filter $\Flt$ takes two oracles $\H$ and $\MGF$; it has arity $2$.
+$\Flt.\Ev(1, \oseed, M) = (0^{\lg} \concat \texttt{0x01} \concat \oseed[M]) \xor \MGF(\H(0^{64} \concat \H(M) \concat \oseed[M]))  \concat \H(0^{64} \concat \H(M) \concat \oseed[M])$
+$\Flt.\Ev(2, S) = \MGF(S)$.
+
+The domain of $\MGF$ must equal the range of $\H$.
+
+Then we construct $\H$ and $\MGF$ from a compression function $c$ as follows:
+construction: H: MD[c], MGF(S): the first l bits of c(S||0x00000000)|| c(S||0x00000001) || c(S || 0x00000002) ...
+
+The simulator for $\S$ works as the $\construct{2MD}$ simulator, except that it only programs when the path has length $\hashlen$. 
+
+Then we need a filtered-indiff proof and a composition proof.
+Filtered-indiff proof:
+	follows 2MD proof, except we use prefix-free MD instead of chop-MD, and replacing H' with randomness based on the randomness of fs is slightly more complex.
+	
+Composition proof:
+	fairly straightforward. D simulates the game for A. it forwards adv queries to Pub and game queries to Priv(1, .). Sim makes queries to Priv(2,.). the adversary B will be playing a game where it has access to G and H, although it only bothers making queries to G. 
+	

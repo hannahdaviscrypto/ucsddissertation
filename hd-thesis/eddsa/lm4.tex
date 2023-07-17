@@ -1,0 +1,46 @@
+\begin{proof}[Lemma~\ref{lm-ourF2}]
+	The proof follows mostly from the security proof of AMAC in~\cite{EC:BelBerTes16} and we will prove it in ideal model with ideal primitive $\hh$. Define function families $g: \bits^{k} \cross\bits^{5k}\to\bits^{2k}$ such that $g(X,Y) = h(Y[1..k]\| X\|Y[k+1..4k])$.
+	
+	Let $\Out: \bits^{2k} \to \Z_{\Prime}$ be the modulo $\Prime$ function such that $\Out(x) = x \mod \Prime, \forall x \in \bits^{2k}$.
+	
+	Then we can construct a  2-tier cascade $\CSC[g, \hh]: \bits^{2k}\cross(\bits^{4k})^{+} \to \bits^{2k}$ and its corresponding augmented cascade $\ACSC[g, \hh, \Out]: \bits^{2k}\cross(\bits^{4k})^{+} \to \Z_\Prime$ following their definitions in~\cite{EC:BelBerTes16}.
+	%\begin{tabbing}
+	%	\underline{Function $\CSC[g, \hh](K, X)$} \\[2pt]
+	%	$X[1]\ldots X[\ell] \gets X$ \comment{Split $X$ into $4k$-bit blocks} \\
+	%	$X[1,1]\ldots X[1,4] \gets X[1]$ \comment{Split $X[1]$ into $k$-bit blocks} \\
+	%	$y[0] \gets g(K, X[1])$ \\ \comment{$h(X[1,1], K\|X[1,2..,1.4])$}\\
+	%	For $i=2,\ldots,\ell$ do $y[i] \gets \hh(y[i-1]\| X[i])$\\
+	%	Return $y[\ell]$
+	%\end{tabbing}
+	
+	%\begin{tabbing}
+	%	\underline{Function $\ACSC[g, \hh, \Out](K, X)$} \\[2pt]
+	%	$y[\ell] \gets \CSC[g, \hh, \Out](K, X)$ \\
+	%	$Z \gets \Out(y[\ell])$\\
+	%	Return $Z$
+	%\end{tabbing}
+	
+	We can view the query $\ourF_2[\hh](\e_2, \msg)$ as the output of $\ACSC[g, \hh, \Out](\e_2, \IV\|\msg\|P)$ for initialization vector $\IV \in \bits^{2k}$ and padding $P$ such that the length of $\IV\|\msg\|P$ is a multiple of $4k$ and is at most $\ell \cdot 4k$.
+	Our construction is similar to that of AMAC.  The difference is that while in AMAC the first tier cascade $g$ is the dual of $\hh$, our $g$ is the result of swapping the position of key $\e_2$ and the first $k$ bits of the input when querying $\ourF_2[\hh](\e_2, \msg)$.
+	
+	Then our lemma is similar to that of Theorem 8.5 in~\cite{EC:BelBerTes16}. In~\cite{EC:BelBerTes16}, they use a different augmented cascade $\ACSC[\hh, \hh, \Out](\e_2, \IV\|\msg\|P)$ and assume that $h=g$, while we handle $g$ seperately. Define $\construct{A_{2^{2k}}}\Colon \AllFuncs((\bits^{4k})^{+},\bits^{2k})$ and $\construct{A_{\Prime}}\Colon \AllFuncs((\bits^{4k})^{+},\Z_{\Prime})$.  Following triangle inequality, we have
+	$$\prfAdv{\ourF_2}{\advA_2} \leq \distAdv{\construct{A_{\Prime}}, \Out \circ \construct{A_{2^{2k}}}, \hh}{\advA_2} + \distAdv{\Out \circ \construct{A_{2^{2k}}}, \Out \circ \CSC[g,\hh], \hh}{\advA_2}.$$
+	Following Theorem 5.3 in~\cite{EC:BelBerTes16}, we have
+	$$\distAdv{\Out \circ \construct{A_{2^{2k}}}, \Out \circ \CSC[g,\hh], \hh}{\advA_2} \leq \ell\prfAdv{\hh, \Out, \hh}{\advA_{\hh}} + 2\prfAdv{g, \hh}{\advA_{g}}.$$
+	
+	\mihirnote{Not sure what $2\prfAdv{g, \hh}{\advA_{g}}$ means. How are there two functions in the subscript? Are these particular functions, or functors?}
+	
+	Now we claim that 
+	$$2\prfAdv{g, \hh}{\advA_{g}} \leq \frac{\ell \cdot \Queries{\advA_2}{\FUNCO} + \Queries{\advA_{2}}{\HASH}}{2^{k-1}}$$
+	and $\advA_{g}$ makes at most $\ell \cdot \Queries{\advA_2}{\FUNCO} + \Queries{\advA_{2}}{\HASH}$ queries to $\HASH$ because we assume $\ell$ is the maximum number of blocks ever queried. The proof is again a guessing the secret key one. If the adversary fails to make a relevant query involving the secret key $\e_2$, then it sees identically distributed responses assuming $\hh$ is ideal. The adversary can only distinguish if the output of $\FUNCO$ is randomly sampled or from $\ourF_2[\hh]$ only if the adversary guesses $\e_2$ correctly, which is of probability $\frac{\ell \cdot \Queries{\advA_2}{\FUNCO} + \Queries{\advA_{2}}{\HASH}}{2^{k}}$. Multiplying by 2 we obtain the above claimed bound. Finally, we adapt Theorem 8.5 in~\cite{EC:BelBerTes16} for single-user security. 
+	\begin{align}
+		\prfAdv{\ourF_2}{\advA_2} & \leq \distAdv{\construct{A_{\Prime}}, \Out \circ \construct{A_{2^{2k}}}, \hh}{\advA_2} + \ell\prfAdv{\hh, \Out, \hh}{\advA_{\hh}} + 2\prfAdv{g, \hh}{\advA_{g}}\\
+		&\leq \Queries{\advA_2}{\FUNCO} \frac{\Prime}{2^{2k}} + \ell\prfAdv{\hh, \Out, \hh}{\advA_{\hh}} + \frac{\ell \cdot \Queries{\advA_2}{\FUNCO} + \Queries{\advA_{2}}{\HASH}}{2^{k}}
+	\end{align}
+	By Corollary 8.4 in~\cite{EC:BelBerTes16},
+	\begin{align}
+		\prfAdv{\hh, \Out, \hh}{\advA_{\hh}} &\leq \frac{3+\Prime}{2^{2k}} + \frac{(4+12k\Prime\log\Prime)(\ell \cdot \Queries{\advA_2}{\FUNCO} + \Queries{\advA_{2}}{\HASH} )}{2^{2k}}
+	\end{align}
+	
+	Combining all of the above equations, we obtain the bound in Lemma~\ref{lm-ourF2}.
+\end{proof}

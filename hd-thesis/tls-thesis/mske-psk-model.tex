@@ -1,0 +1,200 @@
+\section{Code-based MSKE Model for PSK Modes}
+\label{sec:ake-model}
+We formalize security of the TLS~1.3 PSK modes in a game-based multi-stage key exchange (MSKE) model, adapted primarily from that of Dowling et al.~\cite{JC:DFGS21}. 
+We fully specify our model in pseudocode in 
+	Figures~\ref{fig:MSKE-model} and~\ref{fig:MSKE-preds}.
+We adopt the explicit authentication property from the model of Davis and G{\"u}nther~\cite{ACNS:DavGun21} and capture forward secrecy by following the model of Schwabe et al.~\cite{CCS:SchSteWig20}.
+
+
+\subsection{Key Exchange Syntax}
+
+In our security model, the adversary interacts with \emph{sessions} executing a key exchange protocol $\KE$.
+For the definition of the security experiment it will be useful to have a unified, generic interface to the algorithms implementing $\KE$, which can then be called from the various procedures defining the security experiment to run $\KE$. Therefore, we first formalize a general syntax for protocols.
+
+We assume that pairs of users share long-term symmetric keys (pre-shared keys), which are chosen uniformly at random from a set $\KEpskeyspace$.%
+\footnote{%
+While our results can be generalized to any distribution on $\KEpskeyspace$ (based on its min-entropy),
+for simplicity, we focus on the uniform distribution in this work.
+}
+We allow users to share multiple pre-shared keys, maintained in a list~$\pskeys$, and require that each user uses any key only in a fixed role (i.e., as client \emph{or} server) to avoid the Selfie attack~\cite{JC:DruGue21}.
+We do not cover PSK negotiation;
+each session will know at the start of the protocol which key it intends to use. 
+% We do, however, wish to support the same user having multiple pre-shared keys it may use in a single role, we let the game maintain a list $\pskeys$ of all pre-shared keys that will be used in the game. 
+% This list will be indexed by a tuple $(u, v, \pskid)$ containing the two users' IDs, and a unique string identifier.
+
+New sessions are created via the algorithm $\KEActivate$.
+This algorithm takes as input the new session's own user, identified by some ID~$u$, the user ID~$\peerid$ of the intended communication partner, a pre-shared key~$\psk$, and a role identifier---$\initiator$ (client) or $\responder$ (server)---that determines whether the session will send or receive the first protocol message.
+It returns the new session $\pi_u^i$, which is identified by its user ID~$u$ and a unique index~$i$ so that a single user can execute many sessions.
+
+Existing sessions send and receive messages by executing the algorithm $\KERun$.
+The inputs to $\KERun$ are an existing session $\pi_u^i$ and a message $m$ it has received. 
+The algorithm processes the message, updates the state of $\pi_u^i$, and returns the next protocol message $m'$ on behalf of the session. 
+$\KERun$ also maintains the status of $\pi_u^i$, which can have one of three values: $\running$ when it is awaiting the next protocol message, $\accepted$ when it has established a session key, and $\rejected$ if the protocol has terminated in failure.
+
+In a multi-stage protocol, sessions accept multiple session keys while running; we identify each with a numbered \emph{stage}.
+A protocol may accept several stages/keys while processing a single message, and TLS~1.3 does this.
+In order to handle each stage individually, our model adds artificial pauses after each acceptance to allow the adversary to interact with the sessions upon each stage accepting (beyond, as usual, each message exchanged).
+When a session $\pi_u^i$ accepts in stage~$s$ while executing $\KERun$, we require $\KERun$ to set the status of $\pi_u^i$ to $\accepted_{s}$ and terminate.
+We then define a special ``continue'' message. 
+When session $\pi_u^i$ in state $\accepted_{s}$, receives this message it calls $\KERun$ again, updates its status to $\running_{s+1}$ and continues processing from the point where it left off.
+
+% \iffull
+% \tj{We do not yet say what happens when parsing of $(\peerid,\pskid,\role) \gets m$ fails (line 11 in the SEND query). Shall we ignore this?}
+% \fg{If so, should say in the model; but currently I'd say ignore.}
+% \fi
+
+\subsection{Key Exchange Security}
+
+We define key exchange security via a real-or-random security game, 
+	formalized through Figures~\ref{fig:MSKE-model} and~\ref{fig:MSKE-preds}.
+
+\paragraph{Game oracles.}
+In this security game, the adversary~$\advA$ has access to seven oracles: $\Initialize$, $\NewSecret$, $\Send$, $\RevSessionKey$, $\RevLongTermKey$, $\Test$, and $\Finalize$, as well as any random oracles the protocol defines.
+The game begins with a call to $\Initialize$, which samples a challenge bit $b$. 
+It ends when the adversary calls $\Finalize$ with a guess $b'$ at the challenge bit.
+We say the adversary ``wins'' the game if $\Finalize$ returns~$\true$.
+
+The adversary can establish a random pre-shared key between two users by calling $\NewSecret$.%
+\footnote{%
+Our model stipulates that pre-shared keys are sampled uniformly random and honestly.
+One could additionally allow the registration of biased or malicious PSKs, akin to models treating, e.g., the certification of public keys~\cite{ESORICS:BCFPPS13}.
+While this would yield a theoretically stronger model, we consider a simpler model reasonable, because we expect most PSKs used in practice to be random keys established in prior protocol sessions.
+Furthermore, we consider tightness as particularly interesting when ``good'' PSKs are used, since low-entropy PSKs might decrease the security below what is achieved by (non)-tight security proofs, anyway.
+}
+It can corrupt existing users' pre-shared keys via the oracle $\RevLongTermKey$.
+The $\Send$ oracle creates new protocol sessions and processes protocol messages on the behalf of existing sessions.
+The $\RevSessionKey$ oracle reveals a session's accepted session key.
+Finally, the $\Test$ oracle servers as the challenge oracle:
+it returns the real session key of a target session or an independent one sampled randomly from the session key space~$\KEkeyspace[s]$ of the respective stage $s$, depending on the value of the challenge bit~$b$.
+%\tj{How about RegisterKey queries, where the adversary picks a (potentially biased) PSK and assigns it to parties? This is common in some pk models, and I think known to be strictly stronger, but on the other hand it often seems not to make a major difference (I think). I do not have a strong opinion, I think we discussed this briefly before, maybe we could talk about it in the next call and decide whether we want to leave a comment on this or not.}
+%\fg{Added a footnote.}
+	\input{tls-thesis/fig-mske-model}
+	\input{tls-thesis/fig-mske-predicates}
+
+\paragraph{Protocol properties.}
+Keys established in different stages possess different security attributes, which are defined as part of the key exchange protocol: replayability, forward secrecy level, and authentication level. 
+Certain stages, whose indices are tracked in a list $\INT$, produce ``internal'' keys intended for use only within the key exchange protocol; these keys may only be $\Test$ed at the time of acceptance of this particular key, but not later.
+This is because otherwise such keys may be trivially distinguishable from random, e.g., via trial decryption, due to the fact that they are used within the protocol.
+To avoid a trivial distinguishing attack, we force the rest of the protocol execution to be consistent with the result of such a $\Test$.
+That is, a tested internal key is replaced in the protocol with whatever the $\Test$ returns to the adversary (which is either the real internal key or an independent random key).
+%\ifdraft
+%\tj{It seems we have not really specified this interface in the protocol syntax, but I think it is fine and we should not worry about this.}
+%\fg{Don't understand in which way this relates to protocol syntax, let's discuss for full version.}
+%\fi
+The remaining stages produce ``external'' keys which may be tested at any time after acceptance. 
+
+For some protocols, it may be possible that a trivial replay attack can achieve that several sessions agree on the same session key for stage $s$, but this is not considered an ``attack''.
+For example, in TLS~1.3 PSK an adversary can always replay the $\ClientHello$ message to multiple sessions of the same server, which then all derive the same $\ets$ and $\eems$ keys (cf. Figure \ref{fig:tls-handshake}).
+%\tj{Why does TLS~1.3 not use e.g. the server nonce here?}
+%\fg{These are 0-RTT keys, so there is no server contribution (e.g., nonce) yet.}
+%
+To specify that such a replay is not considered a protocol weakness, and thus should not be considered a valid ``attack'', the protocol specification may define $\REPLAY[s]$ to $\true$ for a stage $s$. $\REPLAY[s]$ is set to $\false$ by default. 
+
+As we focus on protocols which rely on (pre-authenticated) pre-shared keys,
+our model encodes that all protocol stages are at least \emph{implicitly} mutually authenticated in the sense of Krawczyk~\cite{EPRINT:Krawczyk05},
+i.e., a session is guaranteed that any established key can only be known by the intended partner.
+Some stages will further be \emph{explicitly} authenticated, either immediately upon acceptance or retroactively upon acceptance of a later state. 
+Additionally, the stage at which explicit authentication is achieved may differ between the initiator and responder roles.
+For each stage~$s$ and role~$r$, the key exchange protocol specification states in~$\EAUTH[r, s]$ the stage~$t$ from whose acceptance stage~$s$ derives explicit authentication for the session in role~$r$.
+Note that the stage-$s$ key is not authenticated until both stages~$s$ and~$\EAUTH[r, s]$ have been accepted. 
+If the stage-$s$ key will never be explicitly authenticated for role~$r$, we set $\EAUTH[r,s] = \infty$.
+
+We use a predicate $\ExplicitAuth$ 
+	(cf.\ Figure~\ref{fig:MSKE-preds})
+to require the existence of an honest partner for explicitly authenticated stages upon both parties' completion of the protocol, except when the session's pre-shared key was corrupted prior to accepting the explicitly-authenticating stage
+(as in that case, we anticipate the adversary can trivially forge any authentication mechanism).
+
+Motivated by TLS~1.3, it might be the case that initiator and responder sessions achieve slightly different guarantees of authentication.
+While responders in TLS~1.3 are guaranteed the existence of an honest partner in any explicitly authenticated stage, initiators cannot guarantee that their partner has received their final message.
+This issue was first raised by FGSW~\cite{SP:FGSW16} and led to their definitions of ``full'' and ``almost-full'' key confirmation; it was then extended to ``full'' and ``almost-full'' explicit authentication by DFW~\cite{CSF:deSFisWar20}. 
+Our definitions for responders and initiators respectively resemble the latter two notions most closely, but we rely on session identifiers instead of ``key confirmation identifiers''.
+%% We do not need rectified authentication, so let's not discuss it in that detail.
+% The notion of \emph{rectified authentication} (as discussed in~\cite{JC:DFGS21}) captures the possibility that an adversary could impersonate an honest user during an unauthenticated stage, then later corrupt the pre-shared key in order to falsely authenticate as that user. 
+% The keys agreed upon during the unauthenticated stage could not in this scenario retroactively be granted explicit authentication. However, in our model all stages will be at least implicitly mutually authenticated, so we do not need rectified authentication. 
+% Instead, we use a predicate $\ExplicitAuth$ which will require the existence of an honest partner except when such a corruption occurs before acceptance. \tj{I did not understand this paragraph...}
+
+We consider three levels of forward secrecy inspired by the KEMTLS work of Schwabe, Stebila, and Wiggers~\cite{CCS:SchSteWig20}: no forward secrecy, weak forward secrecy~2 (wfs2), %\fg{Can we find a better name for this?},
+and full forward secrecy (fs). 
+As for authentication, each stage may retroactively upgrade its level of forward secrecy upon the acceptance of later stages, and  forward secrecy may be established at different stages for each role.
+For each stage $s$ and role $r$, the stage at which wfs2, resp.\ fs, is achieved is stated in~$\FS[r, s, \wfstwo]$, resp.\ $\FS[r, s, \fs]$, by the key exchange protocol.
+
+The definition of weak forward secrecy~2 states that a session key with wfs2 should be indistinguishable as long as
+(1) that session has received the relevant messages from an honest partner (formalized via matching contributive identifiers below, we say: ``has an honest contributive partner'')
+or (2) the pre-shared key was never corrupted.
+Full forward secrecy relaxes condition (2) to forbid corruption of the pre-shared key only before acceptance of the stage that retroactively provides full forward secrecy. 
+We capture these notions of forward secrecy in a predicate $\Fresh$%
+	(cf.\ Figure~\ref{fig:MSKE-preds})%
+, which uses the log of events to check whether any tested session key is trivially distinguishable
+(e.g., through the session or its partnered being revealed, or forward secrecy requirements violated).
+With forward secrecy encoded in $\Fresh$, our long-term key corruption oracle ($\RevLongTermKey$), unlike in the model of~\cite{JC:DFGS21}, handles all corruptions the same way, regardless of forward secrecy. 
+
+\paragraph{Session and game variables.}
+Sessions~$\pi_u^i$ and the security game itself maintain several variables;
+we indicate the former in $\mathit{italics}$, the latter in $\mathsf{sans{\mhyphen}serif}$ font.
+
+% \fg{Shall we use unified font formatting for game variables? Right now some are \textsf{sans-serif}, other \textit{italics}.}
+% \fg{Sans-serif is set by game, italics is set by protocol.}
+The game uses a counter~$\time$, initialized to~$0$ and incremented with any oracle query the adversary makes, to order events in the game log for later analysis.
+When we say that an event happens at a certain ``time'', we mean the current value of the $\time$ counter.
+The list $\pskeys$ contains, as discussed above, all pre-shared keys, indexed by a tuple $(u, v, \pskid)$ containing the two users' IDs ($u$ using the key only in the initiator role, $v$ only in the reponder role), and a unique string identifier.
+% $b$ is the challenge bit.
+The list~$\revpsk$, indexed like~$\pskeys$, tracks the time of each pre-shared key corruption, initialized to~$\revpsk_{(u,v, \pskid)} \gets \infty$.
+(In boolean expressions, we write $\revpsk_{(u,v, \pskid)}$ as a shorthand for $\revpsk_{(u,v,\pskid)} \neq \infty$.)
+% \tj{It seems unclear to me how this list tracks the exact time. Shall we make explicit that we set $\revpsk_{(u,v, \pskid)} := \time$ when the PSK $(u, v, \pskid)$ is corrupted? }
+
+Each session~$\pi_u^i$, identified by (adversarially chosen) user ID and a unique session ID, furthermore tracks the following variables:
+\begin{itemize}
+	\item $\status \in \{\running_s, \accepted_s, \rejected_s \mid s \in [1,\ldots,\STAGES]\}$, where $\STAGES$ is the total number of stages of the considered protocol.
+	The status should be $\accepted_s$ immediately after the session accepts the stage-$s$ key, $\rejected_s$ after it rejects stage~$s$ (but may continue running; e.g., rejecting 0-RTT data), and $\running_s$ for some stage $s$ otherwise.
+% 	Note: we do not define $\rejected$ flags for each stage as we are first considering TLS~1.3 PSK without 0-RTT.
+% 	\fg{Wait, this is way outdated by now, no?}
+% 	This can be added later.\tj{I do not understand the last two sencences.}
+	
+	\item $\peerid$.
+	The identity of the session's intended communication partner.
+	
+	\item $\pskid$.
+	The identifier of the session's pre-shared key.
+	
+	\item $\taccepted[s]$.
+	For each stage $s$, the time (i.e., the value of the $\time$ counter) at which the stage $s$ key was accepted. Initialized to $\infty$.
+	
+	\item $\revealed[s]$.
+	A boolean denoting whether the stage $s$ key has been leaked through a $\RevSessionKey$ query. Initialized to $\false$.
+	
+	\item $\tested[s]$.
+	The time at which the stage $s$ key was tested. Initialized to $\infty$ before any Test query occurs. (In boolean expressions, we write $\tested[s]$ as a shorthand for $\tested[s] \neq \infty$.)
+	
+	\item $\sid[s]$.
+	The session identifier for each stage~$s$, used to match honest communication partners within each stage.
+	
+	\item $\skey[s]$.
+	The key accepted at each stage.
+	
+	\item $\initcid[s]$ and $\respcid[s]$.
+	The contributive identifiers for each stage~$s$, where $\rolecid[\role][s]$ identifies the communication part that a session in role~$\role$ must have honestly received in order to be allowed to be tested in certain scenarios (cf.\ the freshness definition in the $\Fresh$ predicate).
+	Unlike prior models, each session maintains a contributive identifiers for each role; one for itself and one for its intended partner.
+	This enables more fine-grained testing of session stages in our model.
+\end{itemize}
+The predicate $\Sound$
+	(cf.\ Figure~\ref{fig:MSKE-preds})
+captures that variables are properly assigned, in particular that session identifiers uniquely identify a partner session (except for replayable stages)
+and that partnering implies agreement on (distinct) roles, contributive identifiers, peer identities and the pre-shared key used, as well as the established session key.
+
+\begin{definition}[Multi-stage key exchange security]
+	\label{def:MSKE-security}
+	Let $\KE$ be a key exchange protocol and~$G^{\KESEC}_{\KE,\advA}$ be the key exchange security game defined 
+		in Figures~\ref{fig:MSKE-model} and~\ref{fig:MSKE-preds}.
+	We define
+	\[
+		\Adv^{\KESEC}_{\KE}(t, \qNewSecret, \qSend, \qRevSessionKey, \qRevLongTermKey, \qTest, \qRO) := 2 \cdot \max_\advA \Pr \left[ \Gm^{\KESEC}_{\KE,\advA} \Rightarrow 1 \right] - 1,
+	\]
+	where the maximum is taken over all adversaries, denoted \emph{$(t\cab \qNewSecret\cab \qSend\cab \qRevSessionKey\cab \qRevLongTermKey\cab \qTest\cab \qRO)$-$\KESEC$-adversaries},
+	running in time at most~$t$ and making at most $\qNewSecret$, $\qSend$, $\qRevSessionKey$, $\qRevLongTermKey$, $\qTest$, resp.\ $\qRO$ queries to their respective oracles $\NewSecret$, $\Send$, $\RevSessionKey$, $\RevLongTermKey$, $\Test$, and~$\RO$.
+\end{definition}
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

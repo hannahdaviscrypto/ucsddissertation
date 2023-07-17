@@ -1,0 +1,30 @@
+A quick sketch of my thoughts on Lemma 3:
+
+We begin with the ideal game, G0. We make the simulator log its received queries and its responses and add a relay algorithm as in the book. Throughout, we will be interested in the probability that each game returns 1. 
+
+In G1, we return 0 whenever the simulator generates a response y that is already the label of a node in the graph. This covers both collisions and out-of-order queries. We can see that Pr[G1 => 1] < Pr[G0 => 1].
+
+In G2, we add a private random oracle. we use this to sample simulator responses and random coins for SAMPLE. this changes nothing, it just makes the random coins explicit :D. Pr[ G2 => 1 ] = Pr[G1 => 1]
+
+Next, we augment the Priv oracle so that it computes F[Sim2] on each of its inputs after it queries the RO. It still returns the RO response, it just also makes extra queries. Sim2 is an identical copy of the simulator, but it only adds nodes to its own graph. the simulator adds nodes to both graphs. Since sim2 uses the same private random oracle, it will generate the same responses as the simulator except when it disagrees on graph belonging. The extra queries do not change the output of either the Priv or the Pub oracles, but they make it less likely that the game returns 0 (more opportunities for collisions). So Pr[ G3 => 1] < Pr[G2 => 1].
+
+In G4, we add a bad flag to the Simulator to catch the attack I discussed earlier. Specifically, if the adversary makes a sequence of queries that would be out-of-order in the simulator, but isn't out of order when we include the extra Sim2 queries. Whenever the last query in such a sequence occurs, the simulator will get input x and generate y such that there is no path to y in the graph. however, there will be a path to y in the graph of sim2. the bad flag does nothing so Pr[G4] = Pr[G3]
+
+In G5, we return 0 when the bad flag is set so Pr[G5] < Pr[G4].
+
+In G6, the simulator uses the second simulator's graph for path-checking instead. this changes nothing. the worry: if there had been no path there before and we returned random but now we return RO because there is a path. but in that case we would have returned 0 because the bad flag was set, and now we return 0 still. 
+
+In G7, we stop querying RO since F[Sim2] always finds a consistent answer anyway. We use condition 1.
+
+In G8, we drop RO because it is private and replace sampling with Sample with random sampling. 
+
+In G9, we no longer need the graph check that determines random-or-RO responses.
+
+In G10, we do not return 0 when the bad flag is set. we should be able to use a birthday bound since everything is now random. 
+
+In G11, we do not return 0 when the badC flag is set. again we will use a birthday bound. 
+
+In G12, we no longer have any checks and logs, Pub is only random sampling, and Priv is just running F. This is the real world. 
+
+
+

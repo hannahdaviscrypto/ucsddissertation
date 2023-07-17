@@ -1,0 +1,17 @@
+\section{TLS~1.3 Handshake Details}
+\label{app:tls-handshake}
+
+\subsection{Labels}
+\label{app:label-def}
+
+\autoref{tab:labels} defines the labels for the TLS~1.3 PSK handshake protocol and key schedule in \autoref{fig:tls-handshake} as specified in RFC~8446~\cite{rfc8446}.
+For our results, it is sufficient that these labels are distinct for each distinct index.
+
+\input{tab-labels}
+
+\subsection{\texorpdfstring{$\TLSKDF$}{TLSKDF} Signatures}
+\label{app:TLSKDF-signatures}
+
+The 11 $\TLSKDF$ key derivation function we introduce in our key schedule abstraction have the following signatures:
+
+\input{TLSKDF-signatures}

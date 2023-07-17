@@ -1,0 +1,31 @@
+\section{Proof of Theorem~\ref{th-eddsa-md}}
+We begin with the adversary $\advA_3$, playing the uf-cma game against the digital signature scheme $\DS_3$ with function space $\roSp_3$. Recall that $\advA_3$ calls $\Initialize$ with input $\numUsers$, and it makes $q_s$ queries to $\SignOO$ and $q_i$ queries to $\HASH_i$ for $i \in \{1,2,3\}$. 
+
+We start by applying Theorem~\ref{th-comp}. The scheme $\DS_3$ satisfies the requirements, and we define scheme $\DS_2$, function space $\roSp_2$, functor $\construct{2MD}$, and function $\Out$ as the theorem statement requires. Then for any simulator $\simulator$, Theorem~\ref{th-comp} guarantees the existence of an adversary $\advA_2$ and a distinguisher $\advD$ such that 
+\begin{align}
+\ufAdv{\DS_3}{\advA_3} &\leq
+\Pr[\mFUFCMA_{\DS_2,\FltEDDSA}(\advA_2)]  +
+\findiffAdv{\construct{2MD},\simulator,\FltEDDSA}{\advD}.
+\end{align}
+If $\simulator$ makes at most $\ell_{\simulator}$ queries to its oracle each time $\Simulator.\Eval$ is run, then 
+the new adversary $\advA_2$ makes $q_s$ queries to $\SignO$ and $\ell_{\simulator}\cdot (q_3 + \ell_h\cdot(q_1+q_2))$ queries to $\fHASH$, and its runtime is about $t_{\advA_3} + \ell_{\simulator}\cdot (q_3 + \ell_h\cdot(q_1+q_2))t_{\simulator}$. Later in the proof, we will define $\simulator$ so that its runtime is $\bigO(\log_2 (q_3 + \ell_h (q_1 + q_2)))$ and $\ell' = 1$. Then the above equations simplify and the adversary $\advA_2$ makes only $q_3 + \ell_h\cdot(q_1+q_2)$ queries to $\fHASH$ and its runtime is $t_{\advA_3} + \bigO((q_3 + \ell_h\cdot(q_1+q_2)))\log_2 (q_3+\ell_h\cdot(q_1+q_2)))$. 
+
+
+The distinguisher makes $q_3 + \ell_h(q_1+q_2)$ queries to $\PubO$ and $\numUsers$ queries to $\PrivO$ with $i=1$, and $2 q_s$ queries to $\PrivO$ with $i= 2$. Furthermore, the maximum length of any $\PrivO$ query is $\log_2 gd.p + \ell_m \cdot 2k$ bits, or $\ell \cdot 2k$ bits. The runtime of $\advD$ is about $t_{\advA_3}$. 
+
+We address each of the two terms on the right-hand side separately, starting with $\Pr[\mFUFCMA_{\DS_2,\FltEDDSA}(\advA_2)].$ We apply Theorem~\ref{th-ts-eddsa}, which defines $\DS_1$ (the same scheme referenced by Theorem~\ref{th-eddsa-md}) and adversary $\advA_1$ such that 
+\begin{align}
+\Pr[\mFUFCMA_{\DS_2,\FltEDDSA}(\advA_2)]  &\leq \ufAdv{\DS_1}{\advA_1} + \frac{\numUsers(q_{\fHASH}+\numUsers)}{2^{k}}+\frac{\Prime}{2^{2k+2}},
+\end{align}
+where $q_{\fHASH} =  q_3 + \ell\cdot(q_1+q_2)$. The runtime of $\advA_1$ is about that of $\advA_2$, and it makes the same number of oracle queries to its respective oracles. 
+
+We next bound the term $\findiffAdv{\construct{2MD},\simulator,\FltEDDSA}{\advD}$ using Theorem~\ref{th-md-indiff}. To apply this theorem, we must show that $\Out(X):= X \mod \GDesc.\Prime$ is a $\varepsilon$-sampleable function for an appropriate choice of $\varepsilon$. To do this, we define the probabilistic function $\Sample(x; r) := \Prime*r + x$ with coins $r \in \Z_{\lfloor 2^{2k}/\Prime\rfloor}$. For any $x\in \bits^{2k}$, it should be obvious that $\Out(\Sample(x)) = x$ with probability 1, so the first condition holds. Secondly, given $y_1, y_2, \ldots y_1)$ drawn either from $\bits^{2k}$ or $\{\Sample(x) \colon x \in \Z_\Prime\}$, no distinguisher should be able to distinguish the distribution with advantage more than $q^2 \cdot \varepsilon$. Using Lemma~\ref{th-distribution-bias}, the difference between these distributions is at most $\varepsilon := \frac{\GDesc.\Prime}{2^{2k+2}}$.
+
+Define $q:= q_3 + \ell_h(q_1 + q_2)$.
+We then apply Theorem~\ref{th-md-indiff} to guarantee the existence of a simulator $\simulator$ such that 
+	\[\findiffAdv{\construct{2MD},\simulator,\Filter}{\advD} \leq \frac{\numUsers^2 + \numUsers(q_{\PubO} +q_{\PrivO} \cdot \ell)}{2^k}+ \frac{q_{\PubO}^2+8(q_{\PubO}+q_{\PrivO} \cdot \ell)^2}{2^{2k}} + 7(q_{\PubO}+q_{\PrivO} \cdot \ell)^2\cdot \varepsilon.\]
+		Plugging in $q_{\PubO} = q_3 + \ell_h(q_1+q_2) = q$, $q_{\PrivO} = 2 q_s$ and $\varepsilon = \frac{\GDesc.\Prime}{2^{2k+2}}$, we find the bound simplifies to 
+	\[\findiffAdv{\construct{2MD},\simulator,\Filter}{\advD} \leq \frac{\numUsers^2 + \numUsers(q +2q_s \cdot \ell)}{2^k}+ \frac{q^2+8(q+2q_s \cdot \ell)^2}{2^{2k}} + 7(q+2q_s \cdot \ell)^2\cdot \frac{\GDesc.\Prime}{2^{2k+2}}.\]
+	
+Collecting the bounds gives the theorem statement. 
+

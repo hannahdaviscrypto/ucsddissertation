@@ -1,0 +1,535 @@
+\section{A Careful Discussion of Domain Separation}
+\label{app:domsep}
+
+In our indifferentiability treatment of the TLS~1.3 key schedule (cf.\ Section~\ref{sec:ks-indiff}), we change what we capture as random oracles in the key exchange model.
+We start with one random oracle, $\ROhash$, used wherever the hash function $\abstractHash$ would be called in the protocol.
+We change this to classify queries to $\ROhash$ into two types:
+\begin{description}
+	\item[Type 1 queries:]
+	\emph{component hashes} (via function~$\Chash$) used within $\abstractExtract$, $\abstractExpand$, and $\abstractMAC$ to compute $\HKDFExtr$, $\HKDFExpnd$, resp.\ $\HMAC$.
+	
+	\medskip
+	
+	\item[Type 2 queries:]
+	\emph{transcript hashes} (via function~$\Thash$) computing hash values of protocol transcripts (or empty strings).
+\end{description}
+We wish to model $\Chash$ and $\Thash$ now as \emph{two} independent random oracles: $\ROchash$ resp.\ $\ROthash$.
+
+To change the model, we can just change the pseudocode of the protocol to replace $\ROhash$ with whichever of $\ROchash$ and $\ROthash$ seems more appropriate. 
+However, we must define an explicit construction that performs this substitution in a systematic way in order to give a formal proof of security.
+This construction needs a Boolean condition to determine which of $\ROchash$ and $\ROthash$ should be queried, and this condition cannot be dependent on the higher-level context of the protocol's usage. 
+Instead, we must define two disjoint sets $\Dom_{\Chash}$ and $\Dom_{\Thash}$ such that honest executions of TLS~1.3 only query $\ROhash$ on inputs in $\Dom_{\Chash}$ when computing $\HKDFExtr$, $\HKDFExpnd$, or $\HMAC$, and it otherwise only queries $\ROhash$ on inputs in $\Dom_{\Thash}$.
+
+
+This separation must hold even when an honest session is responding to adversarially-chosen messages.
+We do make some assumptions about the way that honest sessions process incoming messages. 
+We assume that a server receiving a first $\ClientHello$ message from a client will not respond or execute the protocol unless the message contains correct encodings of all of the mandatory parameters for TLS~1.3. 
+If the client fails to specify a valid group and key share in PSK-(EC)DHE mode, or version number, mode, and pre-shared key in any mode, the server should abort.
+Of course, the $\ClientHello$ message may also contain invalid encodings of these values or even arbitrary data; we do not exclude this possibility.
+Note that our conditions apply only to random-oracle queries made by honest executions of the protocol. 
+An adversary may of course call $\ROhash$ on any input it chooses in either $\Dom_{\Chash}$ or $\Dom_{\Thash}$.
+
+The TLS~1.3 handshake protocol does not provide any intentional domain separation between Type~$1$ and Type~$2$ queries.
+We therefore turn to the formatting of queries to $\ROhash$ in the hopes of finding some unintentional separation.
+We identify seven subtypes of query: five subtypes of Type $1$ and two subtypes of Type $2$.
+Queries of each subtype have some unique formatting: a fixed length, a byte with a particular value, an encoded label. 
+These attributes are heavily dependent on the specific configuration of the TLS~1.3 protocol; we therefore analyze four separate cases: two modes of operation (PSK-(EC)DHE and PSK-only mode) and two ciphersuites defining $\ROhash$ as $\SHA{256}$ and $\SHA{384}$ respectively.
+Throughout, we will assume that any pre-shared-keys are the same length as the output length of $\ROhash$, i.e., $\hashlen$~bits.
+This is true of resumption keys, but may not be true in general for pre-shared keys negotiated out-of-band. 
+As TLS~1.3 fields length are given in (full) \emph{bytes}, we will be talking about \emph{byte lengths} if not otherwise stated in the following and use the shorthand $\hashlenBytes := \hashlen/8$ for the output length of $\ROhash$ in \emph{bytes}.
+We also assume that if a Diffie--Hellman group is used, it is one of the standardized elliptic curve or finite field groups. 
+
+All Type $1$ queries to $\ROhash$ are intermediate steps in the computation of $\HMAC$, $\HKDFExtr$, and $\HKDFExpnd$.
+They consequently share some formatting which we discuss here before addressing each subtype individually.
+$\HKDFExtr$ and $\HMAC$ are two names for the same function.
+Given a key $K$ and input $s$, $\HKDFExpnd(K,s)$ pads $s$ with a single trailing counter byte with value \texttt{0x01}, then returns $\HMAC(K, s\|\|\texttt{0x01})$.
+Therefore all Type $1$ queries to $\ROhash$ arise in the computation of $\HMAC$. 
+$\HMAC[\ROhash](K,s)$ takes a key $K$ of length $\hashlenBytes$ bytes.
+It then pads this key with zeroes up to the block length $\blocklenBytes$ of its hash function.
+The block lengths of $\SHA{256}$ and $\SHA{384}$ are $64$ and $128$ bytes respectively. 
+We call the padded key $K'$. 
+Then $\HMAC[\ROhash]$ makes two queries to $\ROhash$:
+\begin{enumerate}
+	\item $d \gets \ROhash(K' \oplus \ipad || s)$
+	\item $\ROhash(K' \oplus \opad || d)$
+\end{enumerate}
+$\ipad$ and $\opad$ are strings of $\blocklenBytes$ bytes. Each byte in $\ipad$ is fixed to \texttt{0x36}, and each byte in $\opad$ is fixed to \texttt{0x5c}.
+The padded key $K'$ is $\blocklenBytes$ long, longer than $K$, so every Type $1$ query has a segment of length $\blocklenBytes-\hashlenBytes$ bytes in which each byte equals one of \texttt{0x36} and \texttt{0x5c}. 
+
+Now we can present the seven subtypes of queries made by TLS~1.3. The first five types are Type~$1$ queries, and the last two (Empty and Transcript) are Type~$2$ queries.
+
+The seven subtypes of queries are: 
+\begin{enumerate}
+	\item \textbf{Outer $\HMAC$ queries.}
+	These queries are the second query made in the computation of $\HMAC$.
+	Its key has length $\hashlenBytes$, and the digest $d$ also has length $\hashlenBytes$. 
+	In between these is a segment containing $\blocklenBytes-\hashlenBytes$ bytes \texttt{0x5c}. 
+	We will often refer to this segment as the ``fixed region''.  
+	When the hash function is $\SHA{256}$, resp. $\SHA{384}$, the fixed region is $32$, resp $80$ bytes long. 
+	The total query is $96$, resp. $176$ bytes long.
+	
+	\item \textbf{Inner $\HMAC$ queries.} We divide the first $\ROhash$ query made by $\HMAC$ into several subtypes; this type includes only those where the input to $\HMAC$ is an arbitrary string of length $\hashlenBytes$.
+	This subtype is formatted identically to an outer $\HMAC$ query, except that the bytes of the fixed region are fixed to the value \texttt{0x36} instead of \texttt{0x5c}.  
+	TLS~1.3 makes inner $\HMAC$ queries while computing $\Finished$ and $\binder$ messages (where the input is a hashed transcript), the early and master secrets, and in PSK-only mode, also the handshake secret.
+	
+	\item \textbf{Diffie--Hellman $\HMAC$ query.} In PSK-(EC)DHE mode, TLS~1.3 computes the handshake secret by calling $\HMAC$ on an encoded Diffie--Hellman key share. $\HMAC$'s first query is a Diffie--Hellman $\HMAC$ query. The formatting is the same as an inner $\HMAC$ hash except that the segment following the fixed region has a different length. The byte lengths ($|\G|/8$) of the encodings for each standardized Diffie--Hellman group can be found in Table~\ref{tbl:tls-groups}.
+
+	\item \textbf{\tlsfunction{Derive-Secret} hashes.} The \tlsfunction{Derive-Secret} function is a component of the TLS key schedule~\cite[Section 7.1]{rfc8446}. Its inputs are a key of length $\hashlenBytes$, a label string of $2$ to $12$-bytes in length, and an input \tlsfield{Messages} string. 
+	
+	\tlsfunction{\tlsfunction{Derive-Secret}} queries $\ROhash$ three times: once to hash the \tlsfield{Messages} string, and twice as part of $\HKDFExpnd$. 
+	The first of these three queries is a transcript query, and the third is an Outer $\HMAC$ query.
+	The second query we call a \tlsfunction{Derive-Secret} query. 
+	The \tlsfunction{Derive-Secret} query has the same formatting as Inner $\HMAC$ queries and Diffie--Hellman queries, but the segment following the fixed region contains a strictly formatted \tlsfield{HkdfLabel} struct~\cite[Section 7.1]{rfc8446}.
+	
+	This struct begins with a two-byte field encoding the integer value $\hashlenBytes$.
+	This is followed by a variable-length vector with a $1$-byte length field containing the string \texttt{''tls13 ''} followed by a label string with length between $2$ and $12$ bytes. 
+	Lastly comes a vector of length $\hashlenBytes$, prefixed with a $1$-byte field encoding its length. 
+	The last byte in the input contains the \texttt{0x01}. 
+	This byte is the counter mandated by the definition of $\HKDFExpnd$; however since $\HKDFExpnd$ is never called on inputs longer than $\hashlenBytes$, the counter never reaches a value higher than $1$.
+	
+	The total length of a the label struct, including the counter byte, is at least $\hashlenBytes+13$ bytes and at most $\hashlenBytes+23$ bytes. 
+	
+	\item \textbf{$\Finished$ hash.} The \tlsfunction{HKDF-Expand-Label} function is a subroutine of the \tlsfunction{Derive-Secret} function, but also called during the computation of $\Finished$ messages and the $\binder$ value~\cite[Section 4.4.4]{rfc8446}. 
+	\tlsfunction{HKDF-Expand-Label} makes two calls to $\ROhash$. The second is an Outer $\HMAC$ hash; we call the first a $\Finished$ hash. 
+	A $\Finished$ hash is identical to a \tlsfunction{Derive-Secret} hash, except that the label string is fixed to \texttt{finished} and the final vector has length $0$. 
+	The counter byte is still present. 
+	In total, the label struct occupies $19$ bytes.
+
+	\item \textbf{Empty hashes.} Occasionally in the key schedule, TLS~1.3 calls $\ROhash$ on the empty string. 
+	
+	\item \textbf{Transcript hashes.} The last use of $\ROhash$ is to condense partial transcripts. 
+	Each transcript includes at least a partial $\ClientHello$ message.
+	We assume calling $\ROhash$. on a transcript which includes at least a partial $\ClientHello$.
+	The minimum length of a partial $\ClientHello$ message in PSK-only mode is $69$~bytes.
+	This includes the following fields~\cite[Section~4.1.2]{rfc8446}:
+	\begin{itemize}
+		\item 2 bytes \tlsfield{legacy\_version} fixed to \texttt{0x0303}
+		\item 32 bytes \tlsfield{random}
+		\item 1 byte \tlsfield{legacy\_session\_id} (for an empty vector with $1$-byte length field)
+		\item 4 bytes \tlsfield{ciphersuites} (must include a $2$-byte length field and the value, e.g., \texttt{0x1301})
+		\item 2 bytes \tlsfield{legacy\_compression\_methods} (must include a $1$-byte length field and the value \texttt{0x00})
+		\item 2 bytes encoded length of \tlsfield{extensions} field
+		\item 7 bytes \tlsfield{supported\_versions extension} extension~\cite[Section~4.2.1]{rfc8446} (must start with \texttt{0x002b} and include \texttt{0x0304})
+		\item 6 bytes \tlsfield{psk\_key\_exchange\_modes} extension~\cite[Section~4.2.9]{rfc8446} (must start with \texttt{0x002d} and include \texttt{0x00})
+		\item 9 bytes \tlsfield{pre\_shared\_key} extension~\cite[Section~4.2.11]{rfc8446} (partial: excluding the binder list; must come last, must start with \texttt{0x0029})
+	\end{itemize}
+	The first $43$ bytes (through the \tlsfield{extensions}' length encoding), must appear in the order displayed, although the \tlsfield{legacy\_session\_id}, \tlsfield{ciphersuites}, and \tlsfield{legacy\_compression\_methods} fields can be longer than the lengths given above. 
+	We will occasionally refer to this segment as the ``fixed preface'' of a $\ClientHello$ because it must appear at the beginning of every well-formed $\ClientHello$ message. 
+	The extensions can be reordered arbitrarily (except for the \tlsfield{pre\_shared\_key} extension) and additional extensions and ciphersuites can be added or repeated, up to a maximum length of $2^{16}-1$~bytes of ciphersuites and $2^{16}-2$ bytes for extensions. The overall maximum length of a $\ClientHello$ is then $2^{32} + 289$~bytes.
+	A full $\ClientHello$ in PSK-only mode, including the binder list, adds at least another $3+\hashlenBytes$~bytes for a \tlsfield{binder} vector with a $3$~bytes of encoded length. The $\ClientHello$ message thus contains a minimum of $72+\hashlenBytes$~bytes and a maximum of $2^{32}+292+\hashlenBytes$ bytes.
+		
+	In PSK-(EC)DHE mode, two additional extensions are also mandatory: the \tlsfield{key\_share} and \tlsfield{supported\_groups} extensions~\cite[Section 9.2]{rfc8446}, so the minimum $\ClientHello$ length increases by at least $17$+$|\G|/8$ bytes, cf.\ Table~\ref{tbl:tls-groups}.
+	This increase occurs for both truncated and full $\ClientHello$ messages.
+	In this mode, a truncated $\ClientHello$ message is at least $86+|\G|/8$ bytes long, and a full $\ClientHello$ is at least $89+|\G|/8$ bytes long.
+	
+\end{enumerate}
+
+\begin{figure}[tp]
+	\centering
+	\begin{tabular}{p{2.5cm}p{4cm}p{3.5cm}}
+		\toprule
+		Group name & \tlsfield{NamedGroup} enum value & Encoding length $|\G|/8$ \\ \midrule
+		\groupname{secp256r1}~\cite{FIPS:186-4} & \texttt{0x0017} & $32$ \\ 
+		\groupname{secp384r1}~\cite{FIPS:186-4} & \texttt{0x0018} & $48$ \\ 
+		\groupname{secp521r1}~\cite{FIPS:186-4} & \texttt{0x0019} & $66$ \\ 
+		\groupname{x25519}~\cite{rfc7748} & \texttt{0x001d} & $32$ \\ 
+		\groupname{x448}~\cite{rfc7748} & \texttt{0x001E} & $56$ \\ 
+		\groupname{ffdhe2048}~\cite{rfc7919} & \texttt{0x0100} & $128$ \\ 
+		\groupname{ffdhe3072}~\cite{rfc7919} & \texttt{0x0101} & $192$ \\ 
+		\groupname{ffdhe4096}~\cite{rfc7919} & \texttt{0x0102} & $256$ \\ 
+		\groupname{ffdhe6144}~\cite{rfc7919} & \texttt{0x0103} & $384$ \\ 
+		\groupname{ffdhe8192}~\cite{rfc7919} & \texttt{0x0104} & $512$ \\ \bottomrule
+	\end{tabular}
+	\caption{Table displaying the standardized groups for use with TLS~1.3, their encodings in the \tlsfield{NamedGroup} enum, and the length of an encoded group element in bytes.}
+	\label{tbl:tls-groups}
+\end{figure}
+		
+ 
+\subsection{PSK-only mode with \SHA{256}}
+
+The block length of this hash function is $64$~bytes, and the output length is $32$~bytes.
+In Table~\ref{tbl:domsep-psk-256}, we give the minimum and maximum input lengths for each of the six call types. (Diffie--Hellman $\HMAC$ calls do not occur in this mode.)
+
+\begin{table}[tp]
+	\centering
+	\begin{tabular}{ccc}
+		\toprule
+		Type & Minimum length (bytes)~~ & Maximum length (bytes) \\
+		\midrule
+		Outer $\HMAC$ & $96$ & $96$ \\
+		Inner $\HMAC$ & $96$ & $96$ \\
+		\tlsfunction{Derive-Secret} & $109$ & $119$ \\
+		$\Finished$ & $83$ & $83$ \\
+		Empty & $0$ & $0$ \\
+		Transcript & $69$ & $2^{32}+324$ \\
+		\bottomrule
+	\end{tabular}
+	\medskip
+	
+	\caption{Table showing input lengths for hash function calls made by TLS~1.3 in PSK-only mode with \SHA{256}.}
+	\label{tbl:domsep-psk-256}
+\end{table}
+
+In Table~\ref{tbl:domsep-psk-256} we note the minimum and maximum input lengths of each type of message.
+For those types with overlapping length ranges, we must show they have separate domains by other means.
+Outer and Inner $\HMAC$ hashes have identical lengths; however each of them has a $32$-byte fixed region. 
+In outer $\HMAC$ hashes, the fixed region contains $\opad$; in inner $\HMAC$ hashes, it contains $\ipad$. 
+These are distinct values, so no string can be both an outer and an inner $\HMAC$ hash. 
+
+Transcript hashes are not domain-separated by length from any hash except the empty hashes.
+We therefore turn to formatting to separate these from other types.
+In the following, we visually lay out each byte of potentially overlapping inputs.
+
+For a string to be both a transcript and an $\HMAC$ hash (outer or inner), it must be $96$~bytes (cf.~Table~\ref{tbl:domsep-psk-256}) long.
+We diagram and compare a transcript hash containing a partial $\ClientHello$%
+\footnote{A full $\ClientHello$ contains at least $72+\hashlenBytes\geq 104$ bytes, which is too long to be an $\HMAC$ hash.}
+and an $\HMAC$ hash (outer or inner) in Figure~\ref{fig:domsep-PSKonly-256:partial-vs-HMAC}.
+	
+% 	\begin{tabular}{|p{4.3cm}|p{4.4cm}|p{0.9cm}|}
+% 		\hline
+% 		Fixed preface: $43$~bytes & Extension data: $44$~bytes & End of \tlsfield{pre\_shared\_key} extension: $9$~bytes \\
+% 		\hline
+% 	\end{tabular}
+% 
+% Next, we diagram an $\HMAC$ hash (outer or inner)
+% 	
+% 	\begin{tabular}{|p{3.2cm}|p{3.2cm}|p{3.2cm}|}
+% 		\hline
+% 		Key: $32$~bytes & Fixed region ($\ipad$ or $\opad$):  $32$~bytes & Arbitrary string: $32$~bytes \\
+% 		\hline
+% 	\end{tabular}
+
+\begin{figure}[h]
+	\centering
+	\begin{tabular}{|p{4.3cm}|p{4.4cm}|p{0.9cm}|}
+		\hline
+		Fixed preface: $43$\;B & Extension data: $44$\;B & End \tlsfield{PSK}: $9$\;B \\
+		\hline
+	\end{tabular}
+	
+	\noindent
+	\begin{tabular}{|p{3.2cm}|p{3.2cm}|p{3.2cm}|}
+		\hline
+		Key: $32$\;B & Fixed $\ipad$/$\opad$: $32$\;B & Arbitrary string: $32$~B \\
+		\hline
+	\end{tabular}
+	
+	\caption{%
+		Domain separation in PSK-only mode with \SHA{256}:
+		Transcript hash containing a partial $\ClientHello$ (top)
+		vs.\
+		(outer or inner) $\HMAC$ hash (bottom).
+		``End \tlsfield{PSK}'' is the end of the \tlsfield{pre\_shared\_key} extension.
+	}
+	\label{fig:domsep-PSKonly-256:partial-vs-HMAC}
+\end{figure}
+
+We can see that the fixed preface of the transcript hash overlaps the fixed region of the $\HMAC$ hash that is fixed to either $\ipad$ or $\opad$. 
+Consequently, the \tlsfield{legacy\_session\_id} vector must begin within the fixed region (at byte~$35$). 
+This is a variable-length vector preceded by a $1$-byte length field, and its maximum length is $32$ bytes~\cite[Section 4.1.2]{rfc8446}. 
+Therefore the maximum value of the length field is \texttt{0x20} and it cannot contain either byte \texttt{0x36} or \texttt{0x5c}. 
+Any string containing a valid partial $\ClientHello$ therefore cannot also be a correctly formatted $\HMAC$ hash.
+	
+The same argument applies to $\Finished$ and \tlsfunction{Derive-Secret} hashes, both of which contain the same fixed region in the same location as inner $\HMAC$ hashes.
+%	\item \textbf{Transcript vs.\ $\Finished$.}
+%	Collisions may occur only on $83$-byte transcript inputs. 
+%	A transcript hash of $83$~bytes contains:\\
+%	\begin{tabular}{|p{4.3cm}|p{3.1cm}|p{0.9cm}|}
+%		\hline
+%		Fixed preface ($43$~bytes) & Arbitrary extensions ($31$~bytes) & End of PSK extension ($9$~bytes) \\
+%		\hline
+%	\end{tabular}
+%
+%	A $\Finished$ hash \new{contains}:\\
+%	\begin{tabular}{|p{3.2cm}|p{3.2cm}|p{1.9cm}|}
+%		\hline
+%		Key ($32$~bytes) & Fixed to $\ipad$ ($32$~bytes) & \texttt{0x00200e} ||\texttt{``tls13 finished''} ||\texttt{0x0001} ($19$~bytes) \\
+%		\hline
+%	\end{tabular}
+%	As for $\HMAC$ hashes, the fixed preface will differ from $\ipad$ in at least one byte between bytes $33$ and $43$ because this section contains the ciphersuite encodings.
+%	
+%	\item \textbf{Transcript vs.\ \tlsfunction{Derive-Secret}.}
+%	Collisions may occur on transcripts of any length between $109$ and $119$~bytes.
+%
+%	We diagram a $109$~byte transcript, but the same principle applies to any input.
+%	 
+%	\begin{tabular}{|p{4.3cm}|p{5.7cm}|p{0.9cm}|}
+%		\hline
+%		Fixed preface ($43$~bytes) & Arbitrary extensions ($57$~bytes) & End of PSK extension ($9$~bytes) \\
+%		\hline
+%	\end{tabular}
+%
+%	A $109$-byte \tlsfunction{Derive-Secret} hash:
+%	 
+%	\begin{tabular}{|p{3.2cm}|p{3.2cm}|p{1.1cm}|p{3.4cm}|}
+%		\hline
+%		Key ($32$~bytes) & Fixed to $\ipad$ or $\opad$ ($32$~bytes) & \small{ \texttt{0x0020} || \texttt{0x08} || \texttt{``tls13 iv''} || \texttt{0x20} } & Transcript hash vector ($33$~bytes) || \texttt{0x01} \\
+%		\hline
+%	\end{tabular}
+%	
+%	As for $\HMAC$ hashes, the fixed preface will differ from $\ipad$ in at least one byte between bytes $33$ and $43$ because this section contains the ciphersuite encodings.
+%\end{itemize}
+
+For this mode, we define the set $\Dom_{\Thash}$ to include of the empty string and all strings of length greater than or equal to $69$~bytes for which the $35^{\text{th}}$ byte is not equal to $\ipad$ or $\opad$.
+We let $\Dom_{\Chash}$ contain all other elements of $\bits^*$.
+
+\subsection{Pre-shared key with Diffie--Hellmann mode with \SHA{256}}
+
+Again, we present the minimum and maximum lengths of each hash type; see Table~\ref{tbl:domsep-psk-dhe-256}.
+We now include Diffie--Hellman $\HMAC$ hashes, and transcript hashes include additional mandatory extensions for PSK-(EC)DHE mode.
+\begin{table}[tp]
+	\centering
+	\begin{tabular}{ccc}
+		\toprule
+		Type & Minimum length (bytes)~~ & Maximum length (bytes) \\ \midrule
+		Outer $\HMAC$ & $96$ & $96$ \\ 
+		Inner $\HMAC$ & $96$ & $96$ \\ 
+		Diffie--Hellman $\HMAC$ & $64+|\G|/8$ & $64+|\G|/8$ \\
+		\tlsfunction{Derive-Secret} & $109$ & $119$ \\ 
+		$\Finished$ & $83$ & $83$\\ 
+		Empty & $0$ & $0$ \\ 
+		Transcript & $86+|\G|/8$ & $2^{32}+324$ \\ 
+		\bottomrule
+	\end{tabular}
+	\medskip
+	
+	\caption{Table showing input lengths for hash function calls made by TLS~1.3 in PSK-(EC)DHE mode with \SHA{256}. For transcript hashes, the encoding lengths $|\G|/8$ can be found in Table~\ref{tbl:tls-groups}.}
+	\label{tbl:domsep-psk-dhe-256}
+\end{table}
+
+In this mode, Diffie--Hellman $\HMAC$ hashes may collide with Inner $\HMAC$ or \tlsfunction{Derive-Secret} hashes for certain choices of $\G$.
+This is not a failure of domain separation because these inputs to these three types will all belong to $\Dom_{\Chash}$.
+Transcript hashes now only have length overlaps with Diffie--Hellman $\HMAC$ and \tlsfunction{Derive-Secret} hashes.
+In both cases, however, the same argument about the $35^{\text{th}}$ byte containing the length of \tlsfield{legacy\_session\_id} applies, and no string can be two different types. 
+
+For this mode, the set $\Dom_{\Thash}$ consists of the empty string and all strings of length greater than or equal to $86+|\G|$~bytes for which the $35^{\text{th}}$ byte is not equal to $\ipad$ or $\opad$. $\Dom_{\Chash}$ contains all other elements of $\bits^*$. 
+
+\subsection{Pre-shared key with Diffie--Hellmann mode with \SHA{384}}
+
+Table~\ref{tbl:domsep-psk-dhe-384} shows the minimum and maximum lengths of each hash type for this configuration.
+The hash function \SHA{384} has $48$-byte output and $128$-byte block length, so the fixed region in $\HMAC$, $\Finished$, and \tlsfunction{Derive-Secret} hashes will be $80$ bytes long.
+
+Because $48$~byte $\HMAC$ keys are longer than the $43$~byte fixed preface of a $\ClientHello$, we cannot rely on the distinction between \tlsfield{legacy\_session\_id} and the fixed region for domain separation. Instead, we consider whether a minimum-length $\ClientHello$ can accommodate the mandatory extensions for this mode.
+
+\begin{table}[tp]
+	\centering
+	\begin{tabular}{ccc}
+		\toprule
+		Type & Minimum length (bytes)~~ & Maximum length (bytes) \\ \midrule 
+
+		Outer $\HMAC$ & $176$ & $176$ \\
+		Inner $\HMAC$ & $176$ & $176$ \\ 
+		Diffie--Hellman $\HMAC$ & $128+|\G|/8$ & $128+|\G|/8$ \\  
+		\tlsfunction{Derive-Secret} & $189$ & $199$ \\
+		$\Finished$ & $147$ & $147$\\ 
+		Empty & $0$ & $0$ \\
+		Transcript & $86+|\G|/8$ & $2^{32}+324$ \\ \hline 
+	\end{tabular}
+	\medskip
+	
+	\caption{Table showing input lengths for hash function calls made by TLS~1.3 in PSK-(EC)DHE mode with \SHA{384}.}
+	\label{tbl:domsep-psk-dhe-384}
+\end{table} 
+
+We worry only about possible collisions between transcript hashes and the other types: $\Finished$, $\HMAC$, and \tlsfunction{Derive-Secret}.
+We diagram a transcript hash of $176$~bytes together with an outer $\HMAC$ hash as a demonstration of the domain-separation argument in Figure~\ref{fig:domsep-PSKDHE-384:transcript-vs-HMAC}, but the same argument applies to all. 
+
+% Transcript hash of $176$ bytes: 
+% 
+% \begin{tabular}{|p{3.21cm}|p{9.3cm}|p{0.7cm}|}
+% 	\hline
+% 	Fixed preface: $43$~bytes & Extension data: $124$~bytes & End of \tlsfield{pre\_shared\_key} extension: $9$~bytes \\
+% 	\hline
+% \end{tabular}
+% 
+% Outer $\HMAC$ hash:
+% 
+% \begin{tabular}{|p{3.6cm}|p{6cm}|p{3.6cm}|}
+% 	\hline
+% 	Key: $48$~bytes) & Fixed region ($\opad$): $80$~bytes & Arbitrary string: $48$~bytes \\
+% 	\hline
+% \end{tabular}
+
+\begin{figure}[h]
+	\centering
+	
+	\scalebox{0.9}{%
+	\begin{tabular}{|p{3.21cm}|p{9.3cm}|p{0.7cm}|}
+		\hline
+		Fixed preface: $43$\;B & Extension data: $124$\;B & End \tlsfield{PSK}: $9$\;B \\
+		\hline
+	\end{tabular}
+	}
+
+	\noindent
+	\scalebox{0.9}{%
+	\begin{tabular}{|p{3.6cm}|p{6cm}|p{3.6cm}|}
+		\hline
+		Key: $48$\;B & Fixed region ($\opad$): $80$\;B & Arbitrary string: $48$\;B \\
+		\hline
+	\end{tabular}
+	}
+	
+	\caption{%
+		Domain separation in PSK-(EC)DHE mode with \SHA{384}:
+		Transcript hash of $176$~bytes (top)
+		vs.\
+		outer $\HMAC$ hash (bottom).
+		``End \tlsfield{PSK}'' is the end of the \tlsfield{pre\_shared\_key} extension.
+	}
+	\label{fig:domsep-PSKDHE-384:transcript-vs-HMAC}
+\end{figure}
+
+There are no obvious conflicts here: the fixed preface of a $\ClientHello$ message is covered by the key section of the $\HMAC$ hash, and the \tlsfield{pre\_shared\_key} extension is covered by the arbitrary string at the end.
+However, notice that of the $124$ bytes available for extension data in the $\ClientHello$, $80$~of them must be fixed to $\opad$ to allow a collision. 
+Even including the $5$~bytes immediately after the fixed preface and $9$~bytes reservedf or the \tlsfield{pre\_shared\_key} extension, this leaves only $58$~bytes. 
+In PSK-(EC)DHE mode, five extensions are mandatory even for truncated $\ClientHello$ messages. 
+They are \tlsfield{supported\_versions}~\cite[Section 4.2.1]{rfc8446} (minimum $7$~bytes), \tlsfield{supported\_groups}~\cite[Section 4.2.7]{rfc8446} (minimum $7$~bytes), \tlsfield{key\_share}~\cite[Section 4.2.8]{rfc8446} (minimum $16+|\G|/8$~bytes), \tlsfield{psk\_key\_exchange\_modes}~\cite[Section 4.2.9]{rfc8446} (minimum $6$~bytes), and \tlsfield{pre\_shared\_key}~\cite[Section 4.2.11]{rfc8446} (minimum $13$~bytes). 
+Even for the smallest choice of $\G$, at least $71$ bytes are required to contain these extensions. 
+At least one of the extensions must overlap with the fixed field, and will differ from $\opad$ in at least one byte.
+
+Any valid transcript hash will need at least $92+|\G|/8$ bytes outside the fixed region: $43$~bytes for the preface and $49+|\G|/8$ for the mandatory extensions. An outer $\HMAC$ hash has only $124$ unfixed bytes and cannot meet this threshold. 
+This is true also for inner $\HMAC$ hashes ($96$ unfixed bytes), and Diffie--Hellman $\HMAC$ hashes, which have $48+|\G|/8$ unfixed bytes. 
+It is true for $\Finished$ hashes, which have $48$ unfixed bytes. 
+And it is true for \tlsfunction{Derive-Secret} hashes, which have at most $119$ unfixed bytes.
+
+Let us be even more clear about why this overlap means no collision is possible. 
+We cannot fit all of the extensions in the $48+|\G|$ bytes after the fixed region. 
+Therefore one of the extensions must start either in the fixed region, or before the fixed region. 
+None of these extensions can start in the fixed region because they all begin with an extension type different from $\ipad$ or $\opad$. 
+Therefore one of them must start before the fixed region and continue into the fixed region. 
+We call this the ``first extension''.
+The \tlsfield{pre\_shared\_key} extension must be the last extension, so it cannot be the first extension.
+Therefore  the first extension is one of \tlsfield{key\_share}, \tlsfield{supported\_groups}, and \tlsfield{psk\_key\_exchange\_modes}, and \tlsfield{supported\_versions}.
+
+All extensions start with a $4$~byte encoding of their type and length. 
+This means that the first extension may contain only one arbitrary byte of data before $80$ bytes of $\ipad$ or $\opad$. All four possible extensions consist of variable-length vectors. TLS encodes all variable-length vectors with a $1$ or $2$~byte prefix encoding their length. Consequently, the entries of the vector fall in or after the fixed region. 
+
+Each of the vector entries in the four possible first extensions begins with an element from an enum: either the \tlsfield{NamedGroup}, \tlsfield{ProtocolVersion}, or \tlsfield{PskKeyExchangeMode} enums. 
+Luckily, none of these enums contain the bytes \texttt{0x36} or \texttt{0x5c}. To demonstrate this, we present the \tlsfield{NamedGroup} values in Table~\ref{tbl:tls-groups}~\cite[Section 4.2.7]{rfc8446}. The \tlsfield{ProtocolVersion} encoding for TLS~1.3 is \texttt{0x0304} \cite[Section 4.2.1]{rfc8446}, and the elements of the \tlsfield{PskKeyExchangeMode} enums are \texttt{0x00}, \texttt{0x01}, and \texttt{0xff}~\cite[Section 4.2.9]{rfc8446}. 
+Of course, a $\ClientHello$ message can contain badly formed extensions. 
+We assume, however, that each of the mandatory extensions must contain one correctly formatted vector entry. 
+Without these entries, communication partners will not be able to select the correct version, group, or mode to execute the protocol; we assume that in this case they would abort. 
+Because the fixed region contains no valid enum elements, this correctly formatted vector entry must begin after the fixed region. 
+Therefore the first extension uses at most $1$ byte of the fixed region to encode meaningful data (a possible second byte of the vector length encoding). 
+The mandatory extensions must occupy no more than $5$~bytes before the fixed region, $1$~byte in the fixed region, and either $71$~bytes after the fixed region (for the longest possible \tlsfunction{Derive-Secret} hash) or $|\G|/8$~bytes after (for an inner $\HMAC$ hash). But summing their minimum lengths gives $49+|\G|/8$ bytes. Even for the smallest possible $|\G|/8 = 32$, the extensions just do not fit in the given space.
+It is therefore impossible to construct a valid $\ClientHello$ message, truncated or otherwise, that collides with a possible $\HMAC$, \tlsfunction{Derive-Secret}, or \tlsfunction{Finished} hash. 
+
+Consequently we can set $\Dom_{\Thash}$ to contain the empty string and all strings of at least $86$ bytes for which at least one of bytes $48$ through $128$ does not equal either $\ipad$ or $\opad$. As usual, we set $\Dom_{\Chash}$ to be all other elements of $\bits^*$. 
+
+
+\subsection{PSK-only mode with \SHA{384}}
+
+In this mode/hash function combination, the transcript hash can collide with outer $\HMAC$ hashes.
+There are other collisions as well, but one is sufficient to demonstrate the lack of domain separation.
+We illustrate this via a $176$-byte transcript hash (containing a truncated $\ClientHello$) and an outer $\HMAC$ hash, shown in Figure~\ref{fig:domsep-PSKonly-384:transcript-vs-HMAC}.
+
+% A $176$-byte transcript hash (containing a truncated $\ClientHello$):
+% 
+% \begin{tabular}{|p{3.2cm}|p{6.42cm}|p{1.81cm}|p{1.69cm}|}
+% 	\hline
+% 	Fixed preface ($43$~bytes) & \tlsfield{supported\_version} ($87$~bytes) & \tlsfield{cookie} ($24$~bytes)&Mandatory extensions ($22$~bytes) \\
+% 	\hline
+% \end{tabular}
+% 
+% An outer $\HMAC$ hash: 
+% 
+% \begin{tabular}{|p{3.6cm}|p{6.0cm}|p{3.6cm}|}
+% 	\hline
+% 	Key: $48$~bytes & Fixed region ($\opad$): $80$~bytes & Arbitrary string: $48$~bytes \\
+% 	\hline
+% \end{tabular}
+
+
+\begin{figure}[h]
+	\centering
+	
+	\scalebox{0.68}{%
+% 	\begin{tabular}{|p{3.21cm}|p{9.3cm}|p{0.7cm}|}
+% 		\hline
+% 		Fixed preface: $43$\;B & Extension data: $124$\;B & End \tlsfield{PSK}: $9$\;B \\
+% 		\hline
+% 	\end{tabular}
+
+	\begin{tabular}{|p{4.3cm}|p{8.7cm}|p{2.4cm}|p{1.755cm}|} %% last column should be 2.2cm, but this tabular has one column more, so adjust for spacing here
+	\hline
+		Fixed preface: $43$\;B & \tlsfield{supported\_version}: $87$\;B & \tlsfield{cookie}: $24$\;B & Mandatory extensions: $22$\;B \\
+		\hline
+	\end{tabular}
+	}
+
+	\noindent
+	\scalebox{0.68}{%
+% 	\begin{tabular}{|p{3.6cm}|p{6cm}|p{3.6cm}|}
+% 		\hline
+% 		Key: $48$\;B & Fixed region ($\opad$): $80$\;B & Arbitrary string: $48$\;B \\
+% 		\hline
+% 	\end{tabular}
+	\begin{tabular}{|p{4.8cm}|p{8.0cm}|p{4.8cm}|}
+		\hline
+		Key: $48$~bytes & Fixed region ($\opad$): $80$~bytes & Arbitrary string: $48$~bytes \\
+		\hline
+	\end{tabular}
+	}
+	
+	\caption{%
+		Failing domain separation in PSK-only mode with \SHA{384}:
+		Transcript hash of $176$~bytes, containing a truncated $\ClientHello$, (top)
+		vs.\
+		outer $\HMAC$ hash (bottom).
+		``End \tlsfield{PSK}'' is the end of the \tlsfield{pre\_shared\_key} extension.
+	}
+	\label{fig:domsep-PSKonly-384:transcript-vs-HMAC}
+\end{figure}
+
+
+
+We construct the following message, which is both a truncated $\ClientHello$ (and therefore a transcript hash) and an outer $\HMAC$ hash. 
+We let the first extension be the \tlsfield{supported\_versions} extension. 
+This extension will contain $41$ protocol versions. 
+The first $40$ versions will be two bytes of $\opad$: \texttt{0x5c5c}; the last will be the real version number \texttt{0x0304}. 
+These extra version numbers match the $\HMAC$ key padding, and the real version number lies in the last $48$~bytes, which are unrestricted by the formatting of an $\HMAC$ hash. 
+
+We place the remaining mandatory extensions at the end of the content section. 
+In PSK-only mode, these are only  \tlsfield{psk\_key\_exchange\_modes}, and (the truncated) \tlsfield{pre\_shared\_key}, and they take up $22$~ bytes. 
+This leaves $24$ bytes unaccounted for between the end of the \tlsfield{supported\_versions} extension and the start of \tlsfield{psk\_key\_exchange\_modes}. 
+We can fill these with a \tlsfield{cookie} ~\cite[Section 4.2.2]{rfc8446} extension with arbitrary content. 
+(We can also fill these bytes without including additional extensions.)
+
+This type of collision is unavoidable, so there are no disjoint sets $\Dom_{\Thash}$ and $\Dom_{\Chash}$ that capture the way TLS~1.3 calls \SHA{384} in pre-shared key only mode. Consequently the indifferentiability step of Section~\ref{sec:domsep} does not apply to this mode. 
+
+\iffull
+\subsection{Repairing domain separation for TLS~1.3-like protocols}\label{apx-domsep-fix}
+The above analysis demonstrates that complete domain separation is nontrivial to achieve for a protocol like TLS~1.3 which uses a hash function for multiple purposes and at multiple levels of abstraction.
+We would like to present our suggestions for how this could be achieved most simply and efficiently in future iterations of TLS and other schemes. 
+As discussed by Bellare et al.~\cite{EC:BelDavGun20}, the most well-known method of domain separation is the inclusion of distinct labels into each hash function call; this is precisely the method adopted by TLS~1.3 to distinguish calls to its \tlsfunction{Derive-Secret} function.
+Ideally, a future scheme could specify a unique label string for each purpose: not only the various derived secrets, but also each time the transcript is hashed and each internal call made by $\HMAC$, $\HKDFExtr$, and $\HKDFExpnd$.
+
+Unfortunately, this ideal method is not compatible with the existing specifications of $\HMAC$ and $\HKDF$. 
+Both of these functions make ``Outer $\HMAC$ queries'' as discussed above; these calls have a fixed input length of $\blocklenBytes+ \hashlenBytes$ bytes and this input does not include a label.
+A protocol could avoid this roadblock by using a custom implementation of $\HMAC$ or $\HKDF$ whose underlying hash function prepends an $\HMAC$-specific label to its input.
+This approach would be both standard-compliant and efficient, but we don't recommend it because existing cryptographic libraries already have trustworthy $\HMAC$ and $\HKDF$ functionality and encouraging custom implementations for every new protocol increases the probability of accidental errors in these new implementations.
+Instead, we suggest making no adjustments to the internal execution of $\HMAC$ or $\HKDF$ and instead altering direct hash function calls (the other six subtypes we discuss) to avoid collisions.
+
+In practice, this means that under our recommendation, all hash function calls which are not outer $\HMAC$ queries should obey two simple rules: first, they should end with a unique label and second, that their input must not be $\blocklenBytes+\hashlenBytes$ long.
+To conform with the first rule, TLS 1.3 would need to make the following changes.
+\begin{enumerate}
+	\item Add distinct labels to the end of each transcript before hashing; for clarity we suggest using the names of the last message in the transcript; i.e. ``$\PartialClientHello$'', ``$\ClientHello$'', ``$\ServerHello$'', etc. If $\HKDF$ is used, we would also recommend that these labels should not end with the byte \texttt{0x01}.
+	\item Add distinct labels to the end of the input each time $\HMAC$ is called; this would include for Inner $\HMAC$ queries, Diffie--Hellman $\HMAC$ queries, $\Finished$ queries, and $\tlsfunction{Derive-Secret}$ queries. Note that the labels should be postpended to the $\HMAC$ payload and not the key. The labels used by $\tlsfunction{Derive-Secret}$ could then be omitted, although this is not necessary.
+	\item Ensure that none of the labels used is a suffix of another; this can introduce collisions even if the labels are distinct.
+\end{enumerate}
+We encourage using suffixes for domain separation, although prefixes are more commonly-used, because they are easier to use in conjunction with $\HMAC$ and $\HKDF$.
+Although we are not applying labels to outer $\HMAC$ queries, we would still like to use them to domain separate inner $\HMAC$ queries (and the other subtypes).
+The inputs to these queries begin with the $\HMAC$ key, which undergoes an XOR operation with $\ipad$ before it is hashed.
+So prefixed labels would need to remain unique and prefix-free after this XOR operation; this introduces some confusion that we prefer to avoid.
+Additionally, the second step of our indifferentiability proof relies crucially on the fact that $\HMAC$ uses fixed-length keys shorter than $\blocklenBytes$; prefixed labels would therefore need to share a fixed length shorter than $\blocklenBytes-\hashlenBytes$ bytes. 
+With suffixes, we still need to contend with the counter byte that $\HKDFExpnd$ appends to its input, but in TLS~1.3 where this byte is always \texttt{0x01}, this presents less of a restriction.
+
+To conform with the second rule, TLS~1.3 would need to enforce that it never hashes a string of $\blocklenBytes+\hashlenBytes$ except as an Outer $\HMAC$ query. 
+The easiest and least error-prone way to do this would be to pad every non-empty hash function call and input to $\HMAC$ and $\HKDF$ with exactly $\blocklenBytes + \hashlenBytes$ bytes (before the suffixed labels); all calls would strictly longer than $\blocklenBytes+\hashlenBytes$.
+This method adds two additional compression function calls to each hash function execution.
+There are some ways to lessen this requirement without impacting the effectiveness of the length-based domain separation.
+Calls which already have input longer than $\blocklenBytes+\hashlenBytes$ bytes can omit the padding; so can calls which have strictly shorter input.
+It would also be possible to use only as much padding is needed to make input at least $\blocklenBytes+\hashlenBytes+1$ bytes long.
+However, non-uniform padding should be done carefully so that, for example, two previously distinct $\ClientHello$ messages do not collide after being padded.
+\fi

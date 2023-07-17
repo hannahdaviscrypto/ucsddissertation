@@ -1,0 +1,139 @@
+\begin{table}[p]
+	\centering
+	\fontsize{4.5}{5}\selectfont % smaller than \tiny
+	\renewcommand{\arraystretch}{0.01}
+	\renewcommand{\tabcolsep}{0.15cm}
+	\vspace{-0.5cm} %% a little higher
+	\begin{tabular}{@{}lllllllllll@{}}
+	\toprule
+	\multicolumn{4}{c}{Adv.\ resources}		&&		& \multicolumn{2}{c}{\SIGMA}	&& \multicolumn{2}{c}{TLS~1.3} \\
+	\cmidrule{1-4} \cmidrule{7-8} \cmidrule{10-11}
+	$t$	& $\#U$	& $\#S$ & $\#RO$ & Curve (\fullelse{bit security~$b$, group order~$p$}{bit sec.\!~$b$,\! order~$p$})	& Target $t/2^b$	& CK\,{\cite{C:CanKra02}}~	& Us~{(Thm.~\ref{thm:SIGMAI})}	&& DFGS\,{\cite{JC:DFGS21}}~	& Us~{(Thm.~\ref{thm:tls})} \\
+\midrule
+$2^{40}$	&$2^{20}$	&$2^{35}$	&$2^{30}$	&\texttt{secp256r1} ($b \!=\! 128$,\! $p \!\approx\! 2^{256}$)	&$2^{-88}$	&$\approx 2^{-101}$	& $\approx 2^{-156}$	&& $\approx 2^{-104}$	& $\approx 2^{-156}$	 \\
+$2^{40}$	&$2^{20}$	&$2^{45}$	&$2^{30}$	&\texttt{secp256r1} ($b \!=\! 128$,\! $p \!\approx\! 2^{256}$)	&$2^{-88}$	&$\approx 2^{-91}$	& $\approx 2^{-156}$	&& \cellcolor{red!25}$\approx 2^{-84}$	&$\approx 2^{-156}$	 \\
+$2^{40}$	&$2^{20}$	&$2^{55}$	&$2^{30}$	&\texttt{secp256r1} ($b \!=\! 128$,\! $p \!\approx\! 2^{256}$)	&$2^{-88}$	&\cellcolor{red!25}$\approx 2^{-81}$	&$\approx 2^{-156}$	&& \cellcolor{red!25}$\approx 2^{-64}$	&$\approx 2^{-156}$	 \\
+$2^{40}$	&$2^{30}$	&$2^{35}$	&$2^{30}$	&\texttt{secp256r1} ($b \!=\! 128$,\! $p \!\approx\! 2^{256}$)	&$2^{-88}$	&\cellcolor{red!25}$\approx 2^{-81}$	&$\approx 2^{-146}$	&& $\approx 2^{-104}$	& $\approx 2^{-146}$	 \\
+$2^{40}$	&$2^{30}$	&$2^{45}$	&$2^{30}$	&\texttt{secp256r1} ($b \!=\! 128$,\! $p \!\approx\! 2^{256}$)	&$2^{-88}$	&\cellcolor{red!25}$\approx 2^{-71}$	&$\approx 2^{-146}$	&& \cellcolor{red!25}$\approx 2^{-84}$	&$\approx 2^{-146}$	 \\
+$2^{40}$	&$2^{30}$	&$2^{55}$	&$2^{30}$	&\texttt{secp256r1} ($b \!=\! 128$,\! $p \!\approx\! 2^{256}$)	&$2^{-88}$	&\cellcolor{red!25}$\approx 2^{-61}$	&$\approx 2^{-146}$	&& \cellcolor{red!25}$\approx 2^{-64}$	&$\approx 2^{-146}$	 \\
+\midrule
+$2^{40}$	&$2^{20}$	&$2^{35}$	&$2^{30}$	&\texttt{secp384r1} ($b \!=\! 192$,\! $p \!\approx\! 2^{384}$)	&$2^{-152}$	&$\approx 2^{-229}$	& $\approx 2^{-284}$	&& $\approx 2^{-232}$	& $\approx 2^{-284}$	 \\
+$2^{40}$	&$2^{20}$	&$2^{45}$	&$2^{30}$	&\texttt{secp384r1} ($b \!=\! 192$,\! $p \!\approx\! 2^{384}$)	&$2^{-152}$	&$\approx 2^{-219}$	& $\approx 2^{-284}$	&& $\approx 2^{-212}$	& $\approx 2^{-284}$	 \\
+$2^{40}$	&$2^{20}$	&$2^{55}$	&$2^{30}$	&\texttt{secp384r1} ($b \!=\! 192$,\! $p \!\approx\! 2^{384}$)	&$2^{-152}$	&$\approx 2^{-209}$	& $\approx 2^{-284}$	&& $\approx 2^{-192}$	& $\approx 2^{-284}$	 \\
+$2^{40}$	&$2^{30}$	&$2^{35}$	&$2^{30}$	&\texttt{secp384r1} ($b \!=\! 192$,\! $p \!\approx\! 2^{384}$)	&$2^{-152}$	&$\approx 2^{-209}$	& $\approx 2^{-274}$	&& $\approx 2^{-232}$	& $\approx 2^{-274}$	 \\
+$2^{40}$	&$2^{30}$	&$2^{45}$	&$2^{30}$	&\texttt{secp384r1} ($b \!=\! 192$,\! $p \!\approx\! 2^{384}$)	&$2^{-152}$	&$\approx 2^{-199}$	& $\approx 2^{-274}$	&& $\approx 2^{-212}$	& $\approx 2^{-274}$	 \\
+$2^{40}$	&$2^{30}$	&$2^{55}$	&$2^{30}$	&\texttt{secp384r1} ($b \!=\! 192$,\! $p \!\approx\! 2^{384}$)	&$2^{-152}$	&$\approx 2^{-189}$	& $\approx 2^{-274}$	&& $\approx 2^{-192}$	& $\approx 2^{-274}$	 \\
+\midrule
+$2^{40}$	&$2^{20}$	&$2^{35}$	&$2^{30}$	&\texttt{secp521r1} ($b \!=\! 256$,\! $p \!\approx\! 2^{521}$)	&$2^{-216}$	&$\approx 2^{-298}$	& $\approx 2^{-318}$	&& $\approx 2^{-282}$	& $\approx 2^{-317}$	 \\
+$2^{40}$	&$2^{20}$	&$2^{45}$	&$2^{30}$	&\texttt{secp521r1} ($b \!=\! 256$,\! $p \!\approx\! 2^{521}$)	&$2^{-216}$	&$\approx 2^{-288}$	& $\approx 2^{-308}$	&& $\approx 2^{-262}$	& $\approx 2^{-307}$	 \\
+$2^{40}$	&$2^{20}$	&$2^{55}$	&$2^{30}$	&\texttt{secp521r1} ($b \!=\! 256$,\! $p \!\approx\! 2^{521}$)	&$2^{-216}$	&$\approx 2^{-278}$	& $\approx 2^{-298}$	&& $\approx 2^{-242}$	& $\approx 2^{-297}$	 \\
+$2^{40}$	&$2^{30}$	&$2^{35}$	&$2^{30}$	&\texttt{secp521r1} ($b \!=\! 256$,\! $p \!\approx\! 2^{521}$)	&$2^{-216}$	&$\approx 2^{-288}$	& $\approx 2^{-318}$	&& $\approx 2^{-282}$	& $\approx 2^{-317}$	 \\
+$2^{40}$	&$2^{30}$	&$2^{45}$	&$2^{30}$	&\texttt{secp521r1} ($b \!=\! 256$,\! $p \!\approx\! 2^{521}$)	&$2^{-216}$	&$\approx 2^{-278}$	& $\approx 2^{-308}$	&& $\approx 2^{-262}$	& $\approx 2^{-307}$	 \\
+$2^{40}$	&$2^{30}$	&$2^{55}$	&$2^{30}$	&\texttt{secp521r1} ($b \!=\! 256$,\! $p \!\approx\! 2^{521}$)	&$2^{-216}$	&$\approx 2^{-268}$	& $\approx 2^{-298}$	&& $\approx 2^{-242}$	& $\approx 2^{-297}$	 \\
+\midrule
+$2^{40}$	&$2^{20}$	&$2^{35}$	&$2^{30}$	&\texttt{x25519} ($b \!=\! 128$,\! $p \!\approx\! 2^{252}$)	&$2^{-88}$	&$\approx 2^{-97}$	& $\approx 2^{-152}$	&& $\approx 2^{-100}$	& $\approx 2^{-152}$	 \\
+$2^{40}$	&$2^{20}$	&$2^{45}$	&$2^{30}$	&\texttt{x25519} ($b \!=\! 128$,\! $p \!\approx\! 2^{252}$)	&$2^{-88}$	&\cellcolor{red!25}$\approx 2^{-87}$	&$\approx 2^{-152}$	&& \cellcolor{red!25}$\approx 2^{-80}$	&$\approx 2^{-152}$	 \\
+$2^{40}$	&$2^{20}$	&$2^{55}$	&$2^{30}$	&\texttt{x25519} ($b \!=\! 128$,\! $p \!\approx\! 2^{252}$)	&$2^{-88}$	&\cellcolor{red!25}$\approx 2^{-77}$	&$\approx 2^{-152}$	&& \cellcolor{red!25}$\approx 2^{-60}$	&$\approx 2^{-152}$	 \\
+$2^{40}$	&$2^{30}$	&$2^{35}$	&$2^{30}$	&\texttt{x25519} ($b \!=\! 128$,\! $p \!\approx\! 2^{252}$)	&$2^{-88}$	&\cellcolor{red!25}$\approx 2^{-77}$	&$\approx 2^{-142}$	&& $\approx 2^{-100}$	& $\approx 2^{-142}$	 \\
+$2^{40}$	&$2^{30}$	&$2^{45}$	&$2^{30}$	&\texttt{x25519} ($b \!=\! 128$,\! $p \!\approx\! 2^{252}$)	&$2^{-88}$	&\cellcolor{red!25}$\approx 2^{-67}$	&$\approx 2^{-142}$	&& \cellcolor{red!25}$\approx 2^{-80}$	&$\approx 2^{-142}$	 \\
+$2^{40}$	&$2^{30}$	&$2^{55}$	&$2^{30}$	&\texttt{x25519} ($b \!=\! 128$,\! $p \!\approx\! 2^{252}$)	&$2^{-88}$	&\cellcolor{red!25}$\approx 2^{-57}$	&$\approx 2^{-142}$	&& \cellcolor{red!25}$\approx 2^{-60}$	&$\approx 2^{-142}$	 \\
+\midrule
+$2^{40}$	&$2^{20}$	&$2^{35}$	&$2^{30}$	&\texttt{x448} ($b \!=\! 224$,\! $p \!\approx\! 2^{446}$)	&$2^{-184}$	&$\approx 2^{-291}$	& $\approx 2^{-318}$	&& $\approx 2^{-282}$	& $\approx 2^{-317}$	 \\
+$2^{40}$	&$2^{20}$	&$2^{45}$	&$2^{30}$	&\texttt{x448} ($b \!=\! 224$,\! $p \!\approx\! 2^{446}$)	&$2^{-184}$	&$\approx 2^{-281}$	& $\approx 2^{-308}$	&& $\approx 2^{-262}$	& $\approx 2^{-307}$	 \\
+$2^{40}$	&$2^{20}$	&$2^{55}$	&$2^{30}$	&\texttt{x448} ($b \!=\! 224$,\! $p \!\approx\! 2^{446}$)	&$2^{-184}$	&$\approx 2^{-271}$	& $\approx 2^{-298}$	&& $\approx 2^{-242}$	& $\approx 2^{-297}$	 \\
+$2^{40}$	&$2^{30}$	&$2^{35}$	&$2^{30}$	&\texttt{x448} ($b \!=\! 224$,\! $p \!\approx\! 2^{446}$)	&$2^{-184}$	&$\approx 2^{-271}$	& $\approx 2^{-318}$	&& $\approx 2^{-282}$	& $\approx 2^{-317}$	 \\
+$2^{40}$	&$2^{30}$	&$2^{45}$	&$2^{30}$	&\texttt{x448} ($b \!=\! 224$,\! $p \!\approx\! 2^{446}$)	&$2^{-184}$	&$\approx 2^{-261}$	& $\approx 2^{-308}$	&& $\approx 2^{-262}$	& $\approx 2^{-307}$	 \\
+$2^{40}$	&$2^{30}$	&$2^{55}$	&$2^{30}$	&\texttt{x448} ($b \!=\! 224$,\! $p \!\approx\! 2^{446}$)	&$2^{-184}$	&$\approx 2^{-251}$	& $\approx 2^{-298}$	&& $\approx 2^{-242}$	& $\approx 2^{-297}$	 \\
+\midrule
+\midrule
+$2^{60}$	&$2^{20}$	&$2^{35}$	&$2^{50}$	&\texttt{secp256r1} ($b \!=\! 128$,\! $p \!\approx\! 2^{256}$)	&$2^{-68}$	&\cellcolor{red!25}$\approx 2^{-61}$	&$\approx 2^{-116}$	&& \cellcolor{red!25}$\approx 2^{-64}$	&$\approx 2^{-116}$	 \\
+$2^{60}$	&$2^{20}$	&$2^{45}$	&$2^{50}$	&\texttt{secp256r1} ($b \!=\! 128$,\! $p \!\approx\! 2^{256}$)	&$2^{-68}$	&\cellcolor{red!25}$\approx 2^{-51}$	&$\approx 2^{-116}$	&& \cellcolor{red!25}$\approx 2^{-44}$	&$\approx 2^{-116}$	 \\
+$2^{60}$	&$2^{20}$	&$2^{55}$	&$2^{50}$	&\texttt{secp256r1} ($b \!=\! 128$,\! $p \!\approx\! 2^{256}$)	&$2^{-68}$	&\cellcolor{red!25}$\approx 2^{-41}$	&$\approx 2^{-116}$	&& \cellcolor{red!25}$\approx 2^{-24}$	&$\approx 2^{-116}$	 \\
+$2^{60}$	&$2^{30}$	&$2^{35}$	&$2^{50}$	&\texttt{secp256r1} ($b \!=\! 128$,\! $p \!\approx\! 2^{256}$)	&$2^{-68}$	&\cellcolor{red!25}$\approx 2^{-41}$	&$\approx 2^{-106}$	&& \cellcolor{red!25}$\approx 2^{-64}$	&$\approx 2^{-106}$	 \\
+$2^{60}$	&$2^{30}$	&$2^{45}$	&$2^{50}$	&\texttt{secp256r1} ($b \!=\! 128$,\! $p \!\approx\! 2^{256}$)	&$2^{-68}$	&\cellcolor{red!25}$\approx 2^{-31}$	&$\approx 2^{-106}$	&& \cellcolor{red!25}$\approx 2^{-44}$	&$\approx 2^{-106}$	 \\
+$2^{60}$	&$2^{30}$	&$2^{55}$	&$2^{50}$	&\texttt{secp256r1} ($b \!=\! 128$,\! $p \!\approx\! 2^{256}$)	&$2^{-68}$	&\cellcolor{red!25}$\approx 2^{-21}$	&$\approx 2^{-106}$	&& \cellcolor{red!25}$\approx 2^{-24}$	&$\approx 2^{-106}$	 \\
+\midrule
+$2^{60}$	&$2^{20}$	&$2^{35}$	&$2^{50}$	&\texttt{secp384r1} ($b \!=\! 192$,\! $p \!\approx\! 2^{384}$)	&$2^{-132}$	&$\approx 2^{-189}$	& $\approx 2^{-244}$	&& $\approx 2^{-192}$	& $\approx 2^{-244}$	 \\
+$2^{60}$	&$2^{20}$	&$2^{45}$	&$2^{50}$	&\texttt{secp384r1} ($b \!=\! 192$,\! $p \!\approx\! 2^{384}$)	&$2^{-132}$	&$\approx 2^{-179}$	& $\approx 2^{-244}$	&& $\approx 2^{-172}$	& $\approx 2^{-244}$	 \\
+$2^{60}$	&$2^{20}$	&$2^{55}$	&$2^{50}$	&\texttt{secp384r1} ($b \!=\! 192$,\! $p \!\approx\! 2^{384}$)	&$2^{-132}$	&$\approx 2^{-169}$	& $\approx 2^{-244}$	&& $\approx 2^{-152}$	& $\approx 2^{-244}$	 \\
+$2^{60}$	&$2^{30}$	&$2^{35}$	&$2^{50}$	&\texttt{secp384r1} ($b \!=\! 192$,\! $p \!\approx\! 2^{384}$)	&$2^{-132}$	&$\approx 2^{-169}$	& $\approx 2^{-234}$	&& $\approx 2^{-192}$	& $\approx 2^{-234}$	 \\
+$2^{60}$	&$2^{30}$	&$2^{45}$	&$2^{50}$	&\texttt{secp384r1} ($b \!=\! 192$,\! $p \!\approx\! 2^{384}$)	&$2^{-132}$	&$\approx 2^{-159}$	& $\approx 2^{-234}$	&& $\approx 2^{-172}$	& $\approx 2^{-234}$	 \\
+$2^{60}$	&$2^{30}$	&$2^{55}$	&$2^{50}$	&\texttt{secp384r1} ($b \!=\! 192$,\! $p \!\approx\! 2^{384}$)	&$2^{-132}$	&$\approx 2^{-149}$	& $\approx 2^{-234}$	&& $\approx 2^{-152}$	& $\approx 2^{-234}$	 \\
+\midrule
+$2^{60}$	&$2^{20}$	&$2^{35}$	&$2^{50}$	&\texttt{secp521r1} ($b \!=\! 256$,\! $p \!\approx\! 2^{521}$)	&$2^{-196}$	&$\approx 2^{-278}$	& $\approx 2^{-298}$	&& $\approx 2^{-250}$	& $\approx 2^{-285}$	 \\
+$2^{60}$	&$2^{20}$	&$2^{45}$	&$2^{50}$	&\texttt{secp521r1} ($b \!=\! 256$,\! $p \!\approx\! 2^{521}$)	&$2^{-196}$	&$\approx 2^{-268}$	& $\approx 2^{-288}$	&& $\approx 2^{-240}$	& $\approx 2^{-285}$	 \\
+$2^{60}$	&$2^{20}$	&$2^{55}$	&$2^{50}$	&\texttt{secp521r1} ($b \!=\! 256$,\! $p \!\approx\! 2^{521}$)	&$2^{-196}$	&$\approx 2^{-258}$	& $\approx 2^{-278}$	&& $\approx 2^{-222}$	& $\approx 2^{-277}$	 \\
+$2^{60}$	&$2^{30}$	&$2^{35}$	&$2^{50}$	&\texttt{secp521r1} ($b \!=\! 256$,\! $p \!\approx\! 2^{521}$)	&$2^{-196}$	&$\approx 2^{-268}$	& $\approx 2^{-298}$	&& $\approx 2^{-250}$	& $\approx 2^{-285}$	 \\
+$2^{60}$	&$2^{30}$	&$2^{45}$	&$2^{50}$	&\texttt{secp521r1} ($b \!=\! 256$,\! $p \!\approx\! 2^{521}$)	&$2^{-196}$	&$\approx 2^{-258}$	& $\approx 2^{-288}$	&& $\approx 2^{-240}$	& $\approx 2^{-285}$	 \\
+$2^{60}$	&$2^{30}$	&$2^{55}$	&$2^{50}$	&\texttt{secp521r1} ($b \!=\! 256$,\! $p \!\approx\! 2^{521}$)	&$2^{-196}$	&$\approx 2^{-248}$	& $\approx 2^{-278}$	&& $\approx 2^{-222}$	& $\approx 2^{-277}$	 \\
+\midrule
+$2^{60}$	&$2^{20}$	&$2^{35}$	&$2^{50}$	&\texttt{x25519} ($b \!=\! 128$,\! $p \!\approx\! 2^{252}$)	&$2^{-68}$	&\cellcolor{red!25}$\approx 2^{-57}$	&$\approx 2^{-112}$	&& \cellcolor{red!25}$\approx 2^{-60}$	&$\approx 2^{-112}$	 \\
+$2^{60}$	&$2^{20}$	&$2^{45}$	&$2^{50}$	&\texttt{x25519} ($b \!=\! 128$,\! $p \!\approx\! 2^{252}$)	&$2^{-68}$	&\cellcolor{red!25}$\approx 2^{-47}$	&$\approx 2^{-112}$	&& \cellcolor{red!25}$\approx 2^{-40}$	&$\approx 2^{-112}$	 \\
+$2^{60}$	&$2^{20}$	&$2^{55}$	&$2^{50}$	&\texttt{x25519} ($b \!=\! 128$,\! $p \!\approx\! 2^{252}$)	&$2^{-68}$	&\cellcolor{red!25}$\approx 2^{-37}$	&$\approx 2^{-112}$	&& \cellcolor{red!25}$\approx 2^{-20}$	&$\approx 2^{-112}$	 \\
+$2^{60}$	&$2^{30}$	&$2^{35}$	&$2^{50}$	&\texttt{x25519} ($b \!=\! 128$,\! $p \!\approx\! 2^{252}$)	&$2^{-68}$	&\cellcolor{red!25}$\approx 2^{-37}$	&$\approx 2^{-102}$	&& \cellcolor{red!25}$\approx 2^{-60}$	&$\approx 2^{-102}$	 \\
+$2^{60}$	&$2^{30}$	&$2^{45}$	&$2^{50}$	&\texttt{x25519} ($b \!=\! 128$,\! $p \!\approx\! 2^{252}$)	&$2^{-68}$	&\cellcolor{red!25}$\approx 2^{-27}$	&$\approx 2^{-102}$	&& \cellcolor{red!25}$\approx 2^{-40}$	&$\approx 2^{-102}$	 \\
+$2^{60}$	&$2^{30}$	&$2^{55}$	&$2^{50}$	&\texttt{x25519} ($b \!=\! 128$,\! $p \!\approx\! 2^{252}$)	&$2^{-68}$	&\cellcolor{red!25}$\approx 2^{-17}$	&$\approx 2^{-102}$	&& \cellcolor{red!25}$\approx 2^{-20}$	&$\approx 2^{-102}$	 \\
+\midrule
+$2^{60}$	&$2^{20}$	&$2^{35}$	&$2^{50}$	&\texttt{x448} ($b \!=\! 224$,\! $p \!\approx\! 2^{446}$)	&$2^{-164}$	&$\approx 2^{-251}$	& $\approx 2^{-298}$	&& $\approx 2^{-250}$	& $\approx 2^{-285}$	 \\
+$2^{60}$	&$2^{20}$	&$2^{45}$	&$2^{50}$	&\texttt{x448} ($b \!=\! 224$,\! $p \!\approx\! 2^{446}$)	&$2^{-164}$	&$\approx 2^{-241}$	& $\approx 2^{-288}$	&& $\approx 2^{-234}$	& $\approx 2^{-285}$	 \\
+$2^{60}$	&$2^{20}$	&$2^{55}$	&$2^{50}$	&\texttt{x448} ($b \!=\! 224$,\! $p \!\approx\! 2^{446}$)	&$2^{-164}$	&$\approx 2^{-231}$	& $\approx 2^{-278}$	&& $\approx 2^{-214}$	& $\approx 2^{-277}$	 \\
+$2^{60}$	&$2^{30}$	&$2^{35}$	&$2^{50}$	&\texttt{x448} ($b \!=\! 224$,\! $p \!\approx\! 2^{446}$)	&$2^{-164}$	&$\approx 2^{-231}$	& $\approx 2^{-296}$	&& $\approx 2^{-250}$	& $\approx 2^{-285}$	 \\
+$2^{60}$	&$2^{30}$	&$2^{45}$	&$2^{50}$	&\texttt{x448} ($b \!=\! 224$,\! $p \!\approx\! 2^{446}$)	&$2^{-164}$	&$\approx 2^{-221}$	& $\approx 2^{-288}$	&& $\approx 2^{-234}$	& $\approx 2^{-285}$	 \\
+$2^{60}$	&$2^{30}$	&$2^{55}$	&$2^{50}$	&\texttt{x448} ($b \!=\! 224$,\! $p \!\approx\! 2^{446}$)	&$2^{-164}$	&$\approx 2^{-211}$	& $\approx 2^{-278}$	&& $\approx 2^{-214}$	& $\approx 2^{-277}$	 \\
+\midrule
+\midrule
+$2^{80}$	&$2^{20}$	&$2^{35}$	&$2^{70}$	&\texttt{secp256r1} ($b \!=\! 128$,\! $p \!\approx\! 2^{256}$)	&$2^{-48}$	&\cellcolor{red!25}$\approx 2^{-21}$	&$\approx 2^{-76}$	&& \cellcolor{red!25}$\approx 2^{-24}$	&$\approx 2^{-76}$	 \\
+$2^{80}$	&$2^{20}$	&$2^{45}$	&$2^{70}$	&\texttt{secp256r1} ($b \!=\! 128$,\! $p \!\approx\! 2^{256}$)	&$2^{-48}$	&\cellcolor{red!25}$\approx 2^{-11}$	&$\approx 2^{-76}$	&& \cellcolor{red!25}$\approx 2^{-4}$	&$\approx 2^{-76}$	 \\
+$2^{80}$	&$2^{20}$	&$2^{55}$	&$2^{70}$	&\texttt{secp256r1} ($b \!=\! 128$,\! $p \!\approx\! 2^{256}$)	&$2^{-48}$	&\cellcolor{red!25}$\approx 2^{-1}$	&$\approx 2^{-76}$	&& \cellcolor{red!25}1			&$\approx 2^{-76}$	 \\
+$2^{80}$	&$2^{30}$	&$2^{35}$	&$2^{70}$	&\texttt{secp256r1} ($b \!=\! 128$,\! $p \!\approx\! 2^{256}$)	&$2^{-48}$	&\cellcolor{red!25}$\approx 2^{-1}$	&$\approx 2^{-66}$	&& \cellcolor{red!25}$\approx 2^{-24}$	&$\approx 2^{-66}$	 \\
+$2^{80}$	&$2^{30}$	&$2^{45}$	&$2^{70}$	&\texttt{secp256r1} ($b \!=\! 128$,\! $p \!\approx\! 2^{256}$)	&$2^{-48}$	&\cellcolor{red!25}1			&$\approx 2^{-66}$	&& \cellcolor{red!25}$\approx 2^{-4}$	&$\approx 2^{-66}$	 \\
+$2^{80}$	&$2^{30}$	&$2^{55}$	&$2^{70}$	&\texttt{secp256r1} ($b \!=\! 128$,\! $p \!\approx\! 2^{256}$)	&$2^{-48}$	&\cellcolor{red!25}1			&$\approx 2^{-66}$	&& \cellcolor{red!25}1			&$\approx 2^{-66}$	 \\
+\midrule
+$2^{80}$	&$2^{20}$	&$2^{35}$	&$2^{70}$	&\texttt{secp384r1} ($b \!=\! 192$,\! $p \!\approx\! 2^{384}$)	&$2^{-112}$	&$\approx 2^{-149}$	& $\approx 2^{-204}$	&& $\approx 2^{-152}$	& $\approx 2^{-204}$	 \\
+$2^{80}$	&$2^{20}$	&$2^{45}$	&$2^{70}$	&\texttt{secp384r1} ($b \!=\! 192$,\! $p \!\approx\! 2^{384}$)	&$2^{-112}$	&$\approx 2^{-139}$	& $\approx 2^{-204}$	&& $\approx 2^{-132}$	& $\approx 2^{-204}$	 \\
+$2^{80}$	&$2^{20}$	&$2^{55}$	&$2^{70}$	&\texttt{secp384r1} ($b \!=\! 192$,\! $p \!\approx\! 2^{384}$)	&$2^{-112}$	&$\approx 2^{-129}$	& $\approx 2^{-204}$	&& \cellcolor{orange!25}$\approx 2^{-112}$	&$\approx 2^{-204}$	 \\
+$2^{80}$	&$2^{30}$	&$2^{35}$	&$2^{70}$	&\texttt{secp384r1} ($b \!=\! 192$,\! $p \!\approx\! 2^{384}$)	&$2^{-112}$	&$\approx 2^{-129}$	& $\approx 2^{-194}$	&& $\approx 2^{-152}$	& $\approx 2^{-194}$	 \\
+$2^{80}$	&$2^{30}$	&$2^{45}$	&$2^{70}$	&\texttt{secp384r1} ($b \!=\! 192$,\! $p \!\approx\! 2^{384}$)	&$2^{-112}$	&$\approx 2^{-119}$	& $\approx 2^{-194}$	&& $\approx 2^{-132}$	& $\approx 2^{-194}$	 \\
+$2^{80}$	&$2^{30}$	&$2^{55}$	&$2^{70}$	&\texttt{secp384r1} ($b \!=\! 192$,\! $p \!\approx\! 2^{384}$)	&$2^{-112}$	&\cellcolor{red!25}$\approx 2^{-109}$	&$\approx 2^{-194}$	&& \cellcolor{orange!25}$\approx 2^{-112}$	&$\approx 2^{-194}$	 \\
+\midrule
+$2^{80}$	&$2^{20}$	&$2^{35}$	&$2^{70}$	&\texttt{secp521r1} ($b \!=\! 256$,\! $p \!\approx\! 2^{521}$)	&$2^{-176}$	&$\approx 2^{-258}$	& $\approx 2^{-278}$	&& $\approx 2^{-210}$	& $\approx 2^{-245}$	 \\
+$2^{80}$	&$2^{20}$	&$2^{45}$	&$2^{70}$	&\texttt{secp521r1} ($b \!=\! 256$,\! $p \!\approx\! 2^{521}$)	&$2^{-176}$	&$\approx 2^{-248}$	& $\approx 2^{-268}$	&& $\approx 2^{-200}$	& $\approx 2^{-245}$	 \\
+$2^{80}$	&$2^{20}$	&$2^{55}$	&$2^{70}$	&\texttt{secp521r1} ($b \!=\! 256$,\! $p \!\approx\! 2^{521}$)	&$2^{-176}$	&$\approx 2^{-238}$	& $\approx 2^{-258}$	&& $\approx 2^{-190}$	& $\approx 2^{-245}$	 \\
+$2^{80}$	&$2^{30}$	&$2^{35}$	&$2^{70}$	&\texttt{secp521r1} ($b \!=\! 256$,\! $p \!\approx\! 2^{521}$)	&$2^{-176}$	&$\approx 2^{-248}$	& $\approx 2^{-278}$	&& $\approx 2^{-210}$	& $\approx 2^{-245}$	 \\
+$2^{80}$	&$2^{30}$	&$2^{45}$	&$2^{70}$	&\texttt{secp521r1} ($b \!=\! 256$,\! $p \!\approx\! 2^{521}$)	&$2^{-176}$	&$\approx 2^{-238}$	& $\approx 2^{-268}$	&& $\approx 2^{-200}$	& $\approx 2^{-245}$	 \\
+$2^{80}$	&$2^{30}$	&$2^{55}$	&$2^{70}$	&\texttt{secp521r1} ($b \!=\! 256$,\! $p \!\approx\! 2^{521}$)	&$2^{-176}$	&$\approx 2^{-228}$	& $\approx 2^{-258}$	&& $\approx 2^{-190}$	& $\approx 2^{-245}$	 \\
+\midrule
+$2^{80}$	&$2^{20}$	&$2^{35}$	&$2^{70}$	&\texttt{x25519} ($b \!=\! 128$,\! $p \!\approx\! 2^{252}$)	&$2^{-48}$	&\cellcolor{red!25}$\approx 2^{-17}$	&$\approx 2^{-72}$	&& \cellcolor{red!25}$\approx 2^{-20}$	&$\approx 2^{-72}$	 \\
+$2^{80}$	&$2^{20}$	&$2^{45}$	&$2^{70}$	&\texttt{x25519} ($b \!=\! 128$,\! $p \!\approx\! 2^{252}$)	&$2^{-48}$	&\cellcolor{red!25}$\approx 2^{-7}$	&$\approx 2^{-72}$	&& \cellcolor{red!25}1			&$\approx 2^{-72}$	 \\
+$2^{80}$	&$2^{20}$	&$2^{55}$	&$2^{70}$	&\texttt{x25519} ($b \!=\! 128$,\! $p \!\approx\! 2^{252}$)	&$2^{-48}$	&\cellcolor{red!25}1			&$\approx 2^{-72}$	&& \cellcolor{red!25}1			&$\approx 2^{-72}$	 \\
+$2^{80}$	&$2^{30}$	&$2^{35}$	&$2^{70}$	&\texttt{x25519} ($b \!=\! 128$,\! $p \!\approx\! 2^{252}$)	&$2^{-48}$	&\cellcolor{red!25}1			&$\approx 2^{-62}$	&& \cellcolor{red!25}$\approx 2^{-20}$	&$\approx 2^{-62}$	 \\
+$2^{80}$	&$2^{30}$	&$2^{45}$	&$2^{70}$	&\texttt{x25519} ($b \!=\! 128$,\! $p \!\approx\! 2^{252}$)	&$2^{-48}$	&\cellcolor{red!25}1			&$\approx 2^{-62}$	&& \cellcolor{red!25}1			&$\approx 2^{-62}$	 \\
+$2^{80}$	&$2^{30}$	&$2^{55}$	&$2^{70}$	&\texttt{x25519} ($b \!=\! 128$,\! $p \!\approx\! 2^{252}$)	&$2^{-48}$	&\cellcolor{red!25}1			&$\approx 2^{-62}$	&& \cellcolor{red!25}1			&$\approx 2^{-62}$	 \\
+\midrule
+$2^{80}$	&$2^{20}$	&$2^{35}$	&$2^{70}$	&\texttt{x448} ($b \!=\! 224$,\! $p \!\approx\! 2^{446}$)	&$2^{-144}$	&$\approx 2^{-211}$	& $\approx 2^{-266}$	&& $\approx 2^{-210}$	& $\approx 2^{-245}$	 \\
+$2^{80}$	&$2^{20}$	&$2^{45}$	&$2^{70}$	&\texttt{x448} ($b \!=\! 224$,\! $p \!\approx\! 2^{446}$)	&$2^{-144}$	&$\approx 2^{-201}$	& $\approx 2^{-266}$	&& $\approx 2^{-194}$	& $\approx 2^{-245}$	 \\
+$2^{80}$	&$2^{20}$	&$2^{55}$	&$2^{70}$	&\texttt{x448} ($b \!=\! 224$,\! $p \!\approx\! 2^{446}$)	&$2^{-144}$	&$\approx 2^{-191}$	& $\approx 2^{-258}$	&& $\approx 2^{-174}$	& $\approx 2^{-245}$	 \\
+$2^{80}$	&$2^{30}$	&$2^{35}$	&$2^{70}$	&\texttt{x448} ($b \!=\! 224$,\! $p \!\approx\! 2^{446}$)	&$2^{-144}$	&$\approx 2^{-191}$	& $\approx 2^{-256}$	&& $\approx 2^{-210}$	& $\approx 2^{-245}$	 \\
+$2^{80}$	&$2^{30}$	&$2^{45}$	&$2^{70}$	&\texttt{x448} ($b \!=\! 224$,\! $p \!\approx\! 2^{446}$)	&$2^{-144}$	&$\approx 2^{-181}$	& $\approx 2^{-256}$	&& $\approx 2^{-194}$	& $\approx 2^{-245}$	 \\
+$2^{80}$	&$2^{30}$	&$2^{55}$	&$2^{70}$	&\texttt{x448} ($b \!=\! 224$,\! $p \!\approx\! 2^{446}$)	&$2^{-144}$	&$\approx 2^{-171}$	& $\approx 2^{-256}$	&& $\approx 2^{-174}$	& $\approx 2^{-245}$	 \\
+\bottomrule
+	\end{tabular}
+	
+	\medskip
+	
+	\caption{%
+		\fullelse{%
+		Advantages of a key exchange adversary with given resources $t$ (running time), $\#U$ (number of users), $\#S$ (number of sessions), and $\#RO$ (number of random oracle queries),
+		in breaking the security of the \SIGMA and TLS~1.3 protocols
+		when instantiated with the given curves (bit security~$b$ and group order~$p$ in parentheses),
+		based on the prior bounds by Canetti-Krawczyk~\cite{C:CanKra02} resp.\ Dowling et al.~\cite{JC:DFGS21}, and the bounds we establish (Theorem~\ref{thm:SIGMAI} and~\ref{thm:tls}).
+		Target indicates the maximal advantage~$t/2^b$ tolerable when aiming for the respective curve's security level~$b$;
+		entries in red-shaded cells miss that target.
+		See Section~\ref{sec:evaluation} for further details.
+		}{%
+		Advantages of a key exchange adversary with given resources in breaking the security of the \SIGMA and TLS~1.3 protocols.
+		See Section~\ref{sec:evaluation} for further details.
+		}
+	}
+	\label{tbl:bounds-full:symmetric-256-384}
+\end{table}

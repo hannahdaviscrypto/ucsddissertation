@@ -1,0 +1,108 @@
+\section{The Multi-Base Discrete-Logarithm Problem} \label{sec:mbdl}
+
+\begin{figure}[t]
+\twoCols{0.38}{0.38}{
+\ExperimentHeader{Game $\gDL_{\G, g}$}
+
+\begin{oracle}{$\Initialize{}$}
+\item  $p \gets |\G|$ 
+;  $y \getsr Z_p$ ; $Y \gets g^{y}$ 
+\item   Return $Y$ 
+\end{oracle}
+\ExptSepSpace
+   
+\begin{oracle}{$\Finalize(y')$}
+\item  Return $(y = y')$ \smallskip
+\end{oracle}
+%\hrule 
+%\medskip
+%
+%\ExperimentHeader{Game $\OMDL_{\G, g, \numBases}$}
+%
+%\begin{oracle}{$\Initialize{}$}
+%\item  $p \gets |\G|$ ;
+%  $y \getsr Z_p$ ; $Y \gets g^{y}$ 
+%\item  For $i=1,\ldots,\numBases$ do 
+%\item \ind $y_i\getsr\Z_p$ ; $Y_i \gets g^{y_i}$ 
+%\item  Return $Y_1,\ldots,Y_{\numBases}$ \end{oracle}
+%\ExptSepSpace
+%
+%\begin{oracleC}{$\DLO(W)$}{One query}
+%\item Return $\DL_{\G,g}(W)$ 
+%\end{oracleC}
+%\ExptSepSpace
+%
+%\begin{oracle}{$\Finalize(i_1,i_2,z_1,z_2)$}
+%\item Return ($(y_{i_1} = z_1)$ and $(y_{i_2} = z_2)$ and $(i_1\neq i_2)$)
+% \item \smallskip
+%\end{oracle}
+  }{
+\ExperimentHeader{Game $\MBDL_{\G, g, \numBases}$}
+
+\begin{oracle}{$\Initialize{}$}
+\item  $p \gets |\G|$ ;
+  $y \getsr Z_p$ ; $Y \gets g^{y}$ 
+\item  For $i=1,\ldots,\numBases$ do 
+\item \ind $x_i\getsr\Z_p^*$ ; $X_i \gets g^{x_i}$ 
+\item  Return $Y,X_1,\ldots,X_{\numBases}$ \end{oracle}
+\ExptSepSpace
+
+\begin{oracleC}{$\DLO(i, W)$}{One query}
+% \item  If $(\,(i\in  U)$ or $(j=\numDLQs)\,$) then return $\bot$ 
+% \item  $U \gets U \cup \{i\}$ ; $j \gets j + 1$
+\item Return $\DL_{\G, X_i}(W)$ 
+\end{oracleC}
+\ExptSepSpace
+
+\begin{oracle}{$\Finalize(y')$}
+\item Return $(y = y')$ \smallskip
+\end{oracle}
+}
+\vspace{-5pt}
+\caption{Let $\G$ be a group of prime order $p=|\G|$, and let $g\in\G^*$ be a generator of $\G$. Left: Game defining standard discrete logarithm problem. Right: Game defining $(\numBases,\numDLQs)$-multi-base discrete logarithm problem. Recall $\DL_{\G,X}(W)$ is the discrete logarithm of $W\in\G$ to base $X\in\G^*$.}
+\label{fig:mbdl-game}
+\hrulefill
+\vspace{-10pt}
+\end{figure}
+
+We introduce the multi-base discrete-logarithm (MBDL) problem. It is similar in flavor to the one-more discrete-logarithm (OMDL) problem~\cite{JC:BNPS03}, which has found many applications, in that it gives the adversary the ability to take discrete logarithms. For the rest of this Section, we fix a group $\G$ of prime order $p=|\G|$, and we fix a generator $g\in\G^*$ of $\G$. Recall that $\DL_{\G,g}\Colon\G\to\Z_p$ is the discrete logarithm function in $\G$ with base $g$.
+
+\headingu{DL and OMDL.} We first recall the standard discrete logarithm (DL) problem via game $\gDL_{\G,g}$ on the left of Figure~\ref{fig:mbdl-game}. $\Initialize$ provides the adversary, as input, a random challenge group element $Y$, and to win it must output $y'=\DL_{\G,g}(Y)$ to $\Finalize$. We let $\dlAdv{\G,g}{\advA} = \Pr[\gDL_{\G,g}(\advA)]$ be the discrete-log advantage of $\advA$.
+
+In the OMDL problem~\cite{JC:BNPS03}, the adversary can obtain many random challenges $Y_1,\allowbreak Y_2,\allowbreak \ldots,\allowbreak Y_n \in\G$. It has access to a discrete log oracle that given $W\in\G$ returns $\DL_{\G,g}(W)$. For better comparison with MBDL, let's allow just one query to this oracle. To win it must compute the discrete logarithms of two group elements from the given list $Y_1,\allowbreak Y_2,\allowbreak \ldots,\allowbreak Y_n \in\G$. The integer $n\geq 2$ is a parameter of the problem.
+
+\heading{MBDL.} In the MBDL problem we introduce, we return, as in DL, to there being a single random challenge point $Y$ whose discrete logarithm in base $g$ the adversary must compute. It has access to an oracle $\DLO$ to compute discrete logs, but rather than in base $g$ as in OMDL, to bases that are public, random group elements $X_1, X_2, \ldots, X_{\numBases}$. It is allowed \textit{just one} query to $\DLO$.
+% , with the restriction that \textit{no more than one call per base $X_i$ is allowed}.
+(As we will see, this is to avoid trivial attacks.) The integer $\numBases\geq 1$ is a parameter of the problem.
+
+Proceeding formally, consider game $\MBDL_{\G, g, \numBases}$ on the right in \figref{fig:mbdl-game}, where $\numBases \geq 1$ is an integer parameter called the number of bases. The adversary's input, as provided by $\Initialize$, is a random challenge group element $Y$ together with random generators $X_1,X_2,\ldots,X_{\numBases}$. It can call oracle $\DLO$ with an index $i \in [\numBases]$ and any group element $W\in\group$ of its choice to get back $\DL_{\group,X_i}(W)$. Just one such call is allowed. 
+% The set $U$ (silently initialized to $\emptyset$ as per our conventions) contains the indexes $i$ such that a $\DLO(i,\cdot)$ query was already made, so that the ``If'' statement precludes taking multiple discrete logarithms to any one base. The ``If'' statement further precludes taking more than $\numDLQs$ calls to $\DLO$ overall. 
+At the end, the adversary wins the game if it outputs $y' = \DL_{\G, g}(Y)$ to $\Finalize$. We define the mbdl-advantage of $\advA$ by
+$$\mbdlAdv{\G, g, \numBases}{\advA} = \Pr[\MBDL_{\G, g, \numBases}(\advA)]\;.$$
+%Adversary $\advA$ said to $(t_\advA, \epsilon)$-break $(\numBases,\numDLQs)$-MBDL in group $\G$ if $\mbdlAdv{\G, g, \numBases,\numDLQs}{\advA} \geq \epsilon$ and the running time of $\advA$ is at most $t_{\advA}$.
+
+
+
+% In measuring $t_\advA$ in this context, we charge unit cost for a call to the $\DLO$ oracle, since we do not want to count the time to compute discrete logarithms in the running time of the adversary.
+
+\headingu{Discussion.} By $\numBases$-MBDL we will refer to the problem with parameter $\numBases$. It is easy to see that if $\numBases$-MBDL is hard then so is $\numBases'$-MBDL for any $\numBases'\leq\numBases$. Thus, the smaller the value of $\numBases$, the weaker the assumption. For our results, $1$-MBDL, the weakest assumption in the series, suffices. % Doesn't make sense to set parameter to 0
+% Clearly $0$-MBDL is equivalent to the standard discrete log problem (DL).
+
+We explain why at most one $\DLO$ query is allowed. Suppose the adversary is allowed two queries. It could compute $a = \DLO(1,Y)=\DL_{\G,X_1}(Y)$ and $b = \DLO(1,g)= \DL_{\G,X_1}(g)$, so that $X_1^{a} = Y$ and $X_1^{b} = g$. Now the adversary returns $y' \gets ab^{-1}\bmod p$ and we have $g^{y'} = (g^{b^{-1}})^a = X_1^a=Y$, so the adversary wins. 
+
+The problem can be generalized to allow multiple  $\DLO$ queries with the restriction that at most one query is allowed per base, meaning for each $i$ there can be at most one $\DLO(i,\cdot)$ query. We do not consider this further in this paper because we do not need it for our results, but it may be useful for future applications.
+
+%Let us consider $1$-MBDL, where the
+%adversary is allowed to take exactly one discrete logarithm to base random $X_1$.
+%The two obvious option is to do $\DL_{\G, X_1}(g)$ and $\DL_{\G, X_1}(Y)$. The
+%first option gives the value of $x_1^{-1} \mod p$ while the second option
+%gives $(x_1)^{-1}y \mod p$. Observe that neither of the two values leak
+%anything about $y$ \emph{by themselves}. Note that the value of $y$ can be
+%computed if both $x^{-1} \mod p$ and $x^{-1} y \mod p$ is known---this is why
+%we impose only one discrete logarithm per base. Of course, the adversary is
+%not restricted to only these two options and can obtain $\DL_{X_1}(h)$ for any
+%$h \in G$.
+
+
+As evidence for the hardness of MBDL, Theorem~\ref{th-mbdl-1} proves good bounds on the adversary advantage in the generic group model (GGM). It is also important to consider non-generic approaches to the discrete logarithm problem over elliptic curves, including index-calculus methods and Semaev polynomials~\cite{silverman2000xedni,EPRINT:Semaev04,AC:SilSuz98,jacobson2000analysis,galbraith2016recent}, but, to the best of our assessment, these do not yield attacks on MBDL that beat the GGM bound of Theorem~\ref{th-mbdl-1}. 
+

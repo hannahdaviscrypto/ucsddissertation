@@ -1,0 +1,252 @@
+\section{Introduction}
+\label{sec:intro}
+
+The \emph{Transport Layer Security} (TLS) protocol is probably the most widely-used cryptographic protocol.
+It provides a secure channel between two endpoints (\emph{client} and \emph{server}) for arbitrary higher-layer application protocols.
+Its most recent version, TLS~1.3~\cite{rfc8446}, specifies two different ``modes'' for the initial handshake establishing a secure session key:
+the main handshake mode based on a Diffie--Hellman key exchange and public-key authentication via digital signatures,
+and a \emph{pre-shared key} (PSK) mode, which performs authentication based on symmetric keys.
+The latter is mainly used for two purposes:
+\begin{description}
+	\item[Session resumption.]
+	Here, a prior TLS connection established a secure channel along with a pre-shared key~PSK, usually via a full handshake.
+	Subsequent TLS resumption sessions use this key for authentication and key derivation.
+	For example, modern web browsers typically establish multiple TLS connections when loading a web site.
+	Using public-key authentication only in an initial session and PSK-mode in subsequent ones minimizes the number of relatively expensive public-key computations and significantly improves performance for both clients and servers.
+	
+	\item[Out-of-band establishment.]
+	PSKs can also be established out-of-band, e.g., by manual configuration of devices or with a separate key establishment protocol.
+	This enables secure communication in settings where a complex public-key infrastructure (PKI) is unsuitable, such as IoT applications.
+\end{description}
+
+TLS~1.3 provides two variants of the PSK handshake mode: \emph{PSK-only} and \emph{PSK-(EC)DHE}.
+%
+The PSK-only mode is purely based on symmetric-key cryptography.
+This makes TLS accessible to resource-constrained low-cost devices, and other applications with strict performance requirements,
+but comes at the cost of not providing \emph{forward secrecy}~\cite{EC:Gunther89a}, since the latter is not achievable with static symmetric keys.%
+\footnote{See \cite{RSA:AvoCanFer20,AC:BDdGJM21} for recent work discussing symmetric key exchange and forward secrecy.}
+%
+The PSK-(EC)DHE mode in turn achieves forward secrecy by additionally performing an (elliptic-curve) Diffie--Hellman key exchange, authenticated via the PSK (i.e., still avoiding inefficient public-key signatures).
+This compromise between performance and security is the suggested choice for TLS~1.3 session resumption on the Internet.
+
+
+\paragraph{Concrete security and tightness.}
+Classical, complexity-theoretic security proofs considered the security of cryptosystems \emph{asymptotically}.
+They are satisfied with security reductions running in polynomial time and having non-negligible success probability.
+However, it is well-known that this only guarantees that a sufficiently large security parameter exists \emph{asymptotically},
+but it does not guarantee that a deployed real-world cryptosystem with standardized parameters---such as concrete key lengths, sizes of algebraic groups, moduli, etc.---can achieve a certain expected security level.
+In contrast, a \emph{concrete security} approach makes all bounds on the running time and success probability of adversaries explicit, for example, with a bound of the form
+\newcommand{\Reduction}{\mathcal{R}}%
+\newcommand{\boundFunc}{f}%
+\shortlongeqn[,]{
+\genAdv{}{}{\advA} \leq \boundFunc(\advA) \cdot \genAdv{}{}{\advB}
+}
+where $\boundFunc$ is a function of the adversary's resources and $\advB$ is an adversary against some underlying cryptographic hardness assumption. 
+%Note that this definition essentially relates the \emph{work factor} \cite{EC:BelRis09} of the adversary $\epsilon_{\advA}/t_{\advA}$  to the work factor of the reduction $\epsilon_{\Reduction}/t_{\Reduction}$ via the equation $\epsilon_{\advA}/t_{\advA} = \ell \cdot \epsilon_{\Reduction}/t_{\Reduction}$.
+% We say that the bound ``loses $n$ bits of security'' if $n = \log_2 \ell$.
+
+The concrete security approach makes it possible to determine concrete deployment parameters that are supported by a formal security proof.
+As an intuitive toy example, suppose we want to achieve ``128-bit security'', that is, we want a security proof that guarantees (for any $\advA$ in a certain class of adversaries) that $\genAdv{}{}{\advA} \leq 2^{-128}$.
+Suppose we have a cryptosystem with a reduction that loses ``40 bits of security'' because we can only prove a bound of $\boundFunc(\advA) \leq 2^{40}$.
+This means that we have to instantiate the scheme with an underlying hardness assumption that achieves $\genAdv{}{}{\advB} \leq 2^{-168}$ for any $\advB$ in order to upper bound $\genAdv{}{}{\advA}$ by
+$2^{-128}$ as desired.
+Hence, the 40-bit security loss of the bound is compensated by larger parameters that provide ``168-bit security''.
+
+This yields a theoretically-sound choice of deployment parameters, but it might incur a very significant performance loss, as it requires the choice of larger groups, moduli, or key lengths.
+For example, the size of an elliptic curve group scales quadratically with the expected bit security, so we would have to choose $|\G| \approx 2^{2 \cdot 168} = 2^{336}$ instead of the optimal  $|\G| \approx 2^{2 \cdot 128} = 2^{256}$.
+The performance penalty is even more significant for finite field groups, RSA or discrete logarithms ``modulo $p$''.
+This could lead to parameters which are either too large for practical use, or too small to be supported by the formal security analysis of the cryptosystem.
+We demonstrate this below for security proofs of TLS.
+
+Even worse, for a given security proof the concrete loss $\ell$ may not be a constant, as in the above example, but very often $\ell$ depends on other parameters, such as the number of users or protocol sessions, for example.
+This makes it difficult to choose theoretically-sound parameters when bounds on these other parameters are not exactly known at the time of deployment.
+If then a concrete value for $\ell$ is estimated too small (e.g., because the number of users is underestimated), then the derived parameters are not backed by the security analysis.
+If $\ell$ is chosen too large, then it incurs an unnecessary performance overhead.
+
+Therefore we want to have \emph{tight} security proofs, where $\ell$ is a small constant, independent of any parameters that are unknown when the cryptosystem is deployed. This holds in particular for cryptosystems and protocols that are designed to maximize performance, such as the PSK modes of TLS~1.3 for session resumption or resource-constrained devices.
+
+
+\paragraph{Previous analyses of the TLS handshake protocol and their tightness.}
+%
+% \begin{itemize}
+% 	\item TLS 1.2 "provable security": 
+% 	\item TLS~1.3 and drafts "standard model": \cite{CCS:DFGS15,EPRINT:DFGS15,EPRINT:DFGS16,EuroSP:FisGue17,JC:DFGS21} \TODO{@fg: your thesis as well?} \fg{No, this only summarizes prior public work. Also I don't think we need EPRINT:DFGS15 in here, it's just the full version of CCS:DFGS15.}
+% 	\item Tight and TLS~1.3:  Davis and Günther~\cite{ACNS:DavGun21}; Diemert and Jager~\cite{JC:DieJag21}
+% 	\item PQ: KEMTLS \cite{CCS:SchSteWig20}; KEM w/ pre-dist. keys \TODO{ref: S\&P, 21, 2021/779}; KEMTLS w/ 1-RTT \TODO{ref: 2021/725}
+% \end{itemize}
+%
+TLS~1.3 is the first TLS version that was developed in a close collaboration between academia and industry.
+Early TLS~1.3 drafts were inspired by the OPTLS design by Krawczyk and Wee~\cite{EuroSP:KraWee16}, and several draft revisions as well as the final TLS~1.3 standard in RFC~8446~\cite{rfc8446} were analyzed by many different research groups, including computational/reductionist analyses of the full and PSK modes in~\cite{CCS:DFGS15,EPRINT:DFGS16,EuroSP:FisGue17,JC:DFGS21}.
+All reductions in these papers are however highly non-tight, having up to a quadratic security loss in the number of TLS sessions and adversary can interact with.
+For example, \cite{JC:DieJag21} explains that for ``128-bit security'' and plausible numbers of users and sessions, an RSA modulus of more than 10,000 bits would be necessary to compensate the loss of previous security proofs for TLS, even though 3072 bits are usually considered sufficient for ``128-bit security'' when the loss of reductions is not taken into account.
+Likewise, \cite{ACNS:DavGun21} argues that the tightness loss to the underlying Diffie--Hellman hardness assumption lets these bounds fail to meet the standardized elliptic curves' security target, and for large-scale adversary even yields completely vacuous bounds.
+
+Recently, Davis and Günther \cite{ACNS:DavGun21} and Diemert and Jager \cite{JC:DieJag21} gave new, tight security proofs for the TLS~1.3 full handshake based on Diffie--Hellman key exchange and digital signatures (not $\psk$s).
+However, their results required very strong assumptions. 
+One is that the underlying digital signature scheme is tightly secure in a multi-user setting with adaptive corruptions. 
+While such signature schemes do exist \cite{TCC:BHJKL15,C:GjoJag18,PKC:DGJL21,C:HJKLPRS21}, this is not known for any of the signature schemes standardized for TLS~1.3, which are subject to the tightness lower bounds of \cite{EC:BJLS16} as their public keys uniquely determine the matching secret key.
+
+Even more importantly, both \cite{ACNS:DavGun21} and \cite{JC:DieJag21} modeled the TLS key schedule or components thereof as \emph{independent} random oracles.
+This was done to overcome the technical challenge that the Diffie--Hellman secret and key shares need to be \emph{combined} in the key derivation to apply their tight security proof strategy, following Cohn-Gordon et al.~\cite{C:CCGJJ19}, yet in TLS~1.3 those values enter key derivation through \emph{separate} function calls.
+But neither work provided formal justification for their modeling, and both neglected to address potential dependencies between the use of a hash function in the key schedule and elsewhere in the protocol.
+
+
+\iffull
+\subsubsection*{Our contributions}
+\else
+\paragraph{Our contributions.}
+\fi
+In this paper, we describe a new perspective on TLS~1.3, which enables a modular security analysis with tight security proofs.
+
+% \begin{description}
+% 	\setlength{\itemsep}{0.5em}
+	
+	\lightparagraph{New abstraction of the TLS~1.3 key schedule}
+	We first describe a new abstraction of the TLS~1.3 key schedule used in the PSK modes (in Section~\ref{sec:tls13-psk-protocol}), where different steps of the key schedule are modeled as \emph{independent} random oracles (12 random oracles in total).
+	This makes it significantly easier to rigorously analyze the security of TLS~1.3, since it replaces a significant part of the complexity of the protocol with what the key schedule intuitively provides,
+	namely ``as-good-as-independent cryptographic keys'', deterministically derived from pre-shared keys, Diffie--Hellman values (in PSK-(EC)DHE mode), protocol messages, and the randomness of communicating parties.
+
+	Most importantly, in contrast to prior works on TLS~1.3's tightness that abstracted (parts of or the entire) key schedule as random oracles~\cite{JC:DieJag21,ACNS:DavGun21} to enable the tight proof technique of Cohn-Gordon et al.~\cite{C:CCGJJ19}, we support this new abstraction formally.
+	Using the \emph{indifferentiability} framework of Maurer et al.~\cite{TCC:MauRenHol04} in its recent adaptation by Bellare et al.~\cite{EC:BelDavGun20} that treats \emph{multiple} random oracles,
+	in Section~\ref{sec:ks-indiff} we prove our abstraction \emph{indifferentiable} from TLS~1.3 with \emph{only} the underlying cryptographic hash function modeled as a random oracle,
+	and this proof is \emph{tight}.
+	This accounts for possible interdependencies between the use of a hash function in multiple contexts, which were not considered in \cite{JC:DieJag21,ACNS:DavGun21}.
+
+	\lightparagraph{Identifying a lack of domain separation}
+	A noteworthy subtlety is that, to our surprise, we identify that for a certain choice of TLS~1.3 PSK mode and hash function (namely, PSK-only mode with $\SHA{384}$),
+	a lack of \emph{domain separation}~\cite{EC:BelDavGun20} in the protocol does \emph{not} allow us to prove indifferentiability for this case.
+	We discuss the details of why domain separation is achieved for all but this case in 
+	Appendix~\ref{app:domsep}.
+	
+	This gap could be closed by more careful domain separation in the key schedule, which we consider an interesting insight for designers of future versions of TLS or other protocols.
+	Concretely, the ideal domain separation method would be to add a unique prefix or suffix to each hash function call made by the protocol.
+	However, existing standard primitives like $\HMAC$ and $\HKDF$ do not permit the use of such labels, so this advice is not practical for TLS~1.3 or similar protocols.
+	For these, a combination of labels (where possible) and padding for domain separation seems advisable,
+	where the padding ensures that the protocol's direct hash calls have strictly longer inputs than the internal hash calls in $\HMAC$ and $\HKDF$.
+	\iffull
+	We outline this method in more detail in Appendix~\ref{apx-domsep-fix}.
+	\fi
+	
+	
+% 	\old{As we discussed earlier, the indifferentiability portion of our analysis fails for PSK-only mode with hash function $\SHA{384}$ due to a lack of domain separation.
+% 	Future AKE protocols could accommodate this style of analysis at the cost of only a few extra executions of a compression function.
+% 	The ideal method would be to add a unique label string as a prefix or suffix to the input of each hash function made by the protocol; these labels could be descriptive for maximum clarity or abbreviated to a counter of only one or two bytes.
+% 
+% 	However, the existing standards and implementations of hash-based cryptographic functions like $\HMAC$ and $\HKDF$ don't permit the use of labels, so this advice isn't practical for TLS~1.3 or similar protocols.
+% 	For these, we would instead recommend using a combination of labels and padding for domain separation. 
+% 	The only calls which cannot be labeled are those internal to $\HMAC$ and $\HKDF$, which have a fixed input length. %\ell 
+% 	% To label outer \HMAC and \HKDF calls, a prefix label would have to go in the key and be xored with opad first; thus suffix labels are probably preferable. Even then, \HKDF.\Expand has a counter byte suffix, so suffix labels would have to be multiple bytes and be careful about separation with offset 1 byte. But this feels a little too specific for the introduction.
+% 	We would therefore suggest appending a padding string with this same length to all other hash function calls; this simple fix adds at most two compression function calls to each hash function evaluation and so should not impact efficiency too greatly.}
+
+	
+	\lightparagraph{Modularization of record layer encryption}
+	Like most of the prior computational TLS~1.3 analyses~\cite{CCS:DFGS15,EuroSP:FisGue17,JC:DFGS21,JC:DieJag21},
+	we use a \emph{multi-stage key exchange} (MSKE) security model~\cite{CCS:FisGue14} to capture the complex and fine-grained security aspects of TLS~1.3.
+	These aspects include cleverly distinguishing between ``external'' keys established in the handshake for subsequent use (by, e.g., application data encryption, resumption, etc.)
+	and ``internal'' keys, used within the handshake itself (in TLS~1.3 for encrypting most of the handshake through the protocol's record layer)
+	to avoid complex security models such as the ACCE model~\cite{C:JKSS12} which monolithically treat handshake and record-layer encryption.
+	
+	As a generic simplification step for MSKE models, we show (in Section~\ref{sec:modularizing}) that for a certain class of \emph{transformations} using the internal keys,
+	we can even avoid the somewhat involved handling of internal keys altogether.
+	We use this to simplify our analysis of the TLS~1.3 handshake (treating the TLS~1.3 record-layer encryption as such transformation).
+	The result itself however is not specific to TLS~1.3, but general and of independent interest; it furthermore is \emph{tight}.
+	
+	
+	\lightparagraph{Tight security of TLS~1.3 PSK modes}
+	%We build upon the two aforementioned results to obtain our main results.
+	We leverage the new perspective on the TLS~1.3 key schedule and the fact that we can ignore record-layer encryption
+	to give our main results: the first \emph{tight} security proofs for the PSK-only and PSK-(EC)DHE handshake modes of TLS~1.3.
+	
+	
+	\lightparagraph{Evaluation}
+	Finally, we evaluate our new bounds and prior ones from~\cite{JC:DFGS21} over a wide range of fully concrete resource parameters, following the approach of Davis and Günther~\cite{ACNS:DavGun21}.
+	Our bounds improve on previous analyses of the PSK-only handshake by between $15$ and~$53$ bits of security, and those of the PSK-(EC)DHE handshake by $60$ and~$131$ bits of security across all our parameters evaluated.
+% \end{description}
+% This enables a theoretically-sound deployment of TLS~1.3 PSK modes with optimal cryptographic parameters, independent of the number of users, sessions, or other parameters.
+
+% \begin{enumerate}
+% 	\item New abstraction of the TLS~1.3 Key Schedule: Using the indifferentiability framework (and careful domain seperation), we show that the TLS~1.3 Key Schedule with the hash function modeled as a random oracle is indifferentiable from 12 independent random oracles.
+% 	\begin{itemize}
+% 		\item This makes analyses of TLS~1.3 (in the random oracle model) much easier and cleaner as it combines all values that a key depends on into a single function call rather than splitting it into several intermediate values (give example of the stDH problem)
+% 		\item Solely based on the assumption that the underlying hash function used to hash transcripts and used as a subroutine of $\HKDFExtr$, $\HKDFExpnd$ and $\HMAC$ is a random oracle 
+% 		\begin{itemize}
+% 			\item Previous analyzes made much stronger assumptions: Davis and Günther~\cite{ACNS:DavGun21} modeled $\HKDFExtr$ and $\HKDFExpnd$ as independent random oracles, and Diemert and Jager~\cite{JC:DieJag21} even modeled every key deriviation as a separate, independent random oracle; both without providing a formal justification
+% 		\end{itemize}
+% 	\end{itemize}
+% 	\item Modularization of the handshake encryption: We analyze the security of TLS~1.3 without considering the handshake encryption and show that by doing so we do not loose security.
+% 	\begin{itemize}
+% 		\item Previous analyses \TODO{cite} of TLS already have show that the handshake encryption solely seems to be a mean to provide privacy (e.g., to hide the certificates) and does not contribute to the key exchange security of the TLS~1.3 handshake. We formalize this observation by a simple transformation.
+% 		\item Negotiation only ``external'' (i.e., keys that are only used outside of the handshake) makes the analyses/model less complex.
+% 	\end{itemize}
+% 	\item We apply our contributions (1) and (2) to prove a tight security bound for the TLS~1.3 PSK-(EC)DHE (w/ optional 0-RTT) handshake protocol in an extended multi-stage key exchange (MSKE) model that includes explicit authentication and different levels of forward secrecy. Further we argue 
+% \end{enumerate}
+
+
+\iffull
+\subsubsection*{Further related work and scope of our analysis}
+\else
+\paragraph{Further related work and scope of our analysis.}
+\fi
+
+Several previous works gave security proofs for the previous protocol version TLS~1.2~\cite{C:JKSS12,C:KraPatWee13,CCS:GieKohSte13,EPRINT:KraPatWee13,PKC:LSYKS14,C:BFKPSZ14},
+including its PSK-modes~\cite{PKC:LSYKS14}; all reductions in these works are highly non-tight.
+% The ongoing NIST post-quantum standardization process has further sparked interest in post-quantum versions of TLS~1.3 based on key encapsulation mechanisms
+% \TODO{KEMTLS \cite{CCS:SchSteWig20}; KEM w/ pre-dist. keys \TODO{ref: S\&P, 21, 2021/779}; KEMTLS w/ 1-RTT \TODO{ref: 2021/725}}.
+%Following thesew works, we consider the ``cryptographic core'' of TLS in isolation, that is, without considering e.g. alert messages and backwards compatibility issues, such as \cite{CCS:JagSchSom15}.
+
+Brzuska et al.~\cite{EPRINT:BDEFKK21} recently proposed a stand-alone security model for the TLS~1.3 key schedule, likewise aiming at a new abstraction perspective on the latter to support formal protocol analysis.
+While their treatment focuses solely on the key schedule and only briefly argues its application to a key exchange security result, it is more general and covers the negotiation of parameters~\cite{ACISP:DowSte15,SP:BBFGKZ16} and agile usage of various algorithms.
+
+Our focus is on the TLS~1.3 PSK modes.
+Hence, our abstraction of the key schedule and the careful indifferentiability treatment is tailored to that mode and cannot be directly translated to the full handshake (without PSKs).
+We are confident that our approach can be adapted to achieve similar results for the full handshake, but leave revisiting the results in \cite{JC:DieJag21,ACNS:DavGun21} in that way to future work.
+
+Like many previous cryptographic analyses~\cite{C:JKSS12,C:KraPatWee13,CCS:DFGS15,EPRINT:DFGS16,EuroSP:FisGue17,JC:DFGS21,JC:DieJag21,ACNS:DavGun21} of the TLS handshake,
+our work focuses on the ``cryptographic core'' of the TLS~1.3 PSK handshake modes (in particular, we consider fixed parameters like the Diffie--Hellman group, TLS ciphersuite, etc.).
+Our abstraction of the key schedule is designed for easy composition with our tight key exchange proof,
+and our indifferentiability treatment is important confirmation of that abstraction's soundness.
+We do not consider, e.g., ciphersuite and version negotiation~\cite{ACISP:DowSte15} or backwards compatibility issues in settings where multiple TLS versions are used in parallel, such as~\cite{CCS:JagSchSom15}.
+%
+We also do not treat the security of the TLS record layer; instead we explain how to avoid the necessity to do so in order to achieve more modular security analyses, and
+we refer to compositional results~\cite{CCS:FisGue14,CCS:DFGS15,thesis:Guenther18,JC:DFGS21,JC:DieJag21} treating the combined security when subsequent protocols use the session keys established in an MSKE protocol.
+
+Numerous authenticated key exchange protocols \cite{C:GjoJag18,C:CCGJJ19,AC:LLGW20,EC:JKRS21,C:HJKLPRS21} were recently proposed that can be proven (almost) tightly secure. However, these protocols were specifically designed to be tightly secure and none is standardized.
+
+%It's a little blunt; the same effect could be done with greater efficiency by adding enough padding to each call so the minimum input length is greater than \ell, and omitting padding from any calls whose maximum length is less than \ell. But I figured the above method is easier to explain and harder to screw up.
+
+% \tj{%
+% 	yes there are some more such refs, but I am not sure we should cite those because they are KEM based. We should probably have a line saying there are plenty of tightly-secure AKE protocols, but all of them are specifically built to be tightly secure, and none is standardized\\
+% 	and then refer to papers from C18, maybe C19 even though it is not fully tight, AC20, EC21, C21}
+
+% \paragraph{\replace{View on the TLS~1.3 handshake protocol}{Scope of our analysis}.}
+% Like many previous cryptographic analyses~\cite{C:JKSS12,C:KraPatWee13,CCS:DFGS15,EuroSP:FisGue17,JC:DFGS21,JC:DieJag21,ACNS:DavGun21} of the TLS handshake protocol, we focus only on the ``cryptographic core'' of the PSK modes of the TLS~1.3 handshake protocol.
+% In particular, our analysis given in Section~\ref{sec:psk-ecdhe-ke-proof} (resp.\ Section~\ref{sec:psk-only-ke-proof}) focuses solely on the TLS~1.3 PSK-(EC)DHE (resp.\ TLS~1.3 PSK-only) handshake protocol (with optional $0$-RTT) for a fixed Diffie--Hellman group and for a fixed cipher suite (i.e., AEAD algorithm and hash algorithm).
+% This means we neither consider the negotiation of other versions of TLS than version 1.3 nor consider the negotiation of the DH group for the PSK-(EC)DHE mode and the cipher suite for both PSK-only and PSK-(EC)DHE mode,
+% as done, e.g., in~\cite{ACISP:DowSte15,SP:BBFGKZ16}.
+% Since we only consider TLS~1.3 ``in isolation'' we also do not consider backward compatibility.
+% \dd{This was a big question by one reviewer on our JoC submission.}
+% Moreover, our view does not include the TLS record layer
+% and we we do not consider the composition of the handshake protocol with the record layer encryption as, e.g., done in \cite{CCS:DFGS15,thesis:Guenther18,JC:DFGS21,JC:DieJag21}.
+
+
+
+% \paragraph{TLS~1.3 Key Schedule and the Difficulty of Tight Security for TLS~1.3.}
+% \tj{Do we still need this paragraph? Most seems already covered elsewhere in the intro.}
+% 
+% \begin{itemize}
+% 	\item Defined in Section 7 of \cite{rfc8446}
+% 	\item Formal treatment attempt \TODO{?} by Brzuska et al.~\TODO{ref; 2021/467}
+% 	\begin{itemize}
+% 		\item Very complex
+% 		\item Unclear how to use it in a key exchange proof
+% 		\item Tightness?
+% 		\item Agile assumption
+% 	\end{itemize}
+% 	\item Structure of the key schedule makes tight security quite difficult due to the number of intermediate values that are used for multiple first-class secrets. In particular, DHE secret and context (i.e., transcript of a session) are separated in the key derivation which makes a tight analysis challenging. Davis and Günther~\cite{ACNS:DavGun21} overcame this by employing clever book-keeping, and Diemert and Jager~\cite{JC:DieJag21} needed to make the strong assumption of the key deriviation being independent random oracles.
+% \end{itemize}
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

@@ -1,0 +1,338 @@
+\section{The soundness of Derive-then-Derandomize}\label{sec-direct} 
+
+
+%What has happened with this paper, in the review process, is unusual. We have one reviewer, at C22, who insisted that some kind of direct proof is possible and findiff is not needed. At AC22, a reviewer who had been privy to that view echoed it. 
+%
+%If we continue to ignore this and submit the same paper, we are likely to keep meeting the same response. Instead, let's try to turn the situation to our advantage rather than fight against it. This means we make a serious attempt to follow the path the reviewers appear to indicate. We will either see that it works, or find good reasons it does not.
+%
+%In this section I am going to outline such a path. It makes a number of separate assumptions on certain functors, all with access to a function $\hh$ representing the compression function. 
+%
+%A possible target here is a PKC 2023 submission with deadline November 1, 2022. Alternatively we can submit to a security conference like Usenix, with deadline Octover 11, 2022, or IEEE S\&P with deadline December 2, 2022. Regardless of deadlines, the earlier we are done with the paper, the better of course. 
+%
+%Once you have formed an impression of the updated version of the paper and what needs to be done, we can meet and discuss.
+%
+%Note that definitions have changed. The new definitions, which is the ones to which the following refers, are in Section~\ref{sec-our-def-framework}. You may want to start by looking over these. Then go on to what is below.
+%
+%I had seen the difficulty as being that $\hh$ is the same across all the functors. I am no longer sure this is really a difficulty. To get around it, definitions of PRG and PRF security are now for functors, not functions. The UF definition for Theorem~\ref{th-dd} has a single choice of $\hh$, yet the Theorem still seems to be true by exploiting the PRF and PRF security of the functors in game hops. I'd like to understand this better and check that you agree that it works.
+%
+%The first part is about the $\DRTransform$ transform. Then one has to bridge the gap to $\EdDSA$ by analyzing the functor $\ourF$. I have inserted skeleton Lemma and Theorem statements below to cover this. Start working through all this, filling in gaps, elaborating and extending as you see fit, including adding missing proofs or claims. 
+%
+%How can we extend these ideas, expand and add value? Think about this. One thought is that the $\DRTransform$ is more general than $\EdDSA$. It is a way to take any signature scheme and set its key space to $\bits^k$ while de-randomizing it. Is this interesting? Can we make this the focus of the paper, with $\EdDSA$ as one application?
+%
+%So far this is for single-user security. Can we say something interesting about multi-user security? The difficulty is the factor 16 security loss for clamping, which amplifies exponentially in the number of users under the naive reduction. Is there a better way? What about using the AGM?
+%
+%Can we get any similar or related results for other signature schemes like PSS?
+%
+%For simplicity I have removed the content of the prior paper that no longer felt directly relevant. Of course, it may be relevant or useful in some form, so pull it back as necessary from our prior files in this or other directories. It will likely need updating, though, to fit the new approach.
+
+
+\begin{figure}[t]
+\twoCols{0.45}{0.45}
+{
+  \begin{algorithm-initial}{$\fDS.\MakeSK$}
+  \item $\osk\getsr\bits^k$ 
+  ; Return $\osk$
+  \end{algorithm-initial}
+
+\begin{algorithm-subsequent}{$\fDS.\MakePK[\HH](\osk)$}
+  \item $\eEDSA_1\|\eEDSA_2\gets\HH_1(\osk)$ 
+  ; $\sk \gets \CFEDSA(\eEDSA_1)$ 
+  \item $\pk \gets \DS.\MakePK[\HH_3](\sk)$ 
+  \item Return $\pk$
+  \end{algorithm-subsequent}
+  
+  \begin{algorithm-subsequent}{$\fDS.\Sign[\HH](\osk, \pk, \msg)$}
+\item $\eEDSA_1\|\eEDSA_2\gets\HH_1(\osk)$ 
+  ; $\sk \gets \CFEDSA(\eEDSA_1)$ 
+  \item $r \gets \HH_2(\eEDSA_2,\msg)$  
+\item $\sigma \gets \DS.\Sign[\HH_3](\sk,\pk,\msg;r)$ 
+\item  Return $\sigma$
+  \end{algorithm-subsequent}
+
+  \begin{algorithm-subsequent}{$\fDS.\Vf[\HH](\pk, \msg, \sigma)$}
+    \item Return $\DS.\Vf[\HH_3](\pk,\msg,\sigma)$
+  \end{algorithm-subsequent}  \vspace{2pt}
+ }
+ {
+  \begin{algorithm-initial}{$\jDS.\MakeSK$}
+  \item $\osk\getsr\bits^k$ 
+  ; Return $\osk$
+  \end{algorithm-initial}
+
+\begin{algorithm-subsequent}{$\jDS.\MakePK[\GH](\osk)$}
+  \item $\sk \gets \CFEDSA(\osk)$ 
+  \item $\pk \gets \DS.\MakePK[\GH](\sk)$ 
+  \item Return $\pk$
+  \end{algorithm-subsequent}
+  
+  \begin{algorithm-subsequent}{$\jDS.\Sign[\GH](\osk, \pk, \msg)$}
+\item $\sk \gets \CFEDSA(\osk)$  
+\item $\sigma \getsr \DS.\Sign[\GH](\sk,\pk,\msg)$ 
+\item  Return $\sigma$
+  \end{algorithm-subsequent}
+
+  \begin{algorithm-subsequent}{$\jDS.\Vf[\GH](\pk, \msg, \sigma)$}
+    \item Return $\DS.\Vf[\GH](\pk,\msg,\sigma)$
+  \end{algorithm-subsequent}  \vspace{2pt}
+ }
+ 
+ 
+\vspace{-8pt}
+\caption{\textbf{Left:} The signature scheme $\fDS = \DRTransform[\DS,\CFEDSA]$ constructed by the $\DRTransform$ transform applied to signature scheme $\DS$ and clamping function $\CFEDSA\Colon\bits^k\to\Outputs(\DS.\MakeSK)$.  \textbf{Right:} The signature scheme $\fDS = \JCTransform[\DS,\CFEDSA]$ constructed by the $\JCTransform$ transform.}
+\label{fig-dd}
+\hrulefill
+\vspace{-10pt}
+\end{figure}
+
+
+We specify a general signature-hardening transform that we call Derive-then-Derandomize ($\DRTransform$) and prove that it preserves the security of the starting signature scheme.
+
+
+\heading{The $\DRTransform$ transform.} Let $\DS$ be a given signature scheme that we call the base signature scheme. It will be the (general) Schnorr scheme in our application. Assume for simplicity that its function space $\DS.\HASHSET$ has arity~1.
+
+The $\DRTransform$ (derive then de-randomize) transform constructs a signature scheme $\fDS = \DRTransform[\DS,\CFEDSA]$ based on $\DS$ and a function $\CFEDSA\Colon\bits^k\to\Outputs(\DS.\MakeSK)$, called the clamping function, that turns a $k$-bit string into a signing key for $\DS$. The algorithms of $\fDS$ are shown in Figure~\ref{fig-dd}. They have access to oracle $\HH$ that specifies sub-functions $\HH_1,\HH_2,\HH_3$. Function $\HH_1\Colon\bits^k\to\bits^{2k}$ expands the signing key $\osk$ of $\fDS$ into sub-keys $\e_1$ and $\e_2$. The clamping function is applied to $\e_1$ to get a signing key for the base scheme, and its associated verification key is returned as the one for the new scheme at line~4. At line~6, function $\HH_2\Colon\bits^k\cross\bits^*\to\DS.\SigCoins$ is applied to the second sub-key $\e_2$ and the message $\msg$ to determine signing randomness $r$ for the line~5 invocation of the base signing algorithm. Finally, $\HH_3 \in \DS.\HASHSET$ is an oracle for the algorithms of $\DS$. Formally the oracle space $\fDS.\HASHSET$ of $\fDS$ is the arity~3 space consisting of all $\HH = (\HH_1,\HH_2,\HH_3)$ that map as above. 
+
+Viewing the PRG $\HH_1$, PRF $\HH_2$ and oracle $\HH_3$ for the base scheme as specified in the function space is convenient for our application to $\EdDSA$, where they are all based on $\MD$ with the \textit{same} underlying idealized compression function.
+
+\heading{Just clamp.} Given a signature scheme $\DS$ and a clamping function $\CFEDSA\Colon\bits^k\to\Outputs(\DS.\MakeSK)$, it is useful to also consider the signature scheme $\jDS = \JCTransform[\DS,\CFEDSA]$ that does just the clamping. The scheme is shown in Figure~\ref{fig-dd}. Its oracle space is the same as that of $\DS$ and is assumed to have arity~1. On the right of Figure~\ref{fig-dd} the function drawn from it is denoted $\GH$; it will be the same as $\HH_3$ on the left.
+
+\heading{Security of $\DRTransform$.} We study the security of the scheme $\fDS = \DRTransform[\DS,\CFEDSA]$ obtained via the $\DRTransform$ transform.
+
+When we prove security of $\fDS$, it will be with respect to a functor $\fF$ that constructs all of $\HH_1,\HH_2,\HH_3$. This means that these three functions could all depend on the same starting function that $\fF$ uses, and in particular not be independent of each other. An important element of the following theorem is that it holds even in this case, managing to reduce security to conditions on the individual functors despite their using related (in fact, the same) underlying starting function. 
+
+
+\begin{theorem}\label{th-dd} Let $\DS$ be a signature scheme. Let $\CFEDSA\Colon\bits^k\to\Outputs(\DS.\MakeSK)$ be a clamping function. Let $\fDS = \DRTransform[\DS,\CFEDSA]$ and $\jDS = \JCTransform[\DS,\CFEDSA]$ be the signature schemes obtained by the above transforms. Let $\fF\Colon \startSpace\to\fDS.\HASHSET$ be a functor that constructs the function $\HH$ that algorithms of $\fDS$ use as an oracle. Let $\advA$ be an adversary attacking the $\UFCMA$ security of $\fDS$. Then there are adversaries $\advA_1,\advA_2,\advA_3$ such that
+\begin{align*}
+	\ufAdv{\fDS,\fF}{\advA} &\leq   \prgAdv{\fF_1}{\advA_1} + \prfAdv{\fF_2}{\advA_2} + \ufAdv{\jDS,\fF_3}{\advA_3} \;.
+\end{align*}
+The constructed adversaries have $\Queries{\HASH}{\advA_i}=\Queries{\HASH}{\advA}$ ($i=1,2,3$) and approximately the same running time as $\advA$.  
+% Let $\ell$ be an integer such that all messages queried to $\SignOO$ are no more than $4k \cdot \ell-k$ bits long. Adversary $\advA_1$ makes at most $1 + 2\ell \cdot \Queries{\SignOO}{\advA}+ \Queries{\HASH}{\advA}$ queries to $\HASH$.
+Adversary $\advA_2$ makes $\Queries{\SignOO}{\advA}$ queries to $\FUNCO$.
+%  and $1+\ell \cdot \Queries{\SignOO}{\advA} + \Queries{\HASH}{\advA}$ queries to $\HASH$. The runtime of $\advA_1$ and $\advA_2$ are both approximately $\Time{\advA} + \Time{ \DS.\MakePK} +  \Queries{\SignOO}{\advA}  \Time{ \DS.\Sign}+ \Time{ \DS.\VF}$.
+Adversary $\advA_3$ makes $\Queries{\SignOO}{\advA}$ queries to $\SignOO$.
+\end{theorem}
+Recall that $\Queries{\Oracle}{\advB}$ means the number of queries made to oracle $\Oracle$ in the execution of the game with adversary $\advB$, so queries made by scheme algorithms, run in the game in response to $\advB$'s queries, are included. The theorem says the number of queries to $\HASH$ is preserved under this metric. The number of direct queries to $\HASH$ is not necessarily preserved. Thus $\QueriesD{\HASH}{\advA_i}$ could be more than $\QueriesD{\HASH}{\advA}$. For example $\QueriesD{\HASH}{\advA_1}$ is $\QueriesD{\HASH}{\advA}$ plus the number of queries to $\HASH$ made by the calls to $\fF_3[\HASH]$, the latter calls in turn made by the execution of $\DS.\Sign[\fF_3[\HASH]]$ across the different queries to $\SignOO$. Accounting precisely for this is involved, whence a preference where possible for the game-inclusive query metric $\Queries{\cdot}{\cdot}$.
+
+
+
+\begin{figure}[t]
+	\oneCol{0.9}{
+		\ExperimentHeader{Games $\Gm_0,\Gm_1,\Gm_2$}
+
+		\begin{oracle}{$\Initialize$}
+			\item $\hh\getsr\FuncSp{SS}$
+			\item $\osk\getsr\bits^k$ 
+			; $\eEDSA_1\|\eEDSA_2\gets\fF_1[\HASH](\osk)$ \comment{Game $\Gm_0$} 
+			\item $\eEDSA_1\|\eEDSA_2\getsr\bits^{2k}$ \comment{Games $\Gm_1,\Gm_2$} 
+  \item $\sk \gets \CFEDSA(\eEDSA_1)$ 
+  ; $\pk \gets \DS.\MakePK[\fF_3[\HASH]](\sk)$ 
+			; Return $\pk$
+		\end{oracle}
+		\ExptSepSpace
+
+		\begin{oracle}{$\SignOO(\msg)$}
+		\item If $\STable[\msg]\neq\bot$ then return $\STable[\msg]$ 
+			\item $r \gets \fF_2[\HASH](\e_2,\msg)$ \comment{Games $\Gm_0,\Gm_1$}
+			\item $r\getsr\DS.\SigCoins$ \comment{Game $\Gm_2$}
+\item $\STable[\msg] \gets \DS.\Sign[\fF_3[\HASH]](\sk,\pk,\msg;r)$ ; Return $\STable[\msg]$ 
+		\end{oracle}
+		\ExptSepSpace
+
+		\begin{oracle}{$\HASH(X)$}
+			\item Return $\hh(X)$
+		\end{oracle}
+			\ExptSepSpace
+
+		\begin{oracle}{$\Finalize(\chmsg, \chsig)$}
+			\item If ($\STable[\chmsg]\neq\bot$) then return $\false$
+			\item Return $\DS.\Vf[\fF_3[\HASH]](\pk, \chmsg, \chsig)$ \vspace{2pt}
+		\end{oracle}
+	}
+	
+	\vspace{-5pt}
+	\caption{Games for proof of Theorem~\ref{th-dd}. A line annotated with names of games is included only in those games.}
+	\label{fig-dd-proof-1}
+	\hrulefill
+	\vspace{-10pt}
+\end{figure}
+
+\begin{proof}[Theorem~\ref{th-dd}] The proof uses code-based game playing~\cite{EC:BelRog06}. Consider the games of Figure~\ref{fig-dd-proof-1}. Let $\epsilon_i = \Pr[\Gm_i(\advA)]$ for $i=0,1,2$. 
+
+Game $\Gm_0$ is the $\UFCMA$ game for $\fDS$ except that the signature of $M$ is stored in table $\STable$ at line~8, and, at line~5, if a signature for $M$ already exists, it is returned directly. Since signing in $\fDS$ is deterministic, meaning the signature is always the same for a given message and signing key, this does not change what $\SignO$ returns, and thus
+\begin{align*}
+	\ufAdv{\fDS,\fF}{\advA} &=  \epsilon_0 \\
+	&= (\epsilon_0-\epsilon_1)+(\epsilon_1-\epsilon_2)+\epsilon_2 \;.
+\end{align*}
+We bound each of the three terms above in turn.
+
+The change in moving to game $\Gm_1$ is at line~3, where we sample $\eEDSA_1\|\eEDSA_2$ uniformly from the set $\bits^{2k}$ rather than obtaining it via $\fF_1[\HASH]$ as in game $\Gm_0$. We build PRG adversary $\advA_1$ such that 
+\begin{align}
+	\epsilon_0-\epsilon_1 & \leq 
+	\prgAdv{\fF_1}{\advA_1}\;. \label{eq-th-prg-advA}
+\end{align}
+Adversary $\advA_1$ is playing game $\gamePRG_{\fF_1}$. It gets its challenge via $\eEDSA_1\|\eEDSA_2 \gets \gamePRG_{\fF_1}.\Initialize$. It lets $\sk\gets\CFEDSA(\eEDSA_1)$ and $\vk\gets\DS.\MakePK[\fF_3[\gamePRG_{\fF_1}.\HASH]](\sk)$ where $\gamePRG_{\fF_1}.\HASH$ is the oracle provided in its own game. It runs $\advA$, returning $\vk$ in response to $\advA$'s $\Initialize$ query. It answers $\SignO$ queries as do $\Gm_0,\Gm_1$ except that it uses $\gamePRG_{\fF_1}.\HASH$ in place of $\HASH$ at lines~6,8. As part of this simulation, it maintains table $\STable$. It answers $\HASH$ queries via $\gamePRG_{\fF_1}.\HASH$. When $\advA$ calls $\Finalize(\chmsg, \chsig)$, adversary $\advA_1$ lets $c'\gets 1$ if $\DS.\Vf[\fF_3[\gamePRG_{\fF_1}.\HASH]](\pk, \chmsg, \chsig)$ is true and $\STable[\chmsg]=\bot$, and otherwise lets $c'\gets 0$. It then calls $\gamePRG_{\fF_1}.\Finalize(c')$. When the challenge bit $c$ in game $\gamePRG_{\fF_1}$ is $c=1$, the view of $\advA$ is as in $\Gm_0$, and when $c=0$ it is as in $\Gm_1$, which explains Eq.~\eqref{eq-th-prg-advA}.
+
+Moving to $\Gm_2$, the change is that line~6 is replaced by line~7, meaning signing coins are now chosen at random from the randomness space $\DS.\SigCoins$ of $\DS$. We build  PRF adversary $\advA_2$ such that 
+\begin{align}
+	\epsilon_1-\epsilon_2 &\leq  \prfAdv{\fF_2}{\advA_2}\;.\label{eq-th-prf-advA}
+\end{align}
+Adversary $\advA_2$ is playing game $\gamePRF_{\fF_2}$. It picks $\eEDSA_1\|\eEDSA_2\getsr\bits^{2k}$. It lets $\sk\gets\CFEDSA(\eEDSA_1)$ and $\vk\gets\DS.\MakePK[\fF_3[\gamePRF_{\fF_2}.\HASH]](\sk)$ where $\gamePRG_{\fF_2}.\HASH$ is the oracle provided in its own game. It runs $\advA$, returning $\vk$ in response to $\advA$'s $\Initialize$ query. It answers $\SignO$ queries as does $\Gm_1$ except that it uses $\gamePRF_{\fF_2}.\FUNCO$ in place of $\fF_2[\HASH]$ at line~6 and $\gamePRF_{\fF_2}.\HASH$ in place of $\HASH$ in line~$8$. As part of this simulation, it maintains table $\STable$. It answers $\HASH$ queries via $\gamePRF_{\fF_2}.\HASH$. When $\advA$ calls $\Finalize(\chmsg, \chsig)$, adversary $\advA_2$ lets $c'\gets 1$ if $\DS.\Vf[\fF_3[\gamePRF_{\fF_2}.\HASH]](\pk, \chmsg, \chsig)$ is true and $\STable[\chmsg]=\bot$, and otherwise lets $c'\gets 0$. It then calls $\gamePRF_{\fF_2}.\Finalize(c')$. When the challenge bit $c$ in game $\gamePRF_{\fF_2}$ is $c=1$, the view of $\advA$ is as in $\Gm_1$, and when $c=0$ it is as in $\Gm_2$, which explains Eq.~\eqref{eq-th-prf-advA}.
+
+Finally we build adversary $\advA_3$ such that 
+\begin{align}
+	\epsilon_2
+	&\leq   \ufAdv{\jDS,\fF_3}{\advA_3} \;. \label{eq-th-uf-advA}
+\end{align}
+Adversary $\advA_3$ is playing game $\UFCMA_{\jDS,\fF_3}$. It lets $\vk \gets \UFCMA_{\jDS,\fF_3}.\Initialize$. It runs $\advA$, returning $\vk$ in response to $\advA$'s $\Initialize$ query. When $\advA$ makes query $M$ to $\SignO$, it answers as per the following:
+
+\begin{tabbing}
+If $\STable[\msg]\neq\bot$ then return $\STable[\msg]$ \\
+$\STable[\msg] \getsr \UFCMA_{\jDS,\fF_3}.\SignO(M)$ ; Return $\STable[\msg]$ 
+\end{tabbing} 
+
+\noindent Note that memoizing signatures in $\STable$ is important here to ensure that the $\SignO$ queries of $\advA$ are correctly simulated. It answers $\HASH$ queries via $\UFCMA_{\jDS,\fF_3}.\HASH$. When $\advA$ calls $\Finalize(\chmsg, \chsig)$, adversary $\advA_2$ calls $\UFCMA_{\jDS,\fF_3}.\Finalize(\chmsg, \chsig)$. The distribution of signatures that $\advA$ is given, and of the keys underlying them, is as in $\Gm_2$, which explains Eq.~\eqref{eq-th-uf-advA}.
+
+Note that the constructed adversaries having access to oracle $\HASH$ in their games is important to their ability to simulate $\advA$ faithfully. 
+
+With regard to the costs (number of queries, running time) of the constructed adversaries, recall that we have defined these as the costs in the execution of the adversary with the game that the adversary is playing, so for example the number of queries to $\HASH$ includes the ones made by algorithms executed in the game. When this is taken into account, queries to $\HASH$ are preserved, and the other claims are direct.
+\qed
+\end{proof}
+
+
+%Finally, we get the stated bound
+%\begin{align}
+%	\ufAdv{\fDS,\fF}{\advA} & =  \epsilon_0 \nonumber \\
+%	& =  (\epsilon_0-\epsilon_1)+(\epsilon_1-\epsilon_2)+\epsilon_2 \nonumber \\
+%	&\leq   \prgAdv{\fF_1}{\advA_1} + \prfAdv{\fF_2}{\advA_2} + \ufAdv{\DS,\fF_3}{\advA_3}\;. \nonumber
+%\end{align}
+
+%We construct $\advA_1$ in Figure~\ref{fig-ddA1}. We use $\Gm_1.\HASH$ for calling the $\HASH$ oracle in $\Gm_1$. The same principle applys when calling other oracles. By calling $\gamePRG_{\construct{\fF_1}}.\Initialize()$, our adversary $\advA_1$ gets the input $y_c$ for $c \in \bits$, where $y_1 \gets \fF_1[\hh](\osk)$ and $y_0 \getsr \bits^{2k}$. $\advA_1$ then uses $y_c$ as $\eEDSA_1\|\eEDSA_2$ to simulate game $\UFCMA_{\fDS,\fF}$ for $\advA$. 
+%
+%$\advA_1$ outputs 1 only if $\advA$ forges a valid signature message pair that passes the verification check. Notice when $c=0$, we have
+%
+% $\eEDSA_1\|\eEDSA_2 \getsr\bits^{k}$ and $\advA_1$ simulates $\Gm_1$; when $c=1$, $\eEDSA_1\|\eEDSA_2\gets\fF_1[\hh](\osk)$ and  $\advA_1$ simulates $\Gm_0$ perfectly. Hence, we have  
+%\begin{align}
+%	\prgAdv{\fF_1}{\advA_1}  &= \Pr[\advA_1 \Rightarrow 1 | c = 1] - \Pr[\advA_1 \Rightarrow 1 | c = 0] \nonumber \\
+%	& \geq \epsilon_0 - \epsilon_1\nonumber
+%\end{align}
+%
+%\begin{figure}[t]
+%	\oneCol{0.75}
+%	{
+%		\begin{algorithm-initial}{adversary $\advA_1(y_c)$}
+%			\item $(\chmsg, \chsig) \gets \advA[\Initialize, \SignO, \HASH]()$
+%			\item If ($\STable[\chmsg]\neq\bot$) then return $0$
+%			\item If $\DS.\Vf[\Gm_1.\fF_3[\HASH_1]](\pk, \chmsg, \chsig)$ then return $1$; Else return $0$
+%		\end{algorithm-initial}
+%	
+%		\begin{algorithm-subsequent}{$\Initialize$}
+%			\item $ y_c \gets \gamePRG_{\construct{\fF_1}}.\Initialize()$
+%			\item $\e_1\|\e_2\gets y_c$ 
+%			\item $\sk \gets \CF(\e_1)$ 
+%			; $\pk \gets \DS.\MakePK[\fF_3[\Gm_1.\HASH]](\sk)$ 
+%			\item Return $\pk$
+%		\end{algorithm-subsequent}
+%		\ExptSepSpace
+%		
+%		\begin{algorithm-subsequent}{$\SignO(\msg)$}
+%			\item Return $\Gm_1.\SignO(\msg)$
+%		\end{algorithm-subsequent}
+%		
+%		\begin{algorithm-subsequent}{$\HASH(X)$}
+%			\item Return $\Gm_1.\HASH(X)$
+%		\end{algorithm-subsequent} \vspace{2pt}
+%	}
+%	\vspace{-8pt}
+%	\caption{Adversary $\advA_1$ for $\gamePRG_{\construct{\fF_1}}$ given adversary $\advA$ for $\UFCMA_{\fDS,\fF}$ in the proof of Theorem~\ref{th-dd}.}
+%	\label{fig-ddA1}
+%	\hrulefill
+%	\vspace{-10pt}
+%\end{figure}
+%
+%We construct $\advA_2$ in Figure~\ref{fig-ddA2}. In $\gamePRF_{\construct{\fF_2}}$, $\Initialize$ has no output and samples a key $K\getsr\bits^k$ privately. When $\advA_2$ simulates game $\UFCMA_{\fDS,\fF}$ for $\advA$, we let $K$ be $e_2$ such that $r$ is either the output of a PRF with key $e_2$ or a string randomly sampled from the randomness space $\DS.\SigCoins$. $\advA_2$ only needs to sample $e_1$ to derive $\pk$. It redirects $\advA$'s queries to $\HASH$ to $\Gm_2.\HASH$ oracle, and manually runs the signing algorithm except that it gets $r$ from $\FUNCO_2$ oracle. When $c = 0$, $\advA_2$ perfectly simulates $\Gm_2$ and $r \getsr \DS.\SigCoins$; when $c = 1$, $\advA_2$ perfectly simulates $\Gm_1$ and $r \gets \fF_2[\hh](\eEDSA_2, \cdot)$. Similarly to the probability bound for $\advA_1$, we have
+%\begin{align}
+%	\prfAdv{\fF_2}{\advA_2}  &= \Pr[\advA_2 \Rightarrow 1 | c = 1] - \Pr[\advA_2 \Rightarrow 1 | c = 0] \nonumber \\
+%	& \geq \epsilon_1 - \epsilon_2 \nonumber 
+%\end{align}
+
+%\begin{figure}[t]
+%	\oneCol{0.75}
+%	{
+%		\begin{algorithm-initial}{adversary $\advA_2$}
+%			\item $(\chmsg, \chsig) \gets \advA[\Initialize,\SignO, \HASH]()$
+%			\item If ($\STable[\chmsg]\neq\bot$) then return $0$
+%			\item If $\DS.\Vf[\fF_3[\hh]](\pk, \chmsg, \chsig)$ then return $1$; Else return $0$
+%		\end{algorithm-initial}
+%	
+%		\begin{algorithm-subsequent}{$\Initialize$}
+%			\item $ \gamePRF_{\construct{\fF_2}}.\Initialize()$
+%			\item $\e_1\getsr\bits^{k}$ 
+%			\item $\sk \gets \CF(\e_1)$ 
+%			; $\pk \gets \DS.\MakePK[\fF_3[\Gm_2.\HASH]](\sk)$ 
+%			\item Return $\pk$
+%		\end{algorithm-subsequent}
+%		\ExptSepSpace
+%		
+%		\begin{algorithm-subsequent}{$\SignO(\msg)$}
+%			\item If $\STable[\msg]\neq\bot$ then return $\STable[\msg]$ 
+%			\item $r \gets\FUNCO_2(\msg)$
+%			\item $\STable[\msg] \gets \DS.\Sign[\fF_3[\hh]](\sk,\pk,\msg;r)$ ; Return $\STable[\msg]$
+%		\end{algorithm-subsequent}
+%		
+%		\begin{algorithm-subsequent}{$\HASH(X)$}
+%			\item Return $\Gm_2.\HASH(X)$
+%		\end{algorithm-subsequent} \vspace{2pt}
+%	}
+%	\vspace{-8pt}
+%	\caption{Adversary $\advA_2$ for $\gamePRF_{\construct{\fF_2}}$ given adversary $\advA$ for $\UFCMA_{\fDS,\fF}$ in the proof of Theorem~\ref{th-dd}.}
+%	\label{fig-ddA2}
+%	\hrulefill
+%	\vspace{-10pt}
+%\end{figure}
+%
+%Finally, we define $\advA_3$ for $\UFCMA_{\DS,\fF_3}$ in Figure~\ref{fig-ddA3}.
+%Our $\advA_3$ plays game $\Gm_2=\UFCMA_{\DS,\fF_3}$ and simulates $\UFCMA_{\fDS,\fF}$ for $\advA$ by redirecting queries to all oracles to $\Gm_2$ oracles. Obviously, $\advA_3$ simulates $\Gm_2$ perfectly and $\ufAdv{\DS,\fF_3}{\advA_3}  \geq \Pr[\Gm_2(\advA)] \geq \epsilon_2$.
+%
+
+%\begin{figure}[t]
+%	\oneCol{0.75}
+%	{
+%		\begin{algorithm-initial}{adversary $\advA_3$}
+%			\item $(\chmsg, \chsig) \gets \advA[\Initialize,\SignO, \HASH]()$
+%			\item Return $\Gm_2.\Finalize(\chmsg, \chsig)$
+%		\end{algorithm-initial}
+%		
+%		\begin{algorithm-subsequent}{$\Initialize$}
+%			\item Return $\Gm_2.\Initialize()$
+%		\end{algorithm-subsequent}
+%		\ExptSepSpace
+%		
+%		\begin{algorithm-subsequent}{$\SignO(\msg)$}
+%			\item Return $\Gm_2.\SignO(\msg)$
+%		\end{algorithm-subsequent}
+%		
+%		\begin{algorithm-subsequent}{$\HASH(X)$}
+%			\item Return $\Gm_2.\HASH(X)$
+%		\end{algorithm-subsequent} \vspace{2pt}
+%	}
+%	\vspace{-8pt}
+%	\caption{Adversary $\advA_3$ for $\UFCMA_{\DS,\fF_3}$ given adversary $\advA$ for $\UFCMA_{\fDS,\fF}$ in the proof of Theorem~\ref{th-dd}.}
+%	\label{fig-ddA3}
+%	\hrulefill
+%	\vspace{-10pt}
+%\end{figure}
+
+\heading{Security of $\JCTransform$.} We have now reduced the security of $\fDS$ to that of $\jDS$. To further reduce the security of $\jDS$ to that of $\DS$, we give a general result on clamping. Let $\keySet = \Outputs(\DS.\MakeSK)$ and let $\CFEDSA\Colon\bits^k\to\keySet$ be a clamping function. As per terminology in Section~\ref{sec-prelims}, recall that $\Img(\CFEDSA) = \set{\CFEDSA(\osk)}{|\osk|=k}\subseteq \keySet$  is the image of the clamping function, and $\CFEDSA$ is {regular} if every $y\in\Img(\CFEDSA)$ has the same number of pre-images under $\CFEDSA$.
+
+
+\begin{theorem}\label{th-jc} Let $\DS$ be a signature scheme such that $\DS.\MakeSK$ draws its signing key $\sk\getsr\keySet$ at random from a set $\keySet$.
+ Let $\CFEDSA\Colon\bits^k\to\keySet$ be a regular clamping function. Let $\delta = |\Img(\CFEDSA)|/|\keySet| > 0$. Let $\jDS = \JCTransform[\DS,\CFEDSA]$ be the signature scheme obtained by the just-clamp transform. Let $\fF\Colon\FuncSp{SS}\to \DS.\HASHSET$ be any functor.  Let $\advB$ be an adversary attacking the $\UFCMA$ security of $\jDS$. Then % there is an adversary $\advB$ such that
+\begin{align*}
+	\ufAdv{\jDS,\fF}{\advB} &\leq  (1/\delta)\cdot \ufAdv{\DS,\fF}{\advB} \;.
+\end{align*}
+% The constructed adversary preserves the number of oracle queries of the original, and approximately preserves its running time.
+\end{theorem}
+
+\begin{proof}[Theorem~\ref{th-jc}] We consider running $\advB$ in game $\UFCMA_{\DS,\fF}$, where the signing key is $\sk\getsr\keySet$. With probability $\delta$ we have $\sk\in \Img(\CFEDSA)$. Due to the regularity of $\CFEDSA$, key $\sk$ now has the same distribution as a key $\CFEDSA(\osk)$ for $\osk\getsr\bits^k$ drawn in game $\UFCMA_{\jDS,\fF}$. Thus $\ufAdv{\DS,\fF}{\advB} \geq \delta\cdot \ufAdv{\jDS,\fF}{\advB}$. \qed  
+\end{proof}
+

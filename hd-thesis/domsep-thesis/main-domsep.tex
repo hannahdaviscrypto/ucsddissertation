@@ -1,0 +1,81 @@
+
+ \documentclass[11pt,twoside]{article}
+       \usepackage[letterpaper,hmargin=1in,vmargin=1in]{geometry}
+
+\usepackage{multirow}
+\usepackage{setspace}
+\usepackage{xspace}
+\usepackage{stmaryrd}
+\usepackage[usenames,dvipsnames]{xcolor}
+%\usepackage{color}
+\PassOptionsToPackage{hyphens}{url}
+
+\usepackage{cryptocode}
+
+\usepackage{url,breakcites}
+\usepackage{latexsym}
+\usepackage{amscd,amsmath}
+\usepackage{amsfonts}
+\usepackage{float}
+\usepackage{longtable}
+
+
+%\setlength{\abovedisplayshortskip}{0pt}
+%\setlength{\belowdisplayshortskip}{0pt}
+
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.9}
+\renewcommand{\textfraction}{0.1}
+% \renewcommand{\floatpagefraction}{0.5}
+
+\usepackage{enumitem}
+\setlist[itemize]{noitemsep, topsep=0pt}
+
+%added by Yi
+\usepackage{mathtools}
+
+%added by Felix
+\usepackage{crypto-environments}
+\usepackage[normalem]{ulem}
+\usepackage{lmodern}
+
+%added by Hannah
+\usepackage{dsfont}
+\usepackage{scrextend}
+
+% hyperref goes last
+    \usepackage[pdftex, pdftitle={Separate Your Domains: NIST PQC KEMs, Oracle Cloning and Read-Only Indifferentiability},
+      pdfauthor={Bellare, Davis, G\"{u}nther},
+      pdfpagelabels=true, linktocpage=true, pagebackref,
+      breaklinks,colorlinks,citecolor=blue,linkcolor=blue,
+      bookmarksdepth=3,bookmarksopen=true
+   ]{hyperref}
+
+% --- -----------------------------------------------------------------
+% --- Page styles
+% --- -----------------------------------------------------------------
+\input{header}
+
+
+\begin{document}
+
+\setlength{\abovedisplayskip}{4pt}
+\setlength{\belowdisplayskip}{4pt}
+
+\input{intro}
+\input{pqc-kem}
+\input{prelims}
+\input{rd-indiff}
+\input{framework}
+\input{newhope}
+\input{kem}
+
+
+
+\section{Acknowledgments}
+
+We thank Dan Bernstein for comments and corrections. We thank the Eurocrypt 2020 reviewers for their comments.
+
+\appendix
+
+\end{document}

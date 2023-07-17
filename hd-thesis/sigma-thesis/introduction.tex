@@ -1,0 +1,483 @@
+\section{Introduction}
+\label{sec:introduction}
+
+The Transport Layer Security (TLS) protocol~\cite{rfc8446} is responsible for securing billions of Internet connections every day.
+Usage statistics for Google Chrome%
+\fullonly{\footnote{\url{https://transparencyreport.google.com/https/}}}		%% last checked 2020-09-03: 76% -- 98%
+and Mozilla Firefox%
+\fullonly{\footnote{\url{https://telemetry.mozilla.org/}}}				%% last checked 2020-09-03: 89%  (HTTP_PAGELOAD_IS_SSL)
+report that $76$--$98$\% of all web page accesses are encrypted.%
+At the heart of TLS is an authenticated key exchange (AKE) protocol, the so-called handshake protocol, responsible for providing the parties (client and server) with a shared, symmetric key that is fresh, private and authenticated.
+The ensuing record layer secures data using this key.
+The AKE protocol of TLS is based on the \SIGMA (``SIGn-and-MAc'') design of Krawczyk~\cite{C:Krawczyk03} for the Internet Key Exchange (IKE) protocol~\cite{rfc2409} of IPsec~\cite{rfc2401},
+which generically augments an unauthenticated, ephemeral Diffie--Hellman (DH) key exchange with authenticating signatures and MACs.
+
+Naturally, the \SIGMA AKE protocol and its incarnation in TLS have been the recipients of proofs of security.
+We contend that these largely justify the AKE protocols in principle, but not in practice,
+meaning not for the parameters in actual use and at the desired or expected level of security.
+Our work takes steps towards filling this gap.
+
+
+\iffull
+\subsection{Qualitative and Quantitative Bounds}
+\else
+\subsubsection*{Qualitative and quantitative bounds.}
+\fi
+
+Let us expand on this.
+The protocols~$\KE$ we consider are built from
+a cyclic group~$\group$ in which some DH problem~$\mathsf{P}$ is assumed to be hard,
+a pseudorandom function~$\PRF$ and unforgeable signature and MAC schemes~$\SIGScheme$ and~$\MACScheme$.
+The target for~$\KE$ is session-key security with explicit authentication as originating from~\cite{C:BelRog93,EC:BelPoiRog00,EC:CanKra01}.
+A proof of security has both a qualitative and quantitative dimension.
+Qualitatively, a proof of security for the AKE protocol~$\KE$ says that $\KE$ meets its target definition assuming the building blocks meet theirs,
+where, in either case, meeting the definition means any poly-time adversary has negligible advantage in violating it.
+
+The quantitative dimension associates to each adversary in the security game of~$\KE$ a set of resources~$r$,
+representing its runtime and attack surface (e.g., the number of users and executed protocol sessions the adversary has access to).
+It then relates the maximum advantage of any $r$-resource adversary in breaking $\KE$'s security to likewise advantage functions for the building blocks
+through an equation of the (simplified) form
+\[
+	\Adv_{\KE}(r) \leq %f(r) + 
+	f_\group \cdot \Adv^{\mathsf{P}}_{\group}(r_\group) + f_{\SIGScheme} \cdot \Adv^{\EUFCMA}_{\SIGScheme}(r_{\SIGScheme}) + \dots,
+\]
+deriving quantitative factors~$f_\mathsf{X}$ and resources~$r_\mathsf{X}$ for the advantage of each building block~$\mathsf{X}$.
+
+Speaking asymptotically again, when $f_\mathsf{X}$ and $r_\mathsf{X}$ are polynomial functions in~$r$,
+then $\Adv_{\KE}(r)$ is negligible whenever all building blocks' advantages are.
+Due to the complexity of key exchange models and the challenging task of combining the right components in a secure manner,
+key exchange analyses (including prior work on \SIGMA~\cite{C:CanKra02} and TLS~1.3~\fullelse{\cite{CCS:DFGS15,EuroSP:KraWee16,EPRINT:DFGS16,EuroSP:FisGue17,JC:DFGS21}}{\cite{CCS:DFGS15,EuroSP:KraWee16,EuroSP:FisGue17,JC:DFGS21}}) indeed often remain abstract and consider only qualitative, asymptotic security bounds.
+
+Standardized protocols like TLS in contrast have to define concrete choices for each cryptographic building block.
+This involves considering reasonable estimates for adversarial resources (like runtime~$t$ and number of key-exchange model queries~$q$) and specific instances and parameters for the underlying components~$\mathsf{X}$.
+One would hope that key exchange proofs can provide guidance in making sound choices that result in the desired overall security level.
+Unfortunately, AKE security bounds regularly are highly non-tight, meaning that $f_\mathsf{X}$ and/or $r_\mathsf{X}$ for some components~$\mathsf{X}$ are so large that reasonable stand-alone parameters for~$\mathsf{X}$ yield vacuous key exchange advantages for practical parameters.
+While the asymptotic bound tells us that scaling up the parameters for~$\mathsf{X}$ (say, the DDH problem~\cite{Boneh98}) will at some point result in a secure overall advantage,
+this causes efficiency concerns (e.g., doubling elliptic curve DH security parameters means quadrupling the cost for group operations) and hence does not happen in practice.
+\begin{table}[t]
+	\centering
+	\small
+	
+	\renewcommand{\arraystretch}{0.001}
+	\renewcommand{\tabcolsep}{0.05cm}
+	\begin{tabular}{@{}lllllllllll@{}}
+	\toprule
+	\multicolumn{3}{c}{Adv.\ resources}		&&&		& \multicolumn{2}{c}{\SIGMA}	& \hspace{0.2cm} & \multicolumn{2}{c}{TLS~1.3} \\
+	\cmidrule{1-3} \cmidrule{7-8} \cmidrule{10-11}
+	$t$~~~~~~	& $\#U$~~	& $\#S$ && Curve~~~~~~~	& Target~	& CK\,{\scriptsize\cite{C:CanKra02}}~	& Us~{\scriptsize(Thm.~\ref{thm:SIGMAI})}	&& DFGS\,{\scriptsize\cite{JC:DFGS21}}~	& Us~{\scriptsize(Thm.~\ref{thm:tls})} \\
+	\midrule
+$2^{60}$	&$2^{20}$	&$2^{35}$	&&\texttt{secp256r1} 	&$2^{-68}$	&\cellcolor{red!25}$\approx 2^{-61}$	&$\approx 2^{-116}$	&& \cellcolor{red!25}$\approx 2^{-64}$	&$\approx 2^{-116}$	 \\
+$2^{60}$	&$2^{30}$	&$2^{55}$	&&\texttt{secp256r1}	&$2^{-68}$	&\cellcolor{red!25}$\approx 2^{-21}$	&$\approx 2^{-106}$	&& \cellcolor{red!25}$\approx 2^{-24}$	&$\approx 2^{-106}$	 \\
+\midrule
+$2^{60}$	&$2^{20}$	&$2^{35}$	&&\texttt{x25519}	&$2^{-68}$	&\cellcolor{red!25}$\approx 2^{-57}$	&$\approx 2^{-112}$	&& \cellcolor{red!25}$\approx 2^{-60}$	&$\approx 2^{-112}$	 \\
+$2^{60}$	&$2^{30}$	&$2^{55}$	&&\texttt{x25519}	&$2^{-68}$	&\cellcolor{red!25}$\approx 2^{-17}$	&$\approx 2^{-102}$	&& \cellcolor{red!25}$\approx 2^{-20}$	&$\approx 2^{-102}$	 \\
+% $2^{60}$	&$2^{20}$	&$2^{35}$	&&\texttt{secp384r1}	&$2^{-132}$	&$\approx 2^{-189}$	& $\approx 2^{-244}$	&& $\approx 2^{-192}$	& $\approx 2^{-244}$	 \\
+% $2^{60}$	&$2^{30}$	&$2^{55}$	&&\texttt{secp384r1}	&$2^{-132}$	&$\approx 2^{-149}$	& $\approx 2^{-234}$	&& $\approx 2^{-152}$	& $\approx 2^{-234}$	  \\
+\midrule
+\midrule
+$2^{80}$	&$2^{20}$	&$2^{35}$	&&\texttt{secp256r1}	&$2^{-48}$	&\cellcolor{red!25}$\approx 2^{-21}$	&$\approx 2^{-76}$	&& \cellcolor{red!25}$\approx 2^{-24}$	&$\approx 2^{-76}$	 \\
+$2^{80}$	&$2^{30}$	&$2^{55}$	&&\texttt{secp256r1}	&$2^{-48}$	&\cellcolor{red!25}1			&$\approx 2^{-66}$	&& \cellcolor{red!25}1			&$\approx 2^{-66}$	 \\
+\midrule
+$2^{80}$	&$2^{20}$	&$2^{35}$	&&\texttt{x25519}	&$2^{-48}$	&\cellcolor{red!25}$\approx 2^{-17}$	&$\approx 2^{-72}$	&& \cellcolor{red!25}$\approx 2^{-20}$	&$\approx 2^{-72}$	 \\
+$2^{80}$	&$2^{30}$	&$2^{55}$	&&\texttt{x25519}	&$2^{-48}$	&\cellcolor{red!25}1			&$\approx 2^{-62}$	&& \cellcolor{red!25}1			&$\approx 2^{-62}$	 \\
+\midrule
+$2^{80}$	&$2^{20}$	&$2^{35}$	&&\texttt{secp384r1}	&$2^{-112}$	&$\approx 2^{-149}$	& $\approx 2^{-204}$	&& $\approx 2^{-152}$	& $\approx 2^{-204}$	 \\
+$2^{80}$	&$2^{30}$	&$2^{55}$	&&\texttt{secp384r1}	&$2^{-112}$	&\cellcolor{red!25}$\approx 2^{-109}$	&$\approx 2^{-194}$	&& \cellcolor{orange!25}$\approx 2^{-112}$	& $\approx 2^{-194}$	 \\
+	\bottomrule
+	\end{tabular}
+	
+	\medskip
+	
+	\caption{%
+		Exemplary concrete advantages of a key exchange adversary with given resources $t$ (running time), $\#U$ (number of users), $\#S$ (number of sessions), in breaking the security of the \SIGMA and TLS~1.3 protocols
+		when instantiated with curve \texttt{secp256r1}, \texttt{secp384r1}, or \texttt{x25519},
+		based on the prior bounds by Canetti-Krawczyk~\cite{C:CanKra02} resp.\ Dowling et al.~\cite{JC:DFGS21}, and the bounds we establish (Theorem~\ref{thm:SIGMAI} and~\ref{thm:tls}).
+		Target indicates the maximal advantage~$t/2^b$ tolerable when aiming for the respective curve's security level ($b = 128$ resp.\ $192$ bits);
+		entries in red-shaded cells miss that target.
+		See Section~\ref{sec:evaluation} %and Appendix~\ref{apx:evaluation} 
+		for full details and curves \texttt{secp521r1} and~\texttt{x448}.
+	}
+	\label{tbl:bounds-overview}
+\end{table}
+
+We illustrate in Table~\ref{tbl:bounds-overview} the effects of the non-tight bounds for \SIGMA and TLS~1.3
+when instantiating the protocols with NIST curves \texttt{secp256r1}, \texttt{secp384r1}~\cite{NIST:FIPS-186-4}, or curve \texttt{x25519}~\cite{rfc7748} and idealizing the protocols' other components (see Section~\ref{sec:evaluation} for full details).
+Following the curves' security, we aim at a security level of~$128$~bits, resp.~$192$~bits, meaning the ratio of an adversary's runtime to its advantage should be bounded by~$2^{-128}$, resp.~$2^{-192}$.
+When considering the advantage of key exchange adversaries running in time~$t$, interacting in the security game with $\#U$ users and $\#S$ sessions,
+we can see that previous security bounds fail to meet the targeted security level
+for real-world--scale parameters ($\#U$ ranging in $2^{20}$--$2^{30}$ based on $2^{27}$ active certificates on the Internet%
+\fullonly{\footnote{\url{https://letsencrypt.org/stats/}}}%		%% last checked 2020-09-03: 136M active certs, 227M fully-qualified domains certified
+, $\#S$ ranging in $2^{35}$--$2^{55}$ based on $2^{32}$ Internet users and $2^{33}$ daily Google searches%
+\fullonly{\footnote{\url{https://www.internetlivestats.com/}}}%		%% last checked 2020-09-03: 85479 searches per second
+).
+In the security analysis by Canetti and Krawczyk~\cite{C:CanKra02} (CK) for \SIGMA, the factor associated to the decisional Diffie--Hellman problem is $f_{\DDH}(t,\#U,\#S) = \#U \cdot \#S$,
+where $\#U$ and $\#S$ again are the number of users, resp.\ sessions, accessible by the adversary.
+The analysis by Dowling et al.~\cite{JC:DFGS21} (DFGS) for TLS~1.3 reduces to the strong Diffie--Hellman problem~\cite{RSA:AbdBelRog01}---via the PRF-ODH assumption~\cite{C:JKSS12,C:BFGJ17}---with factor $f_{\strongDH}(t,\#U,\#S) = (\#S)^2$.
+In contrast, we reduce to the strong Diffie--Hellman problem with a constant factor for both \SIGMA and TLS~1.3.
+
+Let us discuss three data points from Table~\ref{tbl:bounds-overview}:
+\begin{enumerate}
+	\item Already with medium-sized resources, investing time~$t = 2^{60}$ and interacting with a million users ($\#U = 2^{20}$) and a few billion sessions ($\#S = 2^{35}$), the CK~\cite{C:CanKra02} and DFGS~\cite{JC:DFGS21} advantage bounds for \SIGMA and TLS~1.3 with curves \texttt{secp256r1} and \texttt{x25519} fall $6$--$11$~bits below the target of~$2^{-68}$ for $128$-bit security.
+	
+	\item When considering a more powerful, global-scale adversary ($t = 2^{80}$, $\#U = 2^{30}$, $\#S = 2^{55}$), both CK and DFGS bounds for \texttt{secp256r1}/\texttt{x25519} become fully vacuous;
+	the upper bound on the probability of the adversary breaking the protocol is~$1$.
+	% (More precisely, the bounds yield an advantage of~$2^{16}$ resp.\ $2^{8}$.)
+	We stress that \texttt{secp256r1} is the mandatory-to-implement curve for TLS~1.3;
+	\texttt{secp256r1} and \texttt{x25519} together make up for 90\% of the TLS~1.3 ECDHE handshakes reported through Firefox Telemetry.
+
+	\item Finally, and notably, even switching to the higher-security curve \texttt{secp384r1} helps only marginally in the latter case:
+	the resulting advantage against \SIGMA falls $3$~bits short of the $192$-bit security target of~$2^{-112}$,
+	and the TLS advantage bound only barely meets that target.
+\end{enumerate}
+For all curves and choices of parameters, our bounds do better. 
+
+
+\iffull
+\subsection{Contributions}
+\else
+\subsubsection*{Contributions\lncsdot}
+\fi
+
+Most prior results in tightly secure key exchange (e.g., \cite{TCC:BHJKL15,C:GjoJag18}) apply only to bespoke protocols, carefully designed to allow for tighter proof techniques, at the cost of requiring more complex primitives which, in the end, eat up the gained practical efficiency.
+\iffull
+Recently, Cohn-Gordon et al.~\cite{C:CCGJJ19,EPRINT:CCGJJ19} established a proof strategy for a simple and efficient DH key exchange with reasonable tightness loss (only linear in the number of users~$\#U$), achieving implicit authentication through static DH keys through careful key derivation via a random oracle~\cite{CCS:BelRog93} with an optional explicit-authentication step.
+
+\fi
+Our work in contrast establishes tight security for standardized AKE protocols.
+We give tight reductions for the security of \SIGMA and TLS~1.3 to the strong Diffie--Hellman problem~\cite{RSA:AbdBelRog01},
+which in addition we prove is as hard as the discrete logarithm problem in the generic group model (GGM)~\cite{EC:Shoup97,IMA:Maurer05}.
+Instantiating our bounds shows that, with standardized real-world parameters, we achieve the intended security levels even when considering powerful, globally-scaled attackers.
+
+
+\iffull
+\paragraph{Code-based security model and proofs}
+For our proofs, we provide detailed proof steps and reductions using the code-based game-playing framework of Bellare and Rogaway~\cite{EC:BelRog06}.
+Our security model is similar to the one applied by Cohn-Gordon et al.~\cite{C:CCGJJ19},
+%considering in particular compromises of long-term secrets and session keys (but not internal state or randomness),
+but formalized also as a code-based game (in Section~\ref{sec:ake-model}) and stronger in that it captures explicit authentication and regular (``perfect'') forward secrecy (instead of only weak forward secrecy in~\cite{C:CCGJJ19}).
+\else
+
+\fi
+
+
+\paragraph{Tighter security proof of SIGMA(-I)}
+We establish fully quantitative security bounds for \SIGMA and its identity-protecting variant~\SIGMAI~\cite{C:Krawczyk03} in Sections~\ref{sec:sigma} and~\ref{sec:sigma-proof}.
+Our result is for BR-like~\cite{C:BelRog93} key exchange security and gives a tight reduction to the strong Diffie--Hellman problem~\cite{RSA:AbdBelRog01} in the used DH group, and to the multi-user (mu) security of the employed pseudorandom function (PRF), signature scheme, and MAC scheme, adapting the techniques by Cohn-Gordon et al.~\cite{C:CCGJJ19} in the random oracle model~\cite{CCS:BelRog93}.
+The latter mu-security bounds are essentially equivalent to the corresponding bounds by CK~\cite{C:CanKra02}.
+Our improvement comes from shaving off a factor of $\#U \cdot \#S$ (number of users times number of sessions) on the DH problem advantage compared to CK.
+While we move to the interactive strong Diffie--Hellman problem (compared to \fullelse{the decisional DH (DDH) problem~\cite{Boneh98} used in~\cite{C:CanKra02}}{DDH~\cite{Boneh98} used in~\cite{C:CanKra02}}),
+we prove (in Appendix~\ref{apx:strongDHproof}) that the strong DH problem, like DDH, is as hard as solving discrete logarithms in the generic group model~\cite{EC:Shoup97,IMA:Maurer05}%
+\fullonly{, reflecting the (only generic) algorithms known for solving discrete logarithms in elliptic curve groups}.
+
+
+\paragraph{Tighter security proof for the TLS~1.3 DH handshake}
+We likewise establish fully quantitative security bounds for the key exchange of the recently standardized newest version of the Transport Layer Security protocol, TLS~1.3~\cite{rfc8446}, in Sections~\ref{sec:tls} and~\ref{sec:tls-proof}.
+The main quantitative improvement in our reduction is again a tight reduction to the strong DH problem, whereas prior bounds by DFGS~\cite{JC:DFGS21} incurred a quadratic loss to the PRF-ODH assumption~\cite{C:JKSS12,C:BFGJ17}, a loss which translates directly to strong DH~\cite{C:BFGJ17}.
+While TLS~1.3 roughly follows the \SIGMAI design, its cascading key schedule impedes the precise technique of Cohn-Gordon et al.~\cite{C:CCGJJ19} and a direct application of our results on \SIGMAI, as no single function (to be modeled as a random oracle) binds the Diffie--Hellman values to the session context.
+We therefore have to carefully adapt the proof to accommodate the more complex key schedule and other core variations in TLS~1.3's key exchange, achieving conceptually similar tightness results as for \SIGMAI.
+% This is reflected in our concrete security bounds for TLS~1.3 based on standardized components:
+% for real-world resource parameters (cf.\ Table~\ref{tbl:bounds-overview} and Section~\ref{sec:evaluation}) they meet the targeted security levels of the mandatory-to-implement curve~\texttt{secp256r1} as well as \texttt{secp384r1} and \texttt{x25519},
+% and improve upon the DFGS bounds by up to $82$~bits of security.
+
+
+\paragraph{Evaluation}
+In Section~\ref{sec:evaluation}, we evaluate the concrete security implications of our improved bounds for \SIGMA and TLS~1.3 for a wide range of real-world resource parameters and all five elliptic curves \fullonly{(\texttt{secp256r1}, \texttt{secp384r1}, \texttt{secp521r1},\texttt{x25519}, \texttt{x448}) }standardized for use in TLS~1.3~\cite{rfc8446},
+a summary of which is displayed in Table~\ref{tbl:bounds-overview}.
+\iffull
+Leveraging our GGM bound for the strong Diffie--Hellman problem, we focus on the hardness of solving discrete logarithms in the respective elliptic curve groups, instantiating signatures based on ECDSA~\cite{NIST:FIPS-186-4} resp.\ EdDSA~\cite{CHES:BDLSY11}.
+We idealized the symmetric PRF, MAC, and hash function primitives (in two variants, with key and output sizes twice as large as the curve's security level, or fixed at $256$~bits corresponding to the choice in most TLS~1.3 cipher suites).
+
+\fi
+We report that our tighter proofs indeed materialize for a wide range of real-world resource parameters%
+\fullonly{ (adversary runtime~$t \in \{2^{40},2^{60},2^{80}\}$, number of users~$\#U \in \{2^{20},2^{30}\}$, and number of sessions~$\#S \in \{2^{35},2^{45},2^{55}\}$)}.
+The resulting attacker advantages meet the targeted security levels of all five curves.
+% The resulting attacker advantages meet the targeted security levels of curves~\texttt{secp256r1} (mandatory to implement for TLS~1.3) as well as \texttt{secp384r1} and \texttt{x25519}.
+% (For higher-security curves \texttt{secp521r1} and \texttt{x448} and high-end adversary parameters, the idealized mu-security PRF and MAC loss becomes the dominating component, requiring key/output sizes larger than $256$~bits.)
+In comparison to the prior CK~\cite{C:CanKra02} \SIGMA and DFGS~\cite{JC:DFGS21} TLS~1.3 bounds,
+our results improve the obtained security across these real-world parameters by up to~$85$~bits for \SIGMA and $92$~bits for TLS~1.3, respectively.
+
+
+\iffull
+
+\iffull
+\subsection{Optimizations, Limitations, and Possible Extensions}
+\else
+\subsubsection*{Optimizations, limitations, and possible extensions\lncsdot}
+\fi
+\SIGMA being a generic AKE design, the signature, PRF, and MAC schemes may be instantiated with primitives optimized for multi-user security.
+While we focus on standardized and deployed schemes in our evaluation without assuming tight mu-security, our \SIGMA bound allows to directly leverage such optimization.
+For PRFs and MACs,  efficient candidates exist (e.g., AMAC~\cite{EC:BelBerTes16}).
+For signatures, tight mu-security is more challenging~\cite{EC:BJLS16} and often involves computationally much more expensive constructions~\cite{TCC:BHJKL15}.
+
+Like Cohn-Gordon et al.~\cite{C:CCGJJ19}, our key exchange security model considers exposure of long-term secrets and session keys,
+but does not allow revealing internal session state or randomness (as in the (e)CK model~\cite{EC:CanKra01,PROVSEC:LaMLauMit07}).
+This is appropriate for protocols like TLS~1.3 not aiming to protect against such threats.
+The original \SIGMA proof~\cite{C:CanKra02} did establish security in the CK model~\cite{EC:CanKra01} allowing exposure of session state;
+in that sense our results are qualitatively weaker.
+In recent work, Jager et al.~\cite{EC:JKRS21} give a tightly secure protocol which uses symmetric state encryption to protect against ephemeral state reveals.
+Establishing a tight security reduction for a SIGMA-style DH-based AKE protocol which can handle adaptive compromises of session state (including DH exponents) remains a challenging open problem.
+
+In our proofs, we crucially rely on the ability to observe and program a random oracle used for key derivation in the AKE protocol, borrowing from~\cite{C:CCGJJ19}.
+Notably, the approach of Cohn-Gordon et al.\ is tailored to an AKE protocol achieving authenticity implicitly through mixing long-term DH keys into the key derivation.
+Our proofs can hence be seen as translating and adapting their technique to the setting of \SIGMA and TLS~1.3, where an unauthenticated ephemeral DH exchange is explicitly authenticated through signatures and MACs,
+confirming that the generic \SIGMA design as well as the standardized TLS~1.3 protocol bind enough context to their DH shares for this proof technique to work.
+Leveraging the random oracle model~\cite{CCS:BelRog93} is another qualitative difference compared to the original \SIGMA proof~\cite{C:CanKra02} in the standard model.
+Interestingly, this distinction vanishes in comparison to the provable security results for the TLS~1.3 handshake protocol~\cite{CCS:DFGS15,EPRINT:DFGS16,EuroSP:FisGue17,JC:DFGS21} which employ the PRF-ODH assumption~\cite{C:JKSS12,C:BFGJ17},
+an interactive assumption which plausibly can only be instantiated in the random oracle model (from the strong DH assumption).
+\fi
+
+% \old{%
+% The DFGS analyses of TLS~1.3 establish security in a multi-stage key exchange (MSKE) model~\cite{CCS:FisGue14}, proving security not only of the final session key, but also of intermediate handshake encryption keys and further secrets.
+% While our proofs (for both \SIGMA and TLS~1.3) establish security of the intermediate (handshake) encryption key, too,
+% we do not treat them as first-class keys available to the adversary (e.g., through revealing them).
+% We expect that our results extend to a MSKE treatment, leaving this extension to possible future work.
+% }
+
+\iffull
+\subsection{Concurrent Work}
+\else
+\subsubsection*{Concurrent work\lncsdot}
+\fi
+
+In concurrent and independent work, Diemert and Jager (DJ)~\cite{JC:DieJag20} studied the tight security of the main TLS~1.3 handshake.
+Their work also tightly reduces the security of TLS~1.3 to the strong Diffie--Hellman problem by extending the technique of Cohn-Gordon et al.~\cite{C:CCGJJ19}, and their bounds and ours are similarly tight.
+When instantiated with real-world parameters, both bounds are dominated by the same terms, as we will demonstrate in Section~\ref{sec:evaluation}.
+Our proof differs from theirs in two key ways:
+We use an incomparable security model that is weaker in some ways and stronger in others, and we approximate the TLS~1.3 key schedule with fewer random oracles.
+We also contextualize our results quite differently than the DJ work, with a detailed numerical analysis that is enabled by our fully parameterized, concrete bounds.
+Uniquely to this work, we treat the more generic \SIGMAI protocol and justify our use of the strong DH problem with new bounds in the generic group model.
+Diemert and Jager~\cite{JC:DieJag20} in turn study tight composition with the TLS record protocol. 
+
+The DJ analysis is carried out in the multi-stage key exchange model~\cite{CCS:FisGue14}, proving security not only of the final session key, but also of intermediate handshake encryption keys and further secrets.
+While our proof does show security of these intermediate keys, we do not treat them as first-class keys accessible to the adversary through dedicated queries in the security model.
+Unlike either the DJ or Cohn-Gordon et al.\ works, our model addresses explicit authentication, which we prove via HMAC's unforgeability.
+
+To tackle the challenge that TLS~1.3's key schedule does not bind DH values and session context in one function, DJ model the full cascading derivation of each intermediate key monolithically as an independent, programmable random oracle (cf.~\cite[Theorem~6]{JC:DieJag20}). 
+We instead model the key schedule's inner HKDF~\cite{C:Krawczyk10} extraction and expansion functions as two individual random oracles, carefully connected via efficient look-up tables, yielding a slightly less extensive use of random oracles and compensating for the existence of shared computations in the derivation of multiple keys.
+This approach produces more compact bounds and allows our analysis to stay closer to the use of HKDF in TLS~1.3, where the output of one extraction call is used to derive multiple keys.
+
+
+%%% 2020-11-12
+% In concurrent and independent work, Diemert and Jager~\cite{JC:DieJag20} studied the tight security of the main TLS~1.3 handshake.
+% Despite the use of different security models, their bounds and ours provide similarly tight reductions to the strong Diffie--Hellman problem
+% \acnsreplace{}{ with the same dominating terms for real-world parameters, as we will discuss in Section~\ref{sec:evaluation}}.
+% Their analysis is carried out in the multi-stage key exchange model~\cite{CCS:FisGue14}, proving security not only of the final session key, but also of intermediate handshake encryption keys and further secrets.
+% To tackle the challenge that TLS~1.3's key schedule does not bind DH values and session context in one function, they model the full cascading derivation of each intermediate key monolithically as an independent, programmable random oracle (cf.~\cite[Theorem~6]{JC:DieJag20}). 
+% We instead model the key schedule's inner HKDF~\cite{C:Krawczyk10} extraction and expansion functions as two individual random oracles, carefully connected via efficient look-up tables, \acnsreplace{}{yielding a slightly less extensive use of random oracles} and compensating for the existence of shared computations in the derivation of multiple keys. .
+% This approach produces more compact bounds and allows our analysis to stay closer to the use of HKDF in TLS~1.3, where the output of one extraction call is used to derive multiple keys.
+% \acnsreplace{}{Beyond the strong DH problem, both their and our proofs further reduce to multi-user security of signatures and PRFs, applying random oracle bounds for the latter (cf.~\cite[Section~5]{JC:DieJag20} and our \fullelse{Section~\ref{sec:components:muPRF}}{Appendix~\ref{apx:components:muPRF}}).}
+% In addition, our model captures explicit authentication \acnsreplace{}{(which we prove via HMAC's unforgeability)} and our bounds are fully parameterized enabling the evaluation of concrete practical advantages (cf.~Section~\ref{sec:evaluation}).
+% Finally, while our work additionally treats the more generic \SIGMAI protocol and proves GGM bounds for the strong DH problem,
+% \iffull
+% Diemert and Jager~\cite{JC:DieJag20} further study composition of the TLS~1.3 handshake with the nonce-randomized AES-GCM encryption in the record protocol,
+% connecting tight multi-user bounds for the latter~\cite{C:BelTac16,CCS:HoaTesThi18} with a tighter version of prior MSKE composition results~\cite{thesis:Guenther18} they establish.
+% \else
+% Diemert and Jager~\cite{JC:DieJag20} in turn study tight composition with the TLS record protocol.
+% \fi
+% \acnsreplace{}{We will further discuss and compare our technical results with those of Diemert and Jager~\cite{JC:DieJag20} in more detail throughout the paper.}
+
+
+%% AC20 rebuttal
+% This indeed is independent and concurrent work, published after the AC deadline. While DJ and our proofs use different security models, the results are essentially consistent. We’ll add a detailed comparison; briefly the main differences are:
+%   * DJ use the DFGS [22,..] model that allows Reveal/Test queries on intermediate keys; we simplify presentation by limiting these queries to the final session keys (as you said, @R1). Our proof strategy would however easily allow to branch out the PRF/KDF-steps to show security of intermediate keys.
+%   * DJ model the derivation of each intermediate key as an independent, programmable RO (cf. DJ Thm. 6). We instead model HKDF.Extract/Expand as two small, individual ROs (carefully connected via look-up tables), yielding more compact and slightly tighter bounds. This better captures the use of HKDF in TLS 1.3, where the output of one Extract call is used to derive multiple keys. 
+%   * DJ prove tight multi-user PRF bounds for HMAC/HKDF in the ROM. We likewise apply ROM mu-PRF bounds (cf. Apx B.2), but additionally prove explicit authentication via HMAC’s EUF-CMA security.
+%   * We give fully parameterized bounds and concrete practical advantages, and prove a GGM bound for StrongDH.
+%   * We also analyze the more generic SIGMA(-I) case.
+
+
+%% AC20 older, longer version
+% This indeed is independent and concurrent work, published after the AC deadline. DJ and our bounds are essentially consistent: Our bound contains the same tight bounds for symmetric primitives (HMAC/HKDF), it gains from a more fine-grained KDF modeling and includes a MAC term for explicit authentication. We’ll add a detailed comparison, the main differences are:
+% 
+% * DJ:
+%   - show security of intermediate keys via the multi-stage KE model (like prior work by DFGS [22,..]); we focus on the main keys and only conjecture intermediate keys’ security (making the models different--correct @R1).
+%   - model compound steps for each key's derivation, yielding a higher-level KDF with inputs directly bound to final key derivation, at the cost of 4+1 ROs and several StrongDH proof steps (cf. DJ Thm. 6)
+%   - give slightly tighter MSKE composition and connect to mu-AEAD bounds
+% 
+% * We:
+%   - model only HKDF Extract/Expand as two small, individual ROs (carefully connected via look-up tables), yielding more compact and slightly tighter bounds (1 StrongDH step, 2 ROs); the same approach can be applied for multi-stage KE
+%   - also analyze the more generic SIGMA(-I) case
+%   - show explicit authentication
+%   - give fully parameterized bounds and concrete practical advantages
+%   - prove a GGM bound for StrongDH, enabling comparison between assumptions    
+
+
+
+
+\iffalse
+\newpage
+\section*{\color{Red}Old/Draft Introduction}
+
+
+
+
+
+Authenticated key exchange (AKE), allowing two parties to establish a shared secret over an insecure communication channel,
+is one of the most widely used cryptographic components in today's world,
+securing billions of Internet connections every day. \hd{Mihir's comment: Needs more specificity. Exactly which protocols are widely used? What does widely mean?}
+\hd{The TLS protocol for secure Internet communication is used by x\% of the top Y00K Alexa sites. Its handshake protocol is an authenticated key exchange (AKE), which allows two parties to establish a shared secret over an insecure communication channel.
+AKE is also a crucial component of other major Internet security protocols like IKE and the Signal messaging protocol. }
+ 
+\hd{Here is my super rough intro outline, focusing more on what the problem we solve is and nuuumbers. All notation is absurd shorthand and not remotely final.}
+	
+\hd{	One thing we desire of an authenticated key exchange protocol KE is provable security. What does this actually mean? It means a theorem gives an upper bound for the advantage of an adversary attacking KE. This upper bound usually depends on the hardness of a well-known problem, such as the Decisional Diffie--Hellman problem or the discrete logarithm problem. Intuitively, if the discrete log problem is hard, then an adversary should not be able to break KE. }
+
+\hd{Of course, the hardness of any problem is dependent on its size and the resources of the adversary. Discrete logarithms are easy to compute in small-order groups, and any AKE scheme should be easy to break if its key length is one bit. Bounds on an adversary's advantage therefore depend on the runtime of the adversary and the size of its attack surface. The latter is measured by the number of queries the adversary makes in a security game; each query represents some interaction of the adversary with its environment. }
+
+\hd{A typical bound has the form Adv(KE)(t,queries) $\leq$ F(queries, params) + G(queries,params)*Adv(problem)(params,T(params,queries,t),queries). Here, F is a negligible function, and G and T are polylog functions. If problem is hard, then we assume that Adv(problem)(params, t,queries) is negligible. From an asymptotic perspective, Adv(KE)(t,queries) is negligible, which is good enough. In a concrete setting where we pick values for t, queries, and params, the story is more complicated. }
+\fg{Maybe one sample bound, with just one subproblem. Use DH Problem with ballpark numbers.}
+
+\hd{We choose t and queries based on realistic assumptions about the computational resources of a potential adversary. We also assume the hardness of problem based on similar computational resources. If T(params, queries, t) is large, it may exceed reasonable assumptions about computational resources. In this case, Adv(problem)(params, T(params,queries,t) may be high. Similarly, if G(queries, params) is large, the bound on KE may not prevent viable adversaries even if Adv(problem) is small.  Of course, since Adv(problem) is negligible, we can always scale up the parameters until the upper bound on the adversary is sufficiently small. In practice, this causes efficiency concerns and does not happen.}
+
+\hd{A tight security reduction to problem is one for which G and T are small polynomials. In order to use a security bound to exclude realistic attacks, we need two things: first, we need problem to be hard for realistic adversaries. Second, we need the reduction to problem to be tight. }
+
+\hd{TLS 1.3 does not have a tight security proof. For realistic parameters and standardized groups, existing bounds do not provide the target level of security. Numbersnumbersnumbersnumbers. }
+
+\hd{Some existing tight AKE reductions to hard problems already exist, but they target implicit authentication. Many major Internet security protocols like TLS and IKE target explicit authentication because why? They accomplish this by following the design of the SIGMA protocol.}
+
+\hd{We extend Cohn-Gordon's techniques to the explicitly authenticated AKE protocols SIGMA and TLS1.3. We give tight reductions to the stDH assumption, which we prove is as hard as discrete log in the generic group model. Instantiating our bounds shows that with standardized parameters, we achieve target security levels even considering a globally-scaled attacker. Now on to contributions subsubsection}
+
+At the heart of most AKE protocols \hd{Mihir's comment: Most in what pool of protocols?}%in most cases 
+is a Diffie--Hellman-style key exchange~\cite{DifHel76}, leveraging the versatility, efficiency, and security of this elegant primitive. \hd{Mihir's comment: Say DH is used because of forward secrecy instead of praising it.}
+
+To ensure (explicit) authentication, many practical key exchange designs including major Internet security protocols like TLS~\cite{rfc5246,rfc8446} and the IKE protocol~\cite{rfc2409} of IPsec~\cite{rfc2401} follow the \SIGMA (``SIGn-and-MAc'') key exchange design put forward by Krawczyk~\cite{C:Krawczyk03} which augments Diffie--Hellman (DH) key exchange with authenticating signatures and MACs.
+
+When it comes to determining which concrete security parameters for the protocol building blocks to use when deploying key exchange protocols, parameters should ideally be both theoretically sound (in the sense of providing meaningful security guarantees based on the proof) as well as reasonably efficient. \hd{Mihir's comment: the scheme, not the parameters, should be sound an efficient; and this needs to be more specific.}
+\hd{My intepretation: numbers would be helpful here: we want to choose parameters so that the scheme can run in x time and have a guaranteed security level of y. This naturally leads into the tradeoff of non-tight reductions.}
+One would hope that reductionist security proofs provide sound guidelines for deriving such parameters. 
+Unfortunately, the proof techniques applied in key exchange security results most often suffer from (highly) non-tight security reductions.
+The available reductions incur security losses from the protocol primitives' security that are linear, or sometimes even quadratic, in the number of protocol sessions considered and parties being involved. % due to guessing steps performed in the reduction.
+For example, the security proof for \SIGMA~\cite{C:CanKra02} has a linear loss in the number of sessions, and proofs of the (conceptually more complex) TLS protocol in version~1.2~\cite{C:JKSS12,C:KraPatWee13,C:BFKPSZ14} as well as the newest version~1.3~\cite{CCS:DFGS15,EPRINT:DFGS16} incur a quadratic loss in the number of sessions. \hd{Mihir's comment: There is always a tight reduction from SOME assumption; so talking about the loss without this context isn't clear.}
+Considering that Google alone securely serves several billion search requests every day\footnote{\url{https://www.internetlivestats.com}, retrieved 2020-02-10},
+the number of key exchange sessions in major Internet security protocols may well be on the order of $2^{50}$ across the Internet over a longer period of time. \hd{Mihir's comment: how many searches are done per session key? What is the source of the $2^{50}$ number?}
+Taking such numbers into account, theoretically sound parameters for key exchange components would need to provision for about a $100$-bit security loss. \hd{Mihir's comment: What is a loss and how do you measure it in bits?}
+This leaves deployed protocols like~TLS in the unfortunate situation that the gap between theoretically sound parameters and those actually deployed is too big for concrete security bounds to be at all meaningful for the real-world deployment.
+\hd{Mihir's comment: What is a theoretically sound parameter? Those actually deployed: we don't deploy parameters. We deploy schemes. What is a bound, and what does it mean for it to be meaningful?}
+\hd{My interpretation: I think we should focus more on the environment of our paper: A scheme is proven secure, meaning it has a parametrized reduction bounding the advantage of an adversary by the hardness of a well-known problem. We want to pick large parameters that make the advantage prohibitively low. We also want to pick small parameters that make the scheme fast. If we pick parameters that are too small, the parametrized equation may allow adversaries that have high advantage. }
+The security losses seen in security proofs of many key exchange protocols has led to explorations of protocol designs with \emph{tight} security proofs.
+Results in this direction include the works by Bader et al.~\cite{TCC:BHJKL15} as well as Gj\o{}steen and Jager~\cite{C:GjoJag18} which achieve fully tight security (i.e., with very small security loss in the parameters),
+but at the cost of requiring more complex primitives which, in the end, eat up the gained efficiency (even compared to standard key exchange protocols instantiated with parameters accounting for the non-tight losses).
+More recently, Cohn-Gordon et al.~\cite{C:CCGJJ19,EPRINT:CCGJJ19} managed to achieve a reasonable trade-off between tightness and efficiency,
+putting forward a nifty proof strategy for a simple and efficient, implicitly authenticated key exchange protocol.
+Their main protocol (called~$\Pi$) uses a simple ephemeral Diffie--Hellman exchange, combining both ephemeral and---for authentication---static DH shares in a random-oracle--based key derivation, which contains sufficient context information to enable an elegant proof that is tight in the number of sessions and only loses a factor of the number of parties involved.
+In practice, the number of parties in a key exchange is clearly much smaller than the number of sessions, meaning this approach provides a practical trade-off for reasonable efficiency based on theoretically sound parameters.
+Indeed Cohn-Gordon et al.\ show that a loss in the number of parties is optimal for a certain class of protocols and underlying assumptions.
+
+The protocols for which Cohn-Gordon et al.~\cite{C:CCGJJ19} establish their tighter security results provide implicit authentication, and their proof strategy heavily relies on this aspect when programming the random oracle.
+While implicit authentication has recently seen adoption in popular new protocols like Signal~\cite{Signal} or Noise~\cite{Noise},
+key exchange protocols in many other Internet security protocols aim at explicit authentication~\cite{C:BelRog93}, guaranteeing presence of a communication partner upon protocol acceptance.
+While Cohn-Gordon et al.\ show that explicit authentication can be generically added to their implicitly authenticated key exchange protocols through a follow-up compiler step, this unfortunately reduces efficiency and means the result does not apply to deployed real-world protocols following a more direct path to explicit authentication.
+Additionally, the tighter protocol designs rely on long-term Diffie--Hellman keys for implicit authentication, which are challenging to deploy in practice due to lacking support for according certificates in the web public-key infrastructure, which already barred adoption of the DH-based OPTLS design~\cite{EuroSP:KraWee16} in the recent TLS~1.3 standardization.
+This leads to the question:
+\begin{center}
+	\emph{Can we achieve similarly tighter security proofs for deployed key exchange protocols,
+	aiming at explicitly authenticated Diffie--Hellman key exchange?}
+\end{center}
+
+
+\subsubsection*{Contributions.}
+In this work, we answer that question positively, providing the first tight (in the number of sessions) security proof for SIGMA-style (explicitly) authenticated key exchange protocols, covering both the basic protocol variant as well as \SIGMAI with added privacy for parties' identities.
+We furthermore translate our results to the \SIGMA-based TLS~1.3 key exchange design, overcoming technical hurdles introduced by that protocol's significantly higher complexity.
+
+
+\paragraph{Code-based security model and proofs.}
+For our proofs, we provide detailed proof steps and reductions using the code-based game-playing framework of Bellare and Rogaway~\cite{EC:BelRog06}.
+Our security model is similar to the one applied by Cohn-Gordon et al.~\cite{C:CCGJJ19},
+%considering in particular compromises of long-term secrets and session keys (but not internal state or randomness),
+but formalized also as a code-based game (in Section~\ref{sec:ake-model}) and stronger in that it captures explicit authentication and regular (``perfect'') forward secrecy (instead of only weak forward secrecy in~\cite{C:CCGJJ19}).
+
+
+\paragraph{Tighter security proof of SIGMA(-I).}
+In terms of tightness, our security proof of SIGMA(-I) in Sections~\ref{sec:sigma} and~\ref{sec:sigma-proof} provides a tight reduction to the strong Diffie--Hellman assumption~\cite{RSA:AbdBelRog01} in the used DH group, and to multi-user (mu) security definitions of the employed pseudorandom function (PRF), signature scheme, and MAC scheme.
+Notably, while all these assumptions are in principle stronger than those used in the original proof for \SIGMA~\cite{C:CanKra02} (namely, the decisional Diffie--Hellman (DDH) assumption and single-user PRF, signature, and MAC security),
+overall, we still gain in terms of efficiency when instantiating the protocol with theoretically sound parameters.
+Most importantly, while being an interactive assumption compared to non-interactive DDH, no better algorithm for solving the strong DH problem (or generically the gap DH problem~\cite{PKC:OkaPoi01}) is known than to actually solve the computational DH (CDH) problem.
+\fg{Add that in AGM, stDH reduces to Dlog (though with a non-tight \#queries factor)~\cite{C:FucKilLos18}.}
+\hd{Verify Mihir's GGM conjecture that stDH is as hard as CDH and include}
+One would hence in practice instantiate both DDH and strong DH assumptions with the same groups.
+\SIGMA being a generic design, the PRF and MAC scheme can be instantiated with efficient mu-secure primitives (like, e.g., AMAC~\cite{EC:BelBerTes16}).
+For any signature scheme, mu-security furthermore reduces to regular single-user (su) security with a factor of the number of users---which in our setting corresponds to the number of parties running the key exchange protocol.
+This means that, here, we achieve the same level of tightness obtained by Cohn-Gordon et al.~\cite{C:CCGJJ19},
+with only a loss in the number of parties, but not in the number of sessions.
+Our results can be seen as confirming their insights (and translating them to the explicit authentication setting),
+in that protocols binding enough context to their DH secrets in a (programmable) random-oracle--based key derivation
+can achieve tight(er) security bounds in an appropriate security model.
+
+\paragraph{Tighter security proof for the TLS~1.3 DH handshake.}
+We exemplify the impact of extending the techniques from~\cite{C:CCGJJ19} to \SIGMA-style explicitly authenticated key exchange protocols
+by translating our \SIGMAI result to the recently standardized newest version of the Transport Layer Security protocol, TLS~1.3~\cite{rfc8446} in Sections~\ref{sec:tls} and~\ref{sec:tls-proof}.
+So far, the only reductionist security proofs known for the TLS~1.3 key exchange (the so-called handshake protocol) incur a highly non-tight security bound losing a quadratic factor in the number of sessions~\cite{CCS:DFGS15,EPRINT:DFGS16,EuroSP:FisGue17}.
+While TLS~1.3 at its core follows the \SIGMAI design, its key schedule in particular is substantially more complicated, preventing the direct application of our results on \SIGMAI.
+We are however able to give a carefully adapted proof which accommodates the more complex key schedule and other core variations in TLS~1.3's key exchange, achieving conceptually the same tightness results as for \SIGMAI.
+Since TLS~1.3, in contrast to \SIGMA, fixes a specific set of components it deploys (esp.\ HMAC~\cite{C:BelCanKra96} as the KDF and MAC building block, for which we are not aware of a tight mu-security result),
+our results do not reach the same tightness level possible for \SIGMA (instantiated with optimized components like~AMAC).
+Nevertheless, our analysis still substantially improves over previous ones, as it incurs only a (linear) loss in the number of sessions for HMAC's EUF-CMA security, while the reduction to the (strong) Diffie--Hellman assumption is tight.
+This way, our result provides a more theoretically sound confirmation of the practical scheme parameters deployed in TLS~1.3.
+
+
+\subsubsection*{Discussion, limitations, and possible extensions.}
+
+Like Cohn-Gordon et al.~\cite{C:CCGJJ19}, our key exchange security model considers exposure of long-term secrets and session keys, but does not allow revealing internal session state or randomness (as in the (e)CK model~\cite{EC:CanKra01,PROVSEC:LaMLauMit07}).
+This is appropriate for protocols like TLS~1.3 not aiming at such levels of security.
+The original \SIGMA proof~\cite{C:CanKra02} did establish security in the CK model~\cite{EC:CanKra01} allowing exposure of session state; in that sense our results are qualitatively weaker.
+It is however unclear how a tight reduction for many challenged sessions down to a single DH problem instance could be obtained that at the same time allows to adaptively reveal internal session state (including DH exponents).
+
+Our proof technique crucially relies on the ability to observe and program a random oracle that used for key derivation in the AKE protocol, borrowing from~\cite{C:CCGJJ19}.
+Despite the random oracle model~\cite{CCS:BelRog93} having established itself as a versatile tool to reason about practical security, this is a noteworthy qualitative difference compared to the original \SIGMA proof~\cite{C:CanKra02} carried out in the standard model.
+Interestingly, this distinction vanishes in comparison to the provable security results for the TLS~1.3 handshake protocol~\cite{CCS:DFGS15,EPRINT:DFGS16,EuroSP:FisGue17} that employ the PRF-ODH assumption~\cite{C:JKSS12,C:BFGJ17},
+an interactive assumption which plausibly can only be instantiated in the random oracle model (from the strong DH assumption).
+
+One reason for previous TLS~1.3 analyses requiring the PRF-ODH assumption is that they establish TLS~1.3's security in an multi-stage key exchange (MSKE) model~\cite{CCS:FisGue14}, proving security not only of the final session key, but also of intermediate handshake encryption keys and further secrets.
+This enables, e.g., a clearer argument about the enhanced privacy obtained by encryption part of the key exchange in the style of~\SIGMAI.
+While our proofs (for both \SIGMAI and TLS~1.3) establish security of the intermediate (handshake) encryption key, too,
+we do not treat those keys as first-class keys available to the adversary (e.g., through revealing them) as in a multi-stage model.
+We expect that our techniques similarly apply to a MSKE treatment, leaving this extension to possible future work.
+
+%%%
+%%% integrated the following already
+%%%
+% \begin{itemize}
+% 	\item KE most widely deployed crypto ``primitive'' in the real world
+% 	\hd{Really? I would have expected AEAD or digital signatures or something like that. If you can support it, this is a really good opener if only because it's surprising.}
+% 	\fg{What I was aiming at was ``one of the most'', which is easier to write and argue.}
+% 	\item often DH-based, for forward secrecy and efficiency
+% 	\item many variants, but major Internet protocols (TLS, IKE ..) following SIGMA-style approach of explicit authentication via signatures and MACs
+% 	\item proof techniques for KE often suffer from (highly) non-tight security reduction, including both number of sessions and number of users,
+% 	e.g. TLS~1.2 quadratic \cite{C:JKSS12,C:KraPatWee13,C:BFKPSZ14}, TLS~1.3 quadratic \cite{CCS:DFGS15,EPRINT:DFGS16} (what about OPTLS? \fg{they don't say in their proof, but at least have to guess one session}), \cite{C:CanKra02} \SIGMA proof has \#sessions loss (not quadratic)
+% 	\item while numbers of users is somewhat managable, number of sessions over a reasonable time span easily reaches orders of magnitutes that substantially affect security bounds of practically deployed protocols
+% 	\item --- give some concrete numbers for the bounds
+% 	\item this all rather seems to be artifacts of proof techniques, and the bounds are not met by any practical attacks or cryptanalysis
+% 	\item indeed, C:19 work (and prior) \cite{C:GjoJag18,C:CCGJJ19} managed to overcome non-tight security results, esp. C:19~\cite{C:CCGJJ19} putting forward a nifty strategy for a simple and efficient, implicitly authenticated KE protocol
+% 	\item their strategy heavily relies on RO programming and authentication being implicit; they provide explicit authentication only through a follow-up compiler step, which unfortunately reduces efficiency and means it does not apply to many real-world protocols
+% 	\item in particular, it relies on long-term DH keys, which are hard to get certificates on in practice (cite something from the TLS standardization?) which was already seen in TLS standardization, where a signature-less OPTLS design~\cite{EuroSP:KraWee16} was discarded for deployment reasons
+% 	
+% 	
+% 	\medskip
+% 	
+% 	\item in this work we ask: can we achieve similar tightness improvements for deployed DH designs, explicitly those doing DH with explicit, signature-based authentication?
+% 	\item we answer positively, providing the first tight (in the number of sessions) security proof for SIGMA-style AKE protocols in a BR-like security model, covering both basic and \SIGMAI variant with identity hiding
+% 	\item core modeling insights: all-real-or-random model, multiple test queries, in protocols important to bind session identifiers together with DH shares in (programmable) random oracle computation -- while given for SIGMA, will see how this works out for the more complex TLS~1.3 key schedule
+% 	\item we provide a detailed proof using the code-based game-playing framework of Bellare and Rogaway~\cite{EC:BelRog06}
+% 	\item we exemplify the impact of extending C:19~\cite{C:CCGJJ19} technique to SIGMA-style protocols by translating our results to the novel TLS~1.3 protocol, for which computational security results so far incured a highly-non-tight, quadratic security bound (DFGS15,DFGS16 -- what about OPTLS, do they give a concrete bound, do they maybe get away with only guessing one side?)
+% 	\item we do not get to the same tightness level possible for SIGMA (based on components chosen for tight efficiency like AMAC), as TLS~1.3 uses HMAC for which we don't know (???) a tight mu-security result,
+% 	\item but we still improve over previous bounds, esp. because the \#session loss is only incurred for HMAC EUF-CMA security, while the reduction to strong-DH is tight
+% 	
+% 	\medskip
+% 	
+% 	\item Limitations and future work:
+% 	\begin{itemize}
+% 		\item Do a BR-like model, not CK; in particular we don't (and do not know how to) treat exposure of state in our proofs.
+% 		\item Only consider single session key derived, which is a simplification of TLS~1.3 doing a MSKE~\cite{CCS:FisGue14} which shines through already in the \SIGMAI idenity-hiding variant. We expect our results can be extended to MSKE setting.
+% 		\item \hd{We use the identity-hiding variant but don't talk about identity-hiding security or specify any requirement for encryption security.}
+% 		\item HMAC mu-security unclear (???), so variants of TLS deploying mu-optimized PRFs/MACs could be envisioned.
+% 		\item As C:19~\cite{C:CCGJJ19}, our proof crucially relies on the RO technique~\cite{CCS:BelRog93}.
+% 		Similarly OPTLS, and while DFGS15,DFGS16 apply the PRF-ODH assumption, there is strong indication that this assumption can only be instantiated via a random oracle~\cite{C:BFGJ17}.
+% 	\end{itemize}
+% \end{itemize}
+% 
+% \hd{This seems like a very strong storyline to me. The only thing I'd recommend adding is that there is an implicit tradeoff here: in order to get tighter security bounds, we're relying on a stronger, less standard DH assumption. It's reasonable to think that an adversary would have a higher advantage against strongDH than against plain DH. What's our argument that this tradeoff is actually beneficial? If I had to give such an argument, I'd say that this assumption is weaker than GapDH, which is a fairly well-studied problem that is conjectured to be hard. For this reason, we think that an adversary's strongDH advantage would still be very small for reasonable bounds, and the \# sessions factor has a greater impact. If we make this point, it probably becomes even more important to put StrongDH in the prelims.}
+% 
+% \fg{Good point, we should discuss the previous security results for both SIGMA and TLS~1.3 (in terms of tightness and assumptions).}
+
+\newpage
+\fi

@@ -1,0 +1,199 @@
+\section{Components}
+\label{sec:components}
+
+\subsection{Multi-User Unforgeability with Adaptive Corruptions}
+
+\begin{figure}[t]
+	\centering
+	
+	%%% MACs mu-EUF-CMA
+	\begin{minipage}[t]{0.2\textwidth}
+		\NewExperiment[$\Gm^{\muEUFCMA}_{\abstractMACScheme,\advA}$]
+		
+		\begin{oracle}{$\Initialize$}
+			\item $Q \gets \emptyset$
+			\item $\setfont{C} \gets \emptyset$
+			\item $u \gets 0$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+			\begin{oracle}{$\Corrupt(i)$}
+			\item $\setfont{C} \gets \setfont{C} \cup \{i\}$
+			\item return $K_i$
+		\end{oracle}
+		\ExptSepSpace
+	
+			\end{minipage}
+	\begin{minipage}[t]{0.3\textwidth}
+		\vspace*{\iffull0.4cm\else0cm\fi}
+		\begin{oracle}{$\New$}
+			\item $u \gets u + 1$
+			\item $K_u \getsr \abstractMACKGen()$
+			\item[]
+		\end{oracle}
+		\ExptSepSpace
+		\begin{oracle}{$\OTag(i, m)$}
+			\item $\tau \getsr \abstractMACTag(K_i, m)$
+			\item $Q \gets Q \cup \{(i, m)\}$
+			\item return $\tau$
+		\end{oracle}
+		
+		
+		\ExptSepSpace
+			\end{minipage}
+	\begin{minipage}[t]{0.47\textwidth}
+		\vspace*{.4cm}
+		
+		\begin{oracle}{$\OVerify(i, m, \tau)$}
+			\item $d \gets \abstractMACVerify(K_i, m, \tau)$
+			\item return $d$
+			\item[]
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(i^*, m^*, \tau^*)$}
+			\item $d^* \gets \abstractMACVerify(K_{i^*}, m^*, \tau^*)$
+			\item return $[[ d^* = 1 \land i^* \notin \setfont{C} \land (i^*\!, m^*) \notin Q ]]$
+		\end{oracle}
+	\end{minipage}
+	
+	\caption{%
+		Multi-user existential unforgeability ($\muEUFCMA$) of MAC schemes.
+	}
+	\label{fig:muEUFCMA}
+\end{figure}
+
+\begin{definition}[MAC $\muEUFCMA$ security]
+	\label{def:MAC-muEUFCMA}
+	Let $\abstractMACScheme$ be a MAC scheme
+	and $\Gm^{\muEUFCMA}_{\abstractMACScheme,\advA}$ be the game for MAC multi-user existential unforgeability under chosen-message attacks with adaptive corruptions defined as in Figure~\ref{fig:muEUFCMA}.
+	We define
+	\[
+		\Adv^{\muEUFCMA}_{\abstractMACScheme}(t\cab \qNew\cab \qTag\cab\qTagU\cab \qVerify\cab \qVerifyU\cab \qCorrupt) := \max_\advA \Pr \left[ \Gm^{\muEUFCMA}_{\abstractMACScheme,\advA} \Rightarrow 1 \right]
+	\]
+	where the maximum is taken over all adversaries, denoted \emph{$(t\cab \qNew\cab \qTag\cab\qTagU\cab \qVerify\cab\qVerifyU\cab \qCorrupt)$-$\muEUFCMA$-adversaries}, running in time at most~$t$ and making at most $\qNew$, $\qTag$, $\qVerify$, resp.\ $\qCorrupt$ queries to their $\New$, $\OTag$, $\OVerify$, resp.\ $\Corrupt$ oracle, and making at most $\qTagU$ queries $\OTag(i, \cdot)$, resp.\ $\qVerifyU$ queries $\OVerify(i, \cdot)$ for any user~$i$.
+	
+	\fg{Do we want to call it $\muEUFCMA$ or $\muEUFCMA^{\mathsf{corr}}$?}
+\end{definition}
+
+
+\iffalse
+ %% 2021-07-26: This is long replaced by our indifferentiability approach.
+\subsection{Key Schedule Function Security}
+
+\fg{This is an attempt at carving out an overall function representing the TLS key schedule, in order to define some form of ``PRF-ODH--like''~\cite{C:JKSS12,C:BFGJ17} for it.}
+
+\begin{itemize}
+	\item Describe the TLS key schedule as a function
+	\[
+		\TLSKDF(\psk, \dhe, DHx, DHy, label) := K
+	\]
+	
+	\item Instances would be
+	\begin{align*}
+		\ets \assign &\TLSKDF(\psk, \bot, \bot, \bot, \labelETS \concat \hash(\CH))\\
+		\cats \assign &\TLSKDF(\psk, \dhe, g^\clientExponent, g^\serverExponent, \labelClientATS \concat \hash(\CH \concat \dotsb \concat \SF))\\
+	\end{align*}
+	
+	\item Maybe ``$label$'' needs to be futher split into label and context.
+\end{itemize}
+
+
+\begin{figure}[t]
+	\begin{minipage}[t]{3.5cm}
+		\NewExperiment[$mu\old{PRF}^\RO_{\Func^\RO, \advA}$]
+		
+		\begin{oracle*}{$\Initialize()$}
+			\item $b \sample \bits$
+			\item $u \gets 0$
+			\item $\inconsistent \gets \false$
+		\end{oracle*}
+		
+		\begin{oracle*}{$\New()$}
+			\item $u \gets u + 1$
+			\item $K_u \sample \bits^k$
+			\item $c_u \gets \false$
+			\item return $u$
+		\end{oracle*}
+		
+		\begin{oracle}{$\RO(x)$}
+			\item if $R[x] = \bot$ then
+			\item \hindent $R[x] \sample \bits^r$
+			\item return $R[x]$
+		\end{oracle}
+	\end{minipage}
+	%
+	\begin{minipage}[t]{5cm}
+		\begin{oracle*}{$\Fn(i, x)$}
+			\item if $i < u$ or $\corr_i$ then return $\bot$
+			
+			\item if $F[i, x] = \bot$ then
+			
+			\item \hindent if $b = 1$ then
+			\item \hindent \hindent $F[i, x] \gets \Func^{\RO(\cdot)}(K_i, x)$
+			
+			\item \hindent else
+			\item \hindent \hindent $F[i, x] \gets \Func^{\SimRO(i, \cdot)}(K_i, x)$
+			
+			\item return $F[i, x]$
+		\end{oracle*}
+		
+		\begin{oracle*}{$\Corrupt(i)$}
+			\item if $\corr_i$ then return $\bot$
+			\item $\corr_i \gets \true$
+			\item if $b = 0$
+			\item \hindent For all $(x, y) \in S[i]$ do
+			\item \hindent \hindent if $R[x] \neq \bot$ then
+			\item \hindent \hindent \hindent $\inconsistent \gets \true$
+			\item \hindent \hindent $R[x] \gets y$ \comment{program $\RO$; if $R[x]$ was already set, we're now inconsistent} 
+			\item return $K_i$
+		\end{oracle*}
+		
+		\begin{oracle}{$\Finalize(b')$}
+			\item return $[[b = b' \text{ or } \inconsistent]]$
+		\end{oracle}
+	\end{minipage}
+	%
+	\begin{minipage}[t]{3.5cm}
+		\begin{oracle}{$\SimRO(i, x)$}
+% 			\item if $S[i, x] \neq \bot$\\ or $\RO[x] \neq \bot$ then
+% 			\item \hindent $\inconsistent \gets \true$ \comment{repeated $\RO$ queries, we'll be inconsistent from now on}
+			\item $y \sample \bits^r$
+			\item $S[i] \gets S[i] \cup \{(x,y)\}$
+			\item return $y$
+			\TODO{This approach doesn't work, $\SimRO$ has to be consistent at least for some queries, think of the extraction of $\psk$ in TLS, which will be a repeated query by $\TLSKDF$ to $\SimRO$. It's the \emph{final output values} that $\SimRO$ should be assigning independent random values, but unclear which RO step that is, generically.}
+			\fg{We can probably fix this by making SimRO consistent and requiring that the last key derivation step is injective, so that the last output is indeed independent. (See below.)}
+		\end{oracle}
+	\end{minipage}
+	
+	\caption{%
+		Key schedule security -- PSK-only version.
+		$\SimRO$ is not an oracle and cannot be invoked by $\advA$ directly.
+	}
+	\label{fig:key-schedule-security_PSK}
+\end{figure}
+
+Let's start with a security notion focusing only on the $\psk$ secret part, leaving out the $\dhe, DHx, DHy$ components.
+We want some form of ``multi-user PRF security with adaptive corruptions'', however for the latter we need [can we formalize this] some form of programmable random oracle component.
+An attempt is formalized in Figure~\ref{fig:key-schedule-security_PSK}, for a function $\Func^\RO$ with $\psk \in \bits^k$ based on a random oracle with output in $\bits^r$.
+
+The intuition we're trying to capture here is that an adversary cannot distinguish the real-world execution of~$\Func^\RO$ under some user key~$K_i$ (using a random oracle, which is ``programmed'' accordingly on any queries made by~$\Func$) from the random-world execution of $\Func$ under~$K_i$ with a \emph{simulating random oracle}~$\SimRO$, which simply samples independent random outputs but does not ``program'' them into~$\RO$,
+\emph{as long as} the secret key~$K_i$ is not corrupted.
+Once $K_i$ is corrupted, all simulated random oracle queries to $\SimRO$ for evaluations under~$K_i$ are retroactively programmed into~$\RO$ to ensure consistency with any future $\RO$ queries that $\advA$ can now make itself due to knowledge of~$K_i$.
+This programming may introduce inconsistencies:
+if $\advA$ managed to query (guess) any of the simulated queries to~$\RO$ \emph{beforehand}, we declare it successful by setting the $\inconsistent$ flag.
+Note that this in particular covers cases where $\SimRO$ would be called on repeated inputs~$x$ (for the same or different user keys~$K_i$).%
+\footnote{\fg{This doesn't affect the PSK handshake, but in the DHE-only handshake, the early extracted values~$\es$, $\des$ are constants, so that would need some different treatment (e.g., just saying that~$\des$ is a fixed constant which is not computed through the random oracle.}}
+
+Why is $\SimRO$ drawing independent random outputs, not even ensuring consistency with itself?
+We will be interested in the function~$\TLSKDF$ which can be formalized as $\TLSKDF(\dots) := \RO(\TLSKDF'(\dots))$, i.e., the final output is the direct output of a random oracle call.
+Together with $\SimRO$ drawing independently at random, this means that all outputs of $\TLSKDF$ (i.e., responses of the~$\Fn$ oracle) under uncorrupted keys, in the random world, are independent random values (however consistent on the $\TLSKDF$ level, as the $\Fn$ oracle caches prior values $F[i,x]$ computed on $\Fn(i,x)$.
+\fg{We'll stipulate that $\TLSKDF'(\psk, \dots)$ is injective, i.e., with $\psk$ fixed, two inputs will never lead to the same final derivation step due to distinct labels.
+IMPORTANT: The final step is the second level of the key schedule, where all keys have distinct labels. From there, we can do further derivations individually (e.g., on finished keys, handshake traffic keys, etc.).}
+
+\fg{Core issue remaining:
+Even if we do all this and replace all second-level TLS keys via the $\TLSKDF$ security with random ones, we still need to pull in the RO programming into the main key exchange game,
+i.e., the SimRO and RO parts as well as programming upon PSK corruption need to be done in the KE game.
+This kind of breaks with the modularity aimed at by this security notion in the first place, leaving it unclear what the overall value is.}
+\fi

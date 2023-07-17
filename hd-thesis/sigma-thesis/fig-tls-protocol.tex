@@ -1,0 +1,162 @@
+\begin{minipage}[t]{\iffull0.54\else0.6\fi\textwidth}
+\scalebox{0.7}{
+\begin{tikzpicture}
+	% Set the X coordinates of the client, server, and arrows
+	\edef\ClientX{0}
+	\edef\ArrowLeft{0}
+	\iffull
+	\edef\ArrowRight{12}
+	\edef\ServerX{12}
+	\else
+	\edef\ArrowRight{9.5}
+	\edef\ServerX{9.5}
+	\fi
+	% Set the starting Y coordinate
+	\edef\Y{0}
+
+	% Draw header boxes
+	\node [rectangle,draw,inner sep=5pt,right] at (\ClientX,\Y) {\textbf{Client}};
+	\node [rectangle,draw,inner sep=5pt,left] at (\ServerX,\Y) {\textbf{Server}};
+
+	\NextLine[2]
+	
+	\ClientAction{\TLSmsg{$\CHELO$}: $\nonce_C \sample \{0,1\}^{\nl}$, $X \gets g^x$}
+% 	\NextLine
+% 	\ClientAction{\TLSmsg{+~$\CKEYS$}: $X \gets g^x$}
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 	\NextLine
+% 	\SharedAction{$\ES \gets \HKDF.\Extract(0, 0)$}
+% 	\NextLine
+% 	\SharedAction{$\dES \gets \HKDF.\Expand(\ES, \inputlabel[3], \Hash(\texttt{""}))$}
+	%%% we simplify this into a constant
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\NextLine[0.75]
+	\ClientToServer{\TLSmsg{$\CHELO$}}{}%, \TLSmsg{$\CKEYS$}}{}
+	\NextLine[0.75]
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	\ServerAction{\TLSmsg{$\SHELO$}: $\nonce_S \sample \{0,1\}^{\nl}$, $Y \gets g^y$}
+% 	\NextLine
+% 	\ServerAction{\TLSmsg{+~$\SKEYS$}: $Y \gets g^y$}
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\NextLine[0.75]
+	\ServerToClient{\TLSmsg{$\SHELO$}}{}%, \TLSmsg{$\SKEYS$}}{}
+	\NextLine[0.75]
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	\ClientAction{$\DHE \gets Y^x$}
+	\ServerAction{$\DHE \gets X^y$}
+% 	\NextLine
+	\SharedAction{$\HS \gets \HKDF.\Extract(\constant[1], \DHE)$}
+	\NextLine
+	
+% 	\SharedAction{$\CHTS \gets \HKDF.\Expand(\HS, \inputlabel[1], \Hash(\sCHELO \conc \sSHELO))$}
+% 	\NextLine
+% 	\SharedAction{$\SHTS \gets \HKDF.\Expand(\HS, \inputlabel[2], \Hash(\sCHELO \conc \sSHELO))$}
+% 	\NextLine
+	\SharedAction{$\CHTS/\SHTS \gets \HKDF.\Expand(\HS, \inputlabel[1]/\inputlabel[2], \Hash(\sCHELO \conc \sSHELO))$}
+	\NextLine
+	\SharedAction{$\dHS \gets \HKDF.\Expand(\HS, \inputlabel[3], \Hash(\texttt{""}))$}
+	\NextLine
+	
+% 	\SharedAction{$\tkchs \gets \HKDF.\Expand(\CHTS, \inputlabel[4], \Hash(\texttt{""}))$}
+% 	\NextLine
+% 	\SharedAction{$\tkshs \gets \HKDF.\Expand(\SHTS, \inputlabel[4], \Hash(\texttt{""}))$}
+	\SharedAction{$\tkchs/\tkshs \gets \HKDF.\Expand(\CHTS/\SHTS, \inputlabel[4], \Hash(\texttt{""}))$}
+	\NextLine[0.5]
+	
+	%\NextLine
+	%\SharedAction{$\tkchs, iv_{chs} \gets \HKDF.\kExp(\CHTS, \inputlabel[n], H_n)$}
+	%\NextLine
+	%\SharedAction{$\tkshs, iv_{shs} \gets \HKDF.\kExp(\SHTS, \inputlabel[n], H_n)$}
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+% 	\NextLine
+% 	\ServerAction{\TLSmsg{$\{\ENCEX\}$}: $\vec{ext}_S$}
+% 	\NextLine
+% 	\ServerAction{\TLSmsg{$\{\CERTR\}^*$}: $\inputlabel[n]$}
+	\NextLine
+	\ServerAction{\TLSmsg{$\mSCERT$}: $\pk_S$}
+	\NextLine
+	\ServerAction{\TLSmsg{$\mSCERTV$}: $\sSCERTV\gets\SIGScheme.\SIGSign(\sk_S, \inputlabel[5] \conc \Hash(\sCHELO \conc \ldots \conc \sSCERT))$}
+	\NextLine
+	\ServerAction{$\SFK \gets \HKDF.\Expand(\SHTS, \inputlabel[6],\Hash(\texttt{""}))$}
+	\NextLine
+	\ServerAction{\TLSmsg{$\SFIN$}: $\sSFIN \gets \HMAC(\SFK, \Hash(\sCHELO \conc \ldots \conc \sSCERTV))$}
+
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\NextLine
+	\ServerToClient{$\{\TLSmsg{\mSCERT}, \TLSmsg{\mSCERTV}, \TLSmsg{\SFIN}\}_{\tkshs}$}{}
+	\NextLine
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	\ClientAction{\textbf{abort} if $\neg \SIGScheme.\SIGVerify(\pk_S, \inputlabel[5] \conc \Hash(\sCHELO \conc \ldots \conc \sSCERT), \sSCERTV)$}
+	\NextLine
+	\ClientAction{\textbf{abort} if $\sSFIN \neq \HMAC(\SFK, \Hash(\sCHELO \conc \ldots \conc \sSCERTV))$}
+	\NextLine[1.5]
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+% 	\SharedAction{$\MS \gets \HKDF.\Extract(\dHS, 0)$}
+% 	\NextLine
+	
+% 	\AcceptStage{3}{$\CATS \gets \HKDF.\Expand(\MS, \inputlabel[xxx], \Hash(\sCHELO \conc \ldots \conc \sSFIN))$}
+% 	%\NextLine
+% 	%\SharedAction{$\tkcapp, iv_{capp} \gets \HKDF.\kExp(\CATS, \inputlabel[n], H_n)$}
+% 	\NextLine[1.5]
+% 	
+% 	\AcceptStage{4}{$\SATS \gets \HKDF.\Expand(\MS, \inputlabel[xxx], \Hash(\sCHELO \conc \ldots \conc \sSFIN))$}
+% 	%\NextLine
+% 	%\SharedAction{$\tksapp, iv_{sapp} \gets \HKDF.\kExp(\SATS, \inputlabel[n], H_n)$}
+% 	\NextLine[1.5]
+% 	
+% 	\AcceptStage{5}{$\EMS \gets \HKDF.\Expand(\MS, \inputlabel[xxx], \Hash(\sCHELO \conc \ldots \conc \sSFIN))$}
+% 	\NextLine[1.5]
+	
+% 	\Encryption[<-,dashed]{record layer, AEAD-encrypted with key $\tksapp$ (optional)}{}
+% 	\NextLine[1]
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	\ClientAction{\TLSmsg{$\mCCERT$}: $\pk_C$}
+	\NextLine
+	\ClientAction{\TLSmsg{$\mCCERTV$}: $\sCCERTV \gets \SIGScheme.\SIGSign(\sk_C, \inputlabel[7] \conc \Hash(\sCHELO \conc \ldots \conc \sCCERT))$}
+	\NextLine
+	\ClientAction{$\CFK \gets \HKDF.\Expand(\CHTS, \inputlabel[6],\Hash(\texttt{""}))$}
+	\NextLine
+	\ClientAction{\TLSmsg{$\CFIN$}: $\sCFIN \gets \HMAC(\CFK,  \Hash(\sCHELO \conc \ldots \conc \sCCERTV))$}
+
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\NextLine
+	\ClientToServer{$\{\TLSmsg{\mCCERT}, \TLSmsg{\mCCERTV}, \TLSmsg{\CFIN}\}_{\tkchs}$}{}
+	\NextLine
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+	\ServerAction{\textbf{abort} if $\neg \SIGScheme.\SIGVerify(pk_C, \inputlabel[7] \conc \Hash(\sCHELO \conc \ldots \conc \sCCERT), \sCCERTV)$}
+	\NextLine
+	\ServerAction{\textbf{abort} if $\sCFIN \neq \HMAC(\CFK, \Hash(\sCHELO \conc \ldots \conc \sCCERTV))$}
+	\NextLine
+	
+	
+	%% abstract 'application traffic secret' being derived here
+	\NextLine[0.5]
+	\SharedAction{$\MS \gets \HKDF.\Extract(\dHS, 0)$}
+	\NextLine
+	\SharedAction{$\ATS \gets \HKDF.\Expand(\MS, \inputlabel[8], \Hash(\sCHELO \conc \ldots \conc \sSFIN))$}
+	
+% 	\AcceptStage{6}{$\RMS \gets \HKDF.\Expand(\MS, \inputlabel[xxx], \Hash(\sCHELO \conc \ldots \conc \sCFIN))$}
+% 	\NextLine[1.5]
+	
+% 	\Encryption[->,dashed]{record layer, AEAD-encrypted using key $\tkcapp$}{}
+% 	\NextLine[1]
+% 	\Encryption[<-,dashed]{record layer, AEAD-encrypted with key $\tksapp$}{}
+	
+	\NextLine[1.5]
+	\SharedAction{\textbf{accept} with key~$\skey = \ATS$, session identifier~$\sid = (\nonce_C, \nonce_S, X, Y)$}
+\end{tikzpicture}
+}
+\end{minipage}

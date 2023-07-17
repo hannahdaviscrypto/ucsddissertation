@@ -1,0 +1,213 @@
+\section{The TLS~1.3 Pre-shared Key Handshake Protocol}
+\label{sec:tls13-psk-protocol}
+
+
+\paragraph{Overview.}
+We consider the pre-shared key mode of TLS~1.3, used in a setting where both client and server already share a common secret, a so-called \emph{pre-shared key} (PSK).
+A PSK is a cryptographic key which may either be manually configured, negotiated out-of-band, or (and most commonly) be obtained from a prior and possibly not PSK-based TLS session to enable fast \emph{session resumption}.
+The TLS~1.3 PSK handshake comes in two flavors:
+PSK-only, where security is established from the pre-shared key alone,
+and PSK-(EC)DHE, which includes an (finite-field or \underline{e}lliptic-\underline{c}urve) Diffie--Hellman key exchange for added forward secrecy.
+Both PSK handshakes essentially consist of two phases (cf.\ Figure~\ref{fig:tls-handshake}). 
+
+\begin{enumerate}
+	\item The client sends a random nonce and a list of offered pre-shared keys to the server, where each key is identified by a (unique) identifier~$\pskid$.%
+	\footnote{%
+	In this work, we do not consider negotiation of pre-shared keys in situations where client and server share multiple keys, but focus on the case where client and server share only one PSK and the client therefore offers only a single $\pskid$.
+	However, we expect that our results extend to the general case as well.
+	}
+	The server then selects one $\pskid$ from the list, and responds with another random nonce and the selected $\pskid$.
+	In PSK-(EC)DHE mode, client and server additionally perform a Diffie--Hellman key exchange, sending group elements along with the nonces and PSK identifiers. 
+	%
+	In both modes, the client also sends a so-called binder value,
+	which applies a \textit{message authentication code} (MAC) to the client's nonce and $\pskid$ (and the Diffie--Hellman share in PSK-(EC)DHE mode)
+	and binds the PSK handshake to the (potential) prior handshake in which the used pre-shared key was established (see~\cite{SP:CHSv16,CCS:Krawczyk16} for analysis rationale behind the binder value).
+
+	\item Then client and server derive \emph{unauthenticated} cryptographic keys from the PSK and the established Diffie--Hellman key (the latter only in (EC)DHE mode, of course).
+	This includes, for instance, the \emph{client} and \emph{server handshake traffic keys} ($\chtk$ and $\shtk$) used to encrypt the subsequent handshake messages, as well as \emph{finished keys} ($\cfk$ and $\sfk$) used to compute and exchange \emph{finished messages}.
+	The finished messages are MAC tags over all previous messages, ensuring that client and server have received all previous messages exactly as they were sent.
+
+	After verifying the finished messages, client and server ``accept'' \emph{authenticated} cryptographic keys, including the \emph{client} and \emph{server application traffic secret} ($\cats$ and $\sats$), the \emph{exporter master secret} ($\ems$), and the \emph{resumption master secret} ($\rms$) for future session resumptions.
+\end{enumerate}
+
+
+
+
+\begin{figure}[tp]
+	\centering
+	
+	\input{tls-thesis/fig-tls-handshake}
+	
+	%
+	% Legend
+	%
+	\begin{minipage}{0.95\textwidth}
+	\vspace{0.25cm}
+	\scriptsize
+	\textbf{Legend} \\
+	\begin{tabular}{ll}
+		\TLSmsg{$\mathtt{MSG}$}:~$Y$	& message $\mathtt{MSG}$ sent, containing $Y$ \\
+		\TLSmsg{+~$\mathtt{MSG}$}	& extension sent within previous message \\
+		\TLSmsg{$\{\mathtt{MSG}\}$}	& $\mathtt{MSG}$ sent AEAD-encrypted with~$\chtk$/$\shtk$ \\
+		\PSKECDHEonly{\dots}		& present only in PSK-(EC)DHE \\
+		\PSKonly{\dots}			& present only in PSK \\
+	\end{tabular}
+	\begin{tabular}{ll}
+		$\CH^{-}$			& partial $\ClientHello$ up to (incl.) $\pskid$ \\
+		$\shortLabelCmd{x}$		& label value, distinct for distinct~$x$ \\
+		&\\
+		&\\
+		&\\
+	\end{tabular}
+	\begin{tabular}{l}
+		$\DeriveTrafficKeys(\mathit{HTS}) := \abstractExpand(\mathit{HTS}, \labelk \concat \Thash(\emptymessage), \hashlen) \concat \abstractExpand(\mathit{HTS}, \labeliv \concat \Thash(\emptymessage), \ivlen)$\\
+		\quad(traffic key computation, deriving a $\hashlen$-bit key and a $\ivlen$-bit IV)
+	\end{tabular}
+	\end{minipage}
+	
+	\caption{%
+		TLS~1.3 PSK and PSK-(EC)DHE handshake modes with (optional) 0-RTT keys (stages~1 and~2),
+		with detailed key schedule (left) and our representation of the key schedule through functions~$\TLSKDF_{x}$ (right), explained in the text.
+		Centered computations are executed by both client and server with their respective messages received, and possibly at different points in time.
+		Dotted lines indicate the derivation of session (stage) keys together with their stage number.
+		The labels $\shortLabelCmd{x}$ are distinct for distinct index~$x$, see
+				Table~\ref{tab:labels}
+		for their definition.
+	}
+	\label{fig:tls-handshake}
+\end{figure}
+
+	\input{tls-thesis/tab-labels}
+
+
+
+\paragraph{Detailed specification.}
+For our proofs we will need fully-specified descriptions for each of the TLS~1.3 PSK and PSK-(EC)DHE handshake protocols. 
+Pseudocode for these protocols can be found in Figure~\ref{fig:tls-handshake}, where we let $(\G, p, g)$ be a cyclic group of prime order $p$ such that $\G = \langle g \rangle$.
+
+The two descriptions on the left and right in Figure~\ref{fig:tls-handshake} show the same protocol, but they use different abstractions to highlight how we capture the complex way TLS~1.3 calls its hash function.
+This one hash function is used in some places to condense transcripts, in others to help derive session keys, and in still others as part of a message authentication code. 
+We call this function $\Hash$, and let its output length be $\hashlen$ bits so that we have $\abstractHash \colon \bits^* \to \bits^{\hashlen}$. 
+Depending on the choice of ciphersuite, TLS~1.3 instantiates $\Hash$ with either $\SHA{256}$ or $\SHA{384}$ \cite{NIST:FIPS-180-4}. In our security analysis, we will model $\Hash$ as a random oracle.
+
+On the left-hand side of Figure~\ref{fig:tls-handshake}, we distinguish four named subroutines of TLS~1.3 which use $\Hash$ for different purposes:
+\begin{itemize}
+%	\item Since we now only directly call a hash function on transcripts, we refer to this as the ``transcript hash''.
+
+	\item A message authentication code $\abstractMAC  \colon \bits^{\hashlen} \times \bits^* \to \bits^{\hashlen}$, which  calls $\Hash$ via the $\HMAC$ function $\abstractMAC(K, M) := \HMAC[\Hash](K, M)$ where
+\[
+\HMAC[\Hash](K, M) := \Hash( (K \concat 0^{\blocklen - \hashlen}) \oplus \opad) \concat \Hash( (K \concat 0^{\blocklen - \hashlen} \oplus \ipad) \concat M )) 
+\]
+Here $\opad$ and $\ipad$ are $\blocklen$-bit strings,
+where each byte of $\opad$ and $\ipad$ is set to the hexadecimal value \texttt{0x5c}, resp.\ \texttt{0x36}.
+We have $\blocklen=512$ when $\SHA{256}$ is used and $\blocklen=512$ for $\SHA{384}$. When modeling $\SHA{256}$ resp. $\SHA{384}$ as a random oracle, we keep the corresponding value of $\blocklen$.
+%HMAC assumes that $\Hash$ has a Merkle--Damg\r{a}rd structure with block length $\blocklen$;
+%where $\SHA{256}$ has $\blocklen=512$ bits and $\SHA{384}$ has $\blocklen = 1024$ bits. \TODO{How do we defie HMAC if H is a RO?}
+%Then functions $\abstractMAC$, $\abstractExtract$, and $\abstractExpand$, and $\abstractHash$ are defined as follows:
+
+
+% 	\item $\replace{\abstractExtract}{\abstractExtract} \colon \bits^{\hashlen} \times \bits^* \to \bits^{\hashlen}$, a subroutine for \emph{extracting} key material in the key schedule. 
+% 	\item $\replace{\abstractExpand}{\abstractExpand}  \colon \bits^{\hashlen} \times \bits^* \to \bits^{\hashlen}$, a subroutine for \emph{expanding} key material in the key schedule.
+	\item $\abstractExtract, \abstractExpand \colon \bits^{\hashlen} \times \bits^* \to \bits^{\hashlen}$, two subroutines for \emph{extracting} and \emph{expanding} key material in the key schedule, following the HKDF key derivation paradigm of Krawczyk~\cite{C:Krawczyk10,rfc5869}. These functions are defined
+\begin{itemize}
+	\item $\abstractExtract(K, M) := \HKDFExtr(K,M) = \abstractMAC(K,M)$.
+	
+	\item $\abstractExpand(K, M) := \HKDFExpnd(K, M) = \abstractMAC(K, M \concat \texttt{0x01})$.%
+	\footnote{$\HKDFExpnd$~\cite{rfc5869} is defined for any output length (given as third parameter).
+	In TLS~1.3, $\abstractExpand$ always derives at most $\hashlen$ bits, which can be trimmed from a $\hashlen$-bit output; we hence in most places omit the output length parameter.}
+\end{itemize} 
+\end{itemize}
+%We can establish the independence of these subroutines more easily by viewing them as named parameters within the TLS protocol.
+Despite the new naming conventions, this abstraction closely mimics the TLS~1.3 standard:
+$\abstractMAC$, $\abstractExtract$, and $\abstractExpand$ can be read as more generic ways of referring to the $\HMAC$, $\HKDFExtr$, and $\HKDFExpnd$ algorithms~\cite{rfc2104,rfc5869}. 
+
+
+% \TODO{Define $\abstractMAC$ in terms of $\abstractHash$. (Cf. Theorem~\ref{thm:full-ks-indiff})}
+
+% \begin{itemize}
+% 	\item 
+	
+
+	
+% 	\item $\abstractHash(M) := \Hash(M)$.
+% \end{itemize}
+
+The right-hand side of Figure~\ref{fig:tls-handshake} separates the key derivation functions for each first-class key as well as the binder and finished MAC values derived.
+This way of modeling TLS~1.3 makes it easier to establish key independence for the many keys computed in the key schedule, as we will see in Section~\ref{sec:ks-indiff}.
+We introduce $11$ functions $\TLSKDF_{\binder}$, $\TLSKDF_{\ets}$, $\TLSKDF_{\eems}$, $\TLSKDF_{\chtk}$, $\TLSKDF_{\cfin}$, $\TLSKDF_{\shtk}$, $\TLSKDF_{\sfin}$, $\TLSKDF_{\cats}$, $\TLSKDF_{\sats}$, $\TLSKDF_{\ems}$, and $\TLSKDF_{\rms}$ (indexed by the value they derive) and use them to abstract away many intermediate computations.
+Note that we are not changing the protocol, though:
+we define each $\TLSKDF$ function to capture the same steps it replaces.
+
+Take as an example $\TLSKDF_{\sfin}$, the function used to derive the MAC in the $\ServerFinished$ message.
+In the prior abstraction, a session would first use the key schedule to derive a finished key~$\sfk$ from the hashed transcript and the secrets~$\psk$ and~$\dhe$. 
+It would then call $\abstractMAC$, keyed with $\sfk$, to generate the $\ServerFinished$ message authentication code on the hashed transcript and encrypted extensions.
+Accordingly, we define $\TLSKDF_{\sfin} \colon \bits^{\hashlen} \times \G \times \bits^{\hashlen}\times \bits^{\hashlen} \to \bits^{\hashlen}$ as in Figure~\ref{fig:TLSKDF-sfin}.
+In the protocol, $\TLSKDF_{\sfin}$ takes inputs the pre-shared key~$\psk$ and Diffie--Hellman secret~$\dhe$ and hash digests $\digest_1 = \Thash(\CH \concat \SH)$ and $\digest_2 = \Thash(\CH \concat \dotsb \concat \EE)$, and it outputs a $\MAC$ tag for the $\ServerFinished$ message.
+%
+The remaining key derivation functions are defined the same way; we give their signatures 
+ 
+		below for completeness.
+	\input{tls-thesis/TLSKDF-signatures}
+
+
+\begin{figure}[t]
+	\centering
+	\begin{minipage}{5.5cm}
+	\begin{algorithm}{$\TLSKDF_{\sfin}(\psk, \dhe, \digest_1, \digest_2)$}
+		\item $\es \gets \abstractExtract (0, \psk)$
+		\item $\des \gets \abstractExpand(\es, \labelDerived \concat \Thash(\emptymessage))$
+		\item $\hs \gets \abstractExtract(\des, \dhe)$
+% 		\item $\shts \gets \abstractExpand(\hs, \labelServerHTS \concat \digest_1)$
+% 		\item $\sfk \gets \abstractExpand(\shts, \labelFinished)$
+% 		\item $\sfin \gets \abstractMAC(\sfk, \digest_2)$
+% 		\item return $\sfin$
+	\end{algorithm}
+	\end{minipage}
+	%
+	\begin{minipage}{5.5cm}
+	\begin{code}[start=4]
+% 		\item $\es \gets \abstractExtract (0, \psk)$
+% 		\item $\des \gets \abstractExpand(\es, \labelDerived \concat \Thash(\emptymessage))$
+% 		\item $\hs \gets \abstractExtract(\des, \dhe)$
+		\item $\shts \gets \abstractExpand(\hs, \labelServerHTS \concat \digest_1)$
+		\item $\sfk \gets \abstractExpand(\shts, \labelFinished)$
+		\item $\sfin \gets \abstractMAC(\sfk, \digest_2)$
+		\item return $\sfin$
+	\end{code}
+	\end{minipage}
+	
+	\caption{Definition of $\TLSKDF_{\sfin}$, deriving the $\ServerFinished$ MAC.}
+	\label{fig:TLSKDF-sfin}
+\end{figure}
+
+
+% 	\end{minipage}
+% \caption{Pseudocode for function $\TLSKDF_{\sfin}$ to derive the $\ServerFinished$ message in the TLS~1.3 PSK and PSK-(EC)DHE (right) handshakes. (In the PSK-only handshake, $\dhe$ will always be the string $0^{\hashlen}$).}
+% \label{fig:tlskdf-example}
+% \end{figure}
+
+Note that the definition of the 11 functions induces a lot of redundancy as we derive every value independently and therefore compute intermediate values (e.g., $\es$, $\des$, and $\hs$) multiple times over the execution of the handshake.
+However, this is only conceptual.
+Since the computations of these intermediate values are deterministic, the intermediate values will be the same for the same inputs and could be cached.
+
+
+
+
+% \begin{figure}
+% 	\centering
+% 	
+% 	\input{old-fig-tls-handshake}
+% 	
+% 	\caption{The TLS~1.3 PSK handshake without 0-RTT. Every TLS handshake message is denoted as ``$\msgfont{MSG} \colon C$'', where $C$ denotes the message's content. Similarly, an extension is denoted by ``$\msgfont{+ MSG} \colon C$''. Further, we denote by ``$\{ \msgfont{MSG} \} \colon C$'' messages containing $C$ and being AEAD-encrypted under the handshake traffic keys $\chtk$/$\shtk$. Messages and computations that are written in ``$[\dotsc]$'' only appear in the PSK-(EC)DHE handshake. Centered computations are executed by both client and server with their respective messages received, and possibly at different points in time. The labels are defined in \autoref{fig:labels}.
+% 	%
+% 	\fg{I'd suggest to introduce some color coding (akin to \cite[Fig.~1]{JC:DFGS21}) for messages, TLSKDF/RO-derived keys, etc.;
+% 	this could match the to-be-pictured key schedule. (I can take care of both, if we want it.)}}
+% 	\TODO{@fg: adapt, add stage numbers, ...}
+% 	\TODO{@fg: left side: current figure, right side: figure with 11 RO-KDF + 1 RO $\Thash$, similar to \cite[Fig.~1]{JC:DFGS21}}
+% 	\label{fig:tls13-psk}
+% \end{figure}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

@@ -1,0 +1,17 @@
+\section{Collision Resistance of Random Oracles}
+\label{app:coll-res-ro}
+
+\begin{theorem}\label{thm:coll-res-ro}
+	Let $\RO$ be a random oracle with output length $\hashlen$ and let $\advA$ be any adversary issuing at most $\qRO$ many queries to $\RO$.
+	Then,
+	\[
+		\genAdv{\CR}{\RO}{\qRO} \leq \frac{\qRO^2}{2^\hashlen}.
+	\]
+\end{theorem}
+
+\begin{proof}
+	The above theorem follows from the birthday bound.
+	Since there are at most $\qRO$ queries issued to $\RO$, in the worst case each of these queries is distinct.
+	That is, the random oracle~$\RO$ has to sample $\qRO$ many uniform and independent bit strings from $\bits^\hashlen$.
+	The probability that two of these bit strings collide can be limited using the birthday bound by $\qRO^2 \cdot 2^{-\hashlen}$.
+\end{proof}

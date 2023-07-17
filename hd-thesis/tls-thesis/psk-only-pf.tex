@@ -1,0 +1,44 @@
+Our tight security proof for the TLS~1.3 PSK-(EC)DHE handshake given in Section~\ref{sec:psk-ecdhe-ke-proof-short} can be adapted to the PSK-only handshake.
+The structure and resulting bounds are largely the same between the two modes, with a couple of significant changes.
+Naturally, we have no Diffie--Hellman group, no key shares in the $\ClientHello$ or $\ServerHello$ messages, and no reduction to the strong Diffie--Hellman problem.
+Without the reduction to $\stDH$, we cannot achieve forward secrecy for any key: an adversary in possession of the pre-shared key can compute all session keys. 
+% We therefore do not consider any key established by TLS~1.3 in PSK-only mode to have achieved forward secrecy, or even weak forward secrecy 2.
+
+The security proof for the TLS~1.3 PSK-only handshake uses the same sequence of games $\Gm_0$ to $\Gm_9$ (excluding the reduction to the strong Diffie--Hellman problem in $\Gm_{10}$).
+There only is a difference in $\Gm_1$, in which we exclude collisions of nonces and group elements sampled by honest session to compute there $\Hello$ messages.
+Since we do not have any key shares in the PSK-only mode, the session will consequently also not sample a group elements.
+Thus, the bound for $\Gm_0$ changes to
+\shortlongeqn[.]{
+	\Pr[ \Gm_0 \outputs 1 ] \leq \Pr[ \Gm_1 \outputs 1 ] + \frac{2\qSend^2}{2^{\nl}}
+}
+The rest of the arguments follow similarly as given in Section~\ref{sec:psk-ecdhe-ke-proof-short}.
+We obtain the following result.
+
+\begin{theorem}\label{thm:psk-ke}
+	Let $\TLSPSK$ be the TLS~1.3 PSK-only handshake protocol as specified on the right-hand side in \autoref{fig:tls-handshake} without handshake encryption. 
+	Let functions $\abstractHash$ and $\TLSKDF_x$ for each $x \in \{\binder, \dotsc, \rms\}$ be modeled as $12$ independent random oracles $\mathlist{\RO_\Thash,\RO_{\binder},\dotsc, \RO_{\rms}}$.
+	Let $\nl$ be the length in bits of the nonce, let $\hashlen$ be the output length in bits of $\abstractHash$, and let the pre-shared key space $\KEpskeyspace$ be the set $\bits^\hashlen$.
+% 	Let $\advA$ be an adversary against the MSKE security of $\TLSPSK$ running in time $t$, and let $\advA$ make $\qNewSecret$, resp.\ $\qSend$ queries to its $\NewSecret$, resp.\ $\Send$ oracles.
+% 	Further, let $\qRO$ be the number of random oracle queries $\advA$ makes in total to its random oracles $\mathlist{\RO_\Thash,\RO_{\binder},\dotsc, \RO_{\rms}}$.
+	Then,
+	\begin{align*}
+		&\genAdv{\KESEC}{\TLSPSK}{t, \qNewSecret, \qSend, \qRevSessionKey, \qRevLongTermKey, \qTest, \qRO} \\
+		&\qquad\leq \frac{2\qSend^2}{2^{\nl}} + \frac{(\qRO+\qSend)^2 + \qNewSecret^2 + (\qRO+6\qSend)^2 + \qRO \cdot \qNewSecret + \qSend}{2^{\hashlen}}
+	\end{align*}
+\end{theorem}
+
+From this we obtain the following overall result for the TLS~1.3 PSK-only mode via the same series of arguments as in Section~\ref{sec:psk-ecdhe-ke-full-bound}.
+
+\begin{corollary}\label{cor:psk-ke}
+	Let $\TLSPSK$ be the TLS~1.3 PSK-only handshake protocol as specified on the left-hand side in \autoref{fig:tls-handshake}.
+	Let $\nl$ be the length in bits of the nonce, let $\hashlen$ be the output length in bits of $\abstractHash$, and let the pre-shared key space be $\KEpskeyspace = \bits^\hashlen$.
+	Let $\abstractHash$ be modeled as a random oracle $\RO_\hash$.
+	%
+% 	Let $\advA$ be an adversary against the $\KESEC$ security of $\TLSPSK$ running in time $t$, and let $\advA$ make $\qRO$, $\qNewSecret$, resp.\ $\qSend$ queries to its $\RO_\hash$, $\NewSecret$, resp.\ $\Send$ oracles.
+	Then,
+	\begin{align*}
+		&\genAdv{\KESEC}{\TLSPSK}{t, \qNewSecret, \qSend, \qRevSessionKey, \qRevLongTermKey, \qTest, \qRO} \\
+		&\qquad\leq \frac{2\qSend^2}{2^{\nl}} + \frac{(\qRO+\qSend)^2 + \qNewSecret^2 + (\qRO+6\qSend)^2 + \qRO \cdot \qNewSecret + \qSend}{2^{\hashlen}} \\
+		&\qquad\qquad + \frac{2(12\qSend+\qRO)^2 + 2\qRO^2 + 8(\qRO+36\qSend)^2}{2^{\hashlen}}.
+	\end{align*}
+\end{corollary}

@@ -1,0 +1,476 @@
+\section{Assumptions, Building Blocks, \fullonly{and }Multi-User Security}
+\iffull \label{sec:components} \else \label{apx:components} \fi
+
+\iffull
+Before we continue to our main technical results, let us briefly introduce notation and discuss the multi-user security of the involved building blocks: strong Diffie--Hellman (including the GGM bound we prove), PRFs, digital signatures, MAC schemes, and hash functions.
+\fi
+
+
+\iffull
+\subsection{Decisional and Strong Diffie--Hellman}
+% \iffull \label{sec:components:DH} \else \label{apx:components:DH} \fi
+\label{sec:components:DH}
+
+The classical decisional Diffie--Hellman assumption~\cite{Boneh98} states that, when only observing the two Diffie--Hellman shares~$g^x$, $g^y$, the resulting secret~$g^{xy}$ is indistinguishable from a random group element.
+
+\begin{definition}[Decisional Diffie--Hellman ($\DDH$) assumption]
+	\label{def:DDH}
+	Let $\group = \langle g \rangle$ be a cyclic group of prime order~$p$.
+	We define
+	\begin{align*}
+		\Adv^{\DDH}_{\group}(t) := \max_\advA \Big|
+			&\Pr \left[ \advA(\group, g, g^x, g^y, g^{xy}) \Rightarrow 1 \;\middle|\; x, y \sample \ZZ_p \right] - \\
+			&\Pr \left[ \advA(\group, g, g^x, g^y, g^z) \Rightarrow 1 \;\middle|\; x, y, z \sample \ZZ_p \right]
+			\Big|,
+	\end{align*}
+	where the maximum is taken over all adversaries, denoted \emph{$(t)$-$\DDH$-adversaries} running in time at most~$t$.
+\end{definition}
+
+The strong Diffie--Hellman assumption, a weakening of the gap Diffie--Hellman assumption~\cite{PKC:OkaPoi01}, states that solving the computational Diffie--Hellman problem given a restricted decisional Diffie--Hellman oracle is hard.
+
+\begin{definition}[Strong Diffie--Hellman assumption~\cite{PKC:OkaPoi01}]
+	\label{def:strongDH}
+	Let $\group = \langle g \rangle$ be a cyclic group of prime order~$p$.
+	Let $\DDH(X, Y, Z) := [[ X^{\log_g(Y)} = Z ]]$ be a decisional Diffie--Hellman oracle.
+	We define
+	\[
+		\Adv^{\strongDH}_{\group}(t, \qstDH) := \max_\advA \Pr \left[ \advA^{\DDH(g^x, \cdot, \cdot)}(\group, g, g^x, g^y) = g^{xy} \;\middle|\; x, y \sample \ZZ_p \right],
+	\]
+	where the maximum is taken over all adversaries, denoted \emph{$(t, \qstDH)$-$\strongDH$-adversaries} running in time at most~$t$ and making at most $\qstDH$ queries to their $\DDH$ oracle.
+\end{definition}
+
+The strong (or gap) Diffie--Hellman assumption has been deployed in numerous works to analyze practical key exchange designs, directly or through the PRF-ODH assumption~\cite{C:JKSS12,C:BFGJ17} it supports, including \cite{C:JKSS12,CCS:FisGue14,CCS:DFGS15,EuroSP:KraWee16,EPRINT:DFGS16,EuroSP:FisGue17,JC:DFGS21} as well as in the closely related works on practical tightness by Cohn-Gordon et al.~\cite{C:CCGJJ19} and Diemert and Jager~\cite{JC:DieJag20}.
+To argue that it is reasonable to rely on the strong Diffie--Hellman assumption, we turn to the generic group model~\cite{EC:Shoup97,IMA:Maurer05}.
+Although some known algorithms for solving discrete logarithms in finite fields like index calculus fall outside the generic group model, the best known algorithms for elliptic curve groups are generic.
+Shoup~\cite{EC:Shoup97} proved that, in the generic group model, any adversary computing at most $t$ group operations in a group of prime order~$p$ has advantage at most $\mathcal{O}(t^2/p)$ in solving the discrete logarithm problem or the computational or decisional Diffie--Hellman problem in that group.
+We claim, and prove\fullonly{ in Appendix~\ref{apx:strongDHproof}}, that any adversary in the generic group model making at most $t$ group operations and $\DDH$ oracle queries, also has advantage at most $\mathcal{O}(t^2/p)$ in solving the strong Diffie--Hellman problem.
+
+\begin{theorem}
+	\label{thm-ggm-bound}
+	Let $\group$ be a group with prime order $p$.
+	In the generic group model,
+	$\Adv_\group^{\strongDH}(t,q) \leq 4t^2 / p$.
+\end{theorem}
+\fi
+
+\iffull
+\subsection{Multi-User PRF Security}
+\label{sec:components:muPRF}
+
+Let us recap the multi-user security notion for pseudorandom functions (PRFs)~\cite{FOCS:BelCanKra96}.
+\else
+\label{apx:components:muPRF}
+\fi
+
+\begin{definition}[Multi-user PRF security]
+	\label{def:muPRFSEC}
+	Let $\PRF \colon \bits^k \times \bits^m \to \bits^n$ be a function (for $k, n \in \NN$ and $m \in \NN \cup \{*\}$)
+	and $\Gm^{\muPRFSEC}_{\PRF,\advA}$ be the multi-user PRF security game defined as in Figure~\ref{fig:muPRFSEC}.
+	We define
+	\shortlongeqn[,]{
+		\Adv^{\muPRFSEC}_{\PRF}(t\cab \qNew\cab \qPRFfn\cab\qPRFfnU) := 2 \cdot \max_\advA \Pr \left[ \Gm^{\muPRFSEC}_{\PRF,\advA} \Rightarrow 1 \right] - 1
+	}
+	where the maximum is taken over all adversaries, denoted \emph{$(t, \qNew, \qPRFfn,\qPRFfnU)$-$\muPRFSEC$-adversaries}, running in time at most~$t$ and making at most $\qNew$ queries to their $\New$ oracle, at most $\qPRFfn$ total queries to their $\PRFfn$ oracle, and at most $\qPRFfnU$ queries $\PRFfn(i, \cdot)$ for any user~$i$.
+\end{definition}
+
+Generically, the multi-user security of PRFs reduces to single-user security (formally, $\Gm^{\muPRFSEC}_{\PRF,\advA}$ with $\advA$ restricted to $\qNew = 1$ queries to~$\New$) with a factor in the number of users via a hybrid argument~\cite{FOCS:BelCanKra96}, i.e., 
+\shortlongeqn[,]{
+	\Adv^{\muPRFSEC}_{\PRF}(t, \qNew, \qPRFfn,\qPRFfnU) \leq \qNew \cdot \Adv^{\muPRFSEC}_{\PRF}(t', 1, \qPRFfnU, \qPRFfnU)
+}
+where $t \approx t'$. 
+(Note that the total number~$\qPRFfn$ of queries to the $\PRFfn$ oracle across all users does not affect the reduction.)
+There exist simple and efficient constructions, like AMAC~\cite{EC:BelBerTes16}, that however achieve multi-user security tightly.
+\iffull
+
+\fi
+If we use a random oracle~$\RO$ as a PRF with key length~$kl$, then
+\shortlongeqn[.]{
+	\Adv^{\muPRFSEC}_{\RO}(t\cab \qNew\cab \qPRFfn\cab \qPRFfnU\cab \qRO) \leq \frac{\qNew \cdot \qRO}{2^{kl}}
+}
+
+\begin{figure}[t]
+	\centering
+	
+	%%% Signatures
+	\begin{minipage}[t]{0.2\textwidth}
+		\NewExperiment[$\Gm^{\muPRFSEC}_{\PRF,\advA}$]
+		
+		\begin{oracle}{$\Initialize$}
+			\item $b \sample \bits$
+			\item $u \gets 0$
+		\end{oracle}
+	\end{minipage}
+	%
+	\begin{minipage}[t]{\iffull0.3\else0.5\fi\textwidth}
+		\begin{oracle}{$\New$}
+			\item $u \gets u + 1$
+			\item if $b = 1$ then
+			\item \hindent $K_u \getsr \bits^k$
+			\fullelse{\item \hindent}{;} $f_u := \PRF(K_u, \cdot)$
+			\item else
+			\fullonly{\item \hindent} $f_u \sample \FUNC$
+		\end{oracle}
+	\end{minipage}
+	%
+	\begin{minipage}[t]{0.25\textwidth}
+		\begin{oracle}{$\PRFfn(i, x)$}
+			\item return $f_i(x)$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(b^*)$}
+			\item return $[[ b = b^* ]]$
+		\end{oracle}
+	\end{minipage}
+	
+	\caption{%
+		Multi-user PRF security of a pseudorandom function~$\PRF \colon \bits^k \times \bits^m \to \bits^n$. $\FUNC$ is the space of all functions $\bits^m \to \bits^n$.
+	}
+	\label{fig:muPRFSEC}
+\end{figure}
+
+
+\iffull
+\subsection{Multi-User Unforgeability with Adaptive Corruptions of Signatures and MACs}
+\label{sec:components:muSigMac}
+
+We recap the definition of digital signature schemes and message authentication codes (MACs) as well as the natural extension of classical \emph{existential unforgeability under chosen-message attacks}~\cite{GolMicRiv88} to the \emph{multi-user} setting with \emph{adaptive corruptions}.
+For signatures, this notion was considered by Bader et al.~\cite{TCC:BHJKL15} and, without corruptions, by Menezes and Smart~\cite{DCC:MenSma04}.
+
+\else
+\label{apx:components:muSigMAC}
+\fi
+
+
+\iffull
+\begin{definition}[Signature scheme]
+	\label{def:signature-scheme}
+	A \emph{signature scheme} $\SIGScheme = (\SIGKGen\cab \SIGSign\cab \SIGVerify)$ consists of three efficient algorithms defined as follows.
+	\begin{itemize}
+		\item $\SIGKGen() \tor (pk, sk)$.
+			This probabilistic algorithm generates a public verification key~$pk$ and a secret signing key~$sk$.
+		
+		\item $\SIGSign(sk, m) \tor \sigma$.
+			On input a signing key~$sk$ and a message~$m$, this (possibly) probabilistic algorithm outputs a signature~$\sigma$.
+		
+		\item $\SIGVerify(vk, m, \sigma) \to d$.
+			On input a verification key~$pk$, a message~$m$, and a signature~$\sigma$, this deterministic algorithm outputs a decision bit~$d \in \bits$ (where $d = 1$ indicates validity of the signature).
+	\end{itemize}
+\end{definition}
+\fi
+
+
+\begin{definition}[Signature $\muEUFCMA$ security]
+	\label{def:signature-muEUFCMA}
+	Let $\SIGScheme$ be a signature scheme
+	and $\Gm^{\muEUFCMA}_{\SIGScheme,\advA}$ be the game for signature multi-user existential unforgeability under chosen-message attacks with adaptive corruptions \fullelse{defined as in Figure~\ref{fig:muEUFCMA}}{(see the full version~\cite{EPRINT:DavGun20} for the formal definition)}.
+	We define
+	\shortlongeqn[,]{
+		\Adv^{\muEUFCMA}_{\SIGScheme}(t\cab \qNew\cab \qSign\cab \qSignU\cab \qCorrupt) := \max_\advA \Pr \left[ \Gm^{\muEUFCMA}_{\SIGScheme,\advA} \Rightarrow 1 \right]
+	}
+	where the maximum is taken over all adversaries, denoted \emph{$(t, \qNew, \qSign, \qSignU, \qCorrupt)$-}\emph{$\muEUFCMA$-adversaries}, running in time at most~$t$ and making at most $\qNew$, $\qSign$, resp.\ $\qCorrupt$ total queries to their $\New$, $\OSign$, resp.\ $\Corrupt$ oracle, and making at most $\qSignU$ queries $\OSign(i, \cdot)$ for any user~$i$.
+\end{definition}
+
+
+Multi-user EUF-CMA security of signature schemes (with adaptive corruptions) can be reduced to classical, single-user EUF-CMA security (formally, $\Gm^{\muEUFCMA}_{\SIGScheme,\advA}$ with $\advA$ restricted to $\qNew = 1$ queries to~$\New$) by a standard hybrid argument, losing a factor of number of users.
+Formally, this yields
+\shortlongeqn[,]{
+	\Adv^{\muEUFCMA}_{\SIGScheme}(t\cab \qNew\cab \qSign\cab \qSignU\cab \qCorrupt) \leq \qNew \cdot \Adv^{\muEUFCMA}_{\SIGScheme}(t'\cab 1\cab \qSignU\cab \qSignU\cab 0)
+}
+where $t \approx t'$.
+(Note that the reduction is not affected by the total number of signature queries~$\qSign$ across all users.)
+In many cases, such loss is indeed unavoidable~\cite{EC:BJLS16}.
+
+
+
+
+% \begin{figure}[t]
+% 	\centering
+% 	
+% 	%%% Signatures
+% 	\begin{minipage}[t]{0.48\textwidth}
+% 		\NewExperiment[$\Gm^{\muEUFCMA}_{\SIGScheme,\advA}$]
+% 		
+% 		\begin{oracle}{$\Initialize$}
+% 			\item $Q \gets \emptyset$
+% 			\item $\setfont{C} \gets \emptyset$
+% 			\item $u \gets 0$
+% 		\end{oracle}
+% 		
+% 		\ExptSepSpace
+% 		
+% 		\begin{oracle}{$\New$}
+% 			\item $u \gets u + 1$
+% 			\item $(pk_u, sk_u) \getsr \SIGKGen()$
+% 			\item return $pk_u$
+% 		\end{oracle}
+% 		
+% 		\ExptSepSpace
+% 		
+% 		\begin{oracle}{$\OSign(i, m)$}
+% 			\item $\sigma \getsr \SIGSign(sk_i, m)$
+% 			\item $Q \gets Q \cup \{(i, m)\}$
+% 			\item return $\sigma$
+% 		\end{oracle}
+% 		
+% 		\ExptSepSpace
+% 		
+% 		\vspace*{1.65cm} %% align with MAC game (Verify oracle)
+% 		
+% 		\begin{oracle}{$\Corrupt(i)$}
+% 			\item $\setfont{C} \gets \setfont{C} \cup \{i\}$
+% 			\item return $sk_i$
+% 		\end{oracle}
+% 		
+% 		\ExptSepSpace
+% 		
+% 		\begin{oracle}{$\Finalize(i^*, m^*, \sigma^*)$}
+% 			\item $d^* \gets \SIGVerify(pk_{i^*}, m^*, \sigma^*)$
+% 			\item return $[[ d^* = 1 \land i^* \notin \setfont{C} \land (i^*\!, m^*) \notin Q ]]$
+% 		\end{oracle}
+% 	\end{minipage}
+% 	%
+% 	\hspace*{0.25cm}
+% 	%
+% 	%%% MACs
+% 	\begin{minipage}[t]{0.48\textwidth}
+% 		\NewExperiment[$\Gm^{\muEUFCMA}_{\MACScheme,\advA}$]
+% 		
+% 		\begin{oracle}{$\Initialize$}
+% 			\item $Q \gets \emptyset$
+% 			\item $\setfont{C} \gets \emptyset$
+% 			\item $u \gets 0$
+% 		\end{oracle}
+% 		
+% 		\ExptSepSpace
+% 		
+% 		\begin{oracle}{$\New$}
+% 			\item $u \gets u + 1$
+% 			\item $K_u \getsr \MACKGen()$
+% 			\item[]
+% 		\end{oracle}
+% 		
+% 		\ExptSepSpace
+% 		
+% 		\begin{oracle}{$\OTag(i, m)$}
+% 			\item $\tau \getsr \MACTag(K_i, m)$
+% 			\item $Q \gets Q \cup \{(i, m)\}$
+% 			\item return $\tau$
+% 		\end{oracle}
+% 		
+% 		\ExptSepSpace
+% 		
+% 		\begin{oracle}{$\OVerify(i, m, \tau)$}
+% 			\item $d \gets \MACVerify(K_i, m, \tau)$
+% 			\item return $d$
+% 		\end{oracle}
+% 		
+% 		\ExptSepSpace
+% 		
+% 		\begin{oracle}{$\Corrupt(i)$}
+% 			\item $\setfont{C} \gets \setfont{C} \cup \{i\}$
+% 			\item return $K_i$
+% 		\end{oracle}
+% 		
+% 		\ExptSepSpace
+% 		
+% 		\begin{oracle}{$\Finalize(i^*, m^*, \tau^*)$}
+% 			\item $d^* \gets \MACVerify(K_{i^*}, m^*, \tau^*)$
+% 			\item return $[[ d^* = 1 \land i^* \notin \setfont{C} \land (i^*\!, m^*) \notin Q ]]$
+% 		\end{oracle}
+% 	\end{minipage}
+% 	
+% 	\caption{%
+% 		Multi-user existential unforgeability ($\muEUFCMA$) of signature schemes (left) and MAC schemes (right).
+% 	}
+% 	\label{fig:muEUFCMA}
+% \end{figure}
+
+
+\iffull
+%%% mu-EUF-CMA experiments with tighter layout
+\begin{figure}[t]
+	\centering
+	
+	%%% Signature mu-EUF-CMA
+	\begin{minipage}[t]{0.2\textwidth}
+		\NewExperiment[$\Gm^{\muEUFCMA}_{\SIGScheme,\advA}$]
+		
+		\begin{oracle}{$\Initialize$}
+			\item $Q \gets \emptyset$
+			\item $\setfont{C} \gets \emptyset$
+			\item $u \gets 0$
+		\end{oracle}
+		\ExptSepSpace
+			\begin{oracle}{$\Corrupt(i)$}
+			\item $\setfont{C} \gets \setfont{C} \cup \{i\}$
+			\item return $sk_i$
+		\end{oracle}
+	\end{minipage}
+	\begin{minipage}[t]{0.3\textwidth}
+		\vspace*{\iffull0.4cm\else0cm\fi}
+
+		\begin{oracle}{$\New$}
+			\item $u \gets u + 1$
+			\item $(pk_u, sk_u) \getsr \SIGKGen()$
+			\item return $pk_u$
+		\end{oracle}		
+		\ExptSepSpace
+	%	\vspace*{1.65cm} %% align with MAC game (Verify oracle)
+		\begin{oracle}{$\OSign(i, m)$}
+			\item $\sigma \getsr \SIGSign(sk_i, m)$
+			\item $Q \gets Q \cup \{(i, m)\}$
+			\item return $\sigma$
+		\end{oracle}
+		
+% 		\ExptSepSpace
+	\end{minipage}
+	\begin{minipage}[t]{0.47\textwidth}
+		\vspace*{.4cm}
+		
+		\begin{oracle}{$\Finalize(i^*, m^*, \sigma^*)$}
+			\item $d^* \gets \SIGVerify(pk_{i^*}, m^*, \sigma^*)$
+			\item return $[[ d^* = 1 \land i^* \notin \setfont{C} \land (i^*\!, m^*) \notin Q ]]$
+		\end{oracle}
+	\end{minipage}
+	
+	\vspace*{0.1cm}
+	
+	\hrulefill
+	
+	%%% MACs mu-EUF-CMA
+	\begin{minipage}[t]{0.2\textwidth}
+		\NewExperiment[$\Gm^{\muEUFCMA}_{\MACScheme,\advA}$]
+		
+		\begin{oracle}{$\Initialize$}
+			\item $Q \gets \emptyset$
+			\item $\setfont{C} \gets \emptyset$
+			\item $u \gets 0$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+			\begin{oracle}{$\Corrupt(i)$}
+			\item $\setfont{C} \gets \setfont{C} \cup \{i\}$
+			\item return $K_i$
+		\end{oracle}
+		\ExptSepSpace
+	
+			\end{minipage}
+	\begin{minipage}[t]{0.3\textwidth}
+		\vspace*{\iffull0.4cm\else0cm\fi}
+		\begin{oracle}{$\New$}
+			\item $u \gets u + 1$
+			\item $K_u \getsr \MACKGen()$
+			\item[]
+		\end{oracle}
+		\ExptSepSpace
+		\begin{oracle}{$\OTag(i, m)$}
+			\item $\tau \getsr \MACTag(K_i, m)$
+			\item $Q \gets Q \cup \{(i, m)\}$
+			\item return $\tau$
+		\end{oracle}
+		
+		
+		\ExptSepSpace
+			\end{minipage}
+	\begin{minipage}[t]{0.47\textwidth}
+		\vspace*{.4cm}
+		
+		\begin{oracle}{$\OVerify(i, m, \tau)$}
+			\item $d \gets \MACVerify(K_i, m, \tau)$
+			\item return $d$
+			\item[]
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(i^*, m^*, \tau^*)$}
+			\item $d^* \gets \MACVerify(K_{i^*}, m^*, \tau^*)$
+			\item return $[[ d^* = 1 \land i^* \notin \setfont{C} \land (i^*\!, m^*) \notin Q ]]$
+		\end{oracle}
+	\end{minipage}
+	
+	\caption{%
+		Multi-user existential unforgeability ($\muEUFCMA$) of signature schemes (top) and MAC schemes (bottom).
+	}
+	\label{fig:muEUFCMA}
+\end{figure}
+\fi
+
+
+\iffull
+\begin{definition}[MAC scheme]
+	\label{def:MAC-scheme}
+	A \emph{MAC scheme} $\MACScheme = (\MACKGen\cab \MACTag\cab \MACVerify)$ consists of three efficient algorithms defined as follows.
+	\begin{itemize}
+		\item $\MACKGen() \tor K$.
+			This probabilistic algorithm generates a key~$K$.
+		
+		\item $\MACTag(K, m) \tor \tau$.
+			On input a key~$K$ and a message~$m$, this (possibly) probabilistic algorithm outputs a message authentication code (MAC)~$\tau$.
+		
+		\item $\MACVerify(K, m, \tau) \to d$.
+			On input a key~$K$, a message~$m$, and a MAC~$\tau$, this deterministic algorithm outputs a decision bit~$d \in \bits$ (where $d = 1$ indicates validity of the MAC).
+	\end{itemize}
+\end{definition}
+\fi
+
+
+\begin{definition}[MAC $\muEUFCMA$ security]
+	\label{def:MAC-muEUFCMA}
+	Let $\MACScheme$ be a MAC scheme
+	and $\Gm^{\muEUFCMA}_{\MACScheme,\advA}$ be the game for MAC multi-user existential unforgeability under chosen-message attacks with adaptive corruptions \fullelse{defined as in Figure~\ref{fig:muEUFCMA}}{(see the full version~\cite{EPRINT:DavGun20} for the formal definition)}.
+	We define
+	\shortlongeqn[,]{
+		\Adv^{\muEUFCMA}_{\MACScheme}(t\cab \qNew\cab \qTag\cab\qTagU\cab \qVerify\cab \qVerifyU\cab \qCorrupt) := \max_\advA \Pr \left[ \Gm^{\muEUFCMA}_{\MACScheme,\advA} \Rightarrow 1 \right]
+	}
+	where the maximum is taken over all adversaries, denoted \emph{$(t\cab \qNew\cab \qTag\cab\qTagU\cab \qVerify\cab\qVerifyU\cab \qCorrupt)$-\fullonly{\linebreak}$\muEUFCMA$-adversaries}, running in time at most~$t$ and making at most $\qNew$, $\qTag$, $\qVerify$, resp.\ $\qCorrupt$ queries to their $\New$, $\OSign$, $\OVerify$, resp.\ $\Corrupt$ oracle, and making at most $\qTagU$ queries $\OTag(i, \cdot)$, resp.\ $\qVerifyU$ queries $\OVerify(i, \cdot)$ for any user~$i$.
+\end{definition}
+
+As for signature schemes, multi-user EUF-CMA security of MACs reduces to the single-user case ($\qNew = 1$) by a standard hybrid argument:
+\iffull
+\begin{align*}
+	&\Adv^{\muEUFCMA}_{\MACScheme}(t, \qNew, \qTag, \qTagU, \qVerify, \qVerifyU, \qCorrupt) \\
+	&\leq \qNew \cdot \Adv^{\muEUFCMA}_{\MACScheme}(t, 1, \qTagU, \qTagU, \qVerifyU, \qVerifyU, 0),
+\end{align*}
+\else
+$\Adv^{\muEUFCMA}_{\MACScheme}(t\cab \qNew\cab \qTag\cab \qTagU\cab \qVerify\cab \qVerifyU\cab \qCorrupt) \leq \qNew \cdot \Adv^{\muEUFCMA}_{\MACScheme}(t\cab 1\cab \qTagU\cab \qTagU\cab \qVerifyU\cab \qVerifyU\cab 0)$,
+\fi
+where $t \approx t'$.
+(Note that the reduction is not affected by the total number of tagging and verification queries~$\qTag$ resp.\ $\qVerify$ across all users.)
+
+Our multi-user definition of MACs provides a verification oracle, which is non-standard (and in general not equivalent to a definition with a single forgery attempts, as Bellare, Goldreich and Mityiagin~\cite{EPRINT:BelGolMit04} showed).
+For PRF-based MACs (which in particular includes HMAC used in TLS~1.3), it however is equivalent and the reduction from multi-query to single-query verification is tight~\cite{EPRINT:BelGolMit04}.
+
+In our key exchange reductions, we actually do not need to corrupt MAC keys, i.e., we achieve $\qCorrupt = 0$.
+This in particular allows specific constructions like AMAC~\cite{EC:BelBerTes16} achieving tight multi-user security (without corruptions).
+
+If we use a random oracle~$\RO$ as PRF-like MAC with key length~$\kl$ and output length~$\ol$, then
+\shortlongeqn[.]{
+\Adv^{\muEUFCMA}_{\RO}(t, \qNew, \qTag, \qTagU, \qVerify, \qVerifyU, \qCorrupt,\qRO) \leq \frac{\qVerify}{2^{\ol}}+\frac{(\qNew-\qCorrupt)\cdot \qRO}{2^{\kl}}
+}
+
+\iffull 
+\subsection{Hash Function Collision Resistance}
+\label{sec:components:Hash}
+
+Finally, let us define collision resistance of hash functions.
+\else
+\label{apx:components:Hash}
+\fi
+
+
+\begin{definition}[Hash function collision resistance]
+	\label{def:hash-function}
+	Let $\Hash \colon \bits^* \to \bits^{\ol}$ for $\ol \in \NN$ be a function.
+	For a given adversary~$\advA$ running in time at most~$t$, we can consider
+	\shortlongeqn[.]{
+		\Adv^{\COLL}_{\Hash}(t) := \Pr \left[ (m, m') \getsr \advA : m \neq m' \text{ and } \Hash(m) = \Hash(m') \right]
+	}
+\end{definition}
+\noindent
+If we use a random oracle~$\RO$ as hash function, then\fullonly{ by the birthday bound}
+\shortlongeqn[.]{
+\Adv^{\COLL}_{\RO}(t,\qRO) \leq \frac{\qRO^2}{2^{\ol+1}}+\frac{1}{2^{\ol}}
+}

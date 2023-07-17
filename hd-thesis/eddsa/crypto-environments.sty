@@ -1,0 +1,85 @@
+\ProvidesPackage{crypto-environments}
+
+%
+% this file provides some environments useful to define experiments, oracles, algorithms
+%
+
+\NeedsTeXFormat{LaTeX2e}
+\RequirePackage{enumitem}%[2011/09/28 v3.5.2]  %%% requires enumitem >= 3.0 !
+
+\newcommand{\cryptoenvsetsize}{\footnotesize} % set font size to \footnotesize in fullversion
+
+\newcommand{\ExptSepSpace}{\vspace*{0.15cm}}  % vertical separation space between two oracles/descriptions in an experiment figure
+\newcommand{\ExptHeaderSepSpace}{\vspace*{0.3cm}}
+
+\newenvironment{code}[1][]{
+\begin{enumerate}[label=\scriptsize\color{gray}\ttfamily\arabic*, ref=\arabic*, align=right, topsep=4pt, itemsep=0.0em, leftmargin=1.35em, #1]
+}{
+\end{enumerate}
+}
+
+\newenvironment{experiment}[1]{
+\cryptoenvsetsize
+\underline{#1:}
+\begin{code}[series=experiment] % experiments restart the counter
+}{
+\end{code}
+}
+
+\newcommand{\ExperimentRestartCounter}{\let\enit@resume@series@experiment\@empty} % restart the experiment counter
+
+\newcommand{\ExperimentHeader}[1]{%
+	\underline{#1}%
+	\ExperimentRestartCounter
+	\ExptHeaderSepSpace
+}
+
+\newenvironment{oracle}[2][]{
+\cryptoenvsetsize
+\textsc{#2:} \vspace{-3pt}
+\begin{code}[resume=experiment, #1] % oracles resume the experiment counter
+}{
+\end{code}
+}
+
+\newenvironment{oracleC}[3][]{
+\cryptoenvsetsize
+\textsc{#2:}\comment{#3} \vspace{-3pt}
+\begin{code}[resume=experiment, #1] % oracles resume the experiment counter
+}{
+\end{code}
+}
+
+
+\newenvironment{algorithm}[2][]{
+\cryptoenvsetsize
+\underline{#2:}
+\begin{code}[#1]
+}{
+\end{code}
+}
+
+\newenvironment{algorithm-initial}[2][]{
+\cryptoenvsetsize
+\underline{#2:}
+\begin{code}[series=algorithm,#1] % restarts the algorithm counter
+}{
+\end{code}
+}
+
+\newenvironment{algorithm-subsequent}[2][]{
+\cryptoenvsetsize
+\underline{#2:}
+\begin{code}[resume=algorithm,#1] % resumes the algorithm counter
+}{
+\end{code}
+}
+
+\newenvironment{algorithm-subsequentC}[3][]{
+\cryptoenvsetsize
+\underline{#2:}\comment{#3}
+\begin{code}[resume=algorithm,#1] % resumes the algorithm counter
+}{
+\end{code}
+}
+

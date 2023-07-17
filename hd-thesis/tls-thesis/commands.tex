@@ -1,0 +1,502 @@
+%
+% Editorial
+%
+
+
+
+%
+% Formatting modifiers
+%
+\newcommand{\shortlongalign}[2][]{\begin{align*} #2 #1 \end{align*}}
+
+
+
+% Fonts
+\DeclareMathAlphabet{\mathsc}{OT1}{cmr}{m}{sc}
+
+
+% General commands
+\theoremstyle{plain}
+\newtheorem{corollary}{Corollary}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+\newcommand{\assign}{\gets}
+\newcommand{\G}{\mathds{G}}
+
+\newcommand{\groupname}[1]{\textsf{#1}}
+
+
+\mathchardef\mhyphen="2D  % hyphen "-" in math mode which doesn't look like a minus https://www.logic.at/staff/salzer/etc/mhyphen/
+
+\newcommand{\bigO}{\mathcal{O}}
+
+% workaround for making sure that list/tuples break at the comma
+% modified from https://tex.stackexchange.com/questions/19094/allowing-line-break-at-in-inline-math-mode-breaks-citations/19100#19100
+\mathchardef\breakingcomma\mathcode`\,
+{\catcode`,=\active
+	\gdef,{\breakingcomma\discretionary{}{}{}}
+}
+\newcommand{\mathlist}[1]{\ensuremath{\mathcode`\,=\string"8000 #1}}
+
+%
+% Macro styles
+%
+\newcommand{\abstractstyle}[1]{\mathbf{#1}} % abstraction object
+
+% font styles
+\newcommand{\secretfont}[1]{\mathrm{#1}} % TLS secrets
+\newcommand{\algofont}[1]{\mathsf{#1}}   % algorithms
+
+
+% ----- Colors -----
+
+% ----- Highlights, etc. -----
+
+% \newcommand{\comment}[1]{{\color{red} {/\!/\;#1}}}
+
+
+% ----- Games and adversaries -----
+
+
+% games, advantages, ...
+
+%\newcommand{\genAdv}[3]{\textcolor{red}{\Adv^{#1}_{#2}(t_{#3}, \qNewSecret, \qSend, \qRevSessionKey, \qRevLongTermKey, \qTest, \qRO)}}
+
+
+
+%
+% TLS 1.3 specific commands
+% 
+
+% nonces 
+\newcommand{\clientNonce}{r_C} % client nonce
+\newcommand{\serverNonce}{r_S} % server nonce
+\newcommand{\nltls}{{256}}        % nonce length
+\newcommand{\hashlen}{\mathit{hl}}
+\newcommand{\ivlen}{\mathit{ivl}}
+\newcommand{\hashlenBytes}{\mathit{Hl}}
+\newcommand{\blocklenBytes}{\mathit{Bl}}
+
+\newcommand{\clientKeyShare}{X}
+\newcommand{\clientExponent}{x}
+
+\newcommand{\serverKeyShare}{Y}
+\newcommand{\serverExponent}{y}
+
+% keys & secrets
+\newcommand{\es}{\secretfont{ES}} 					   % early secret
+\newcommand{\des}{\secretfont{dES}}				       % derived early secret
+\newcommand{\psk}{\secretfont{PSK}}				       % pre-shared key
+\newcommand{\bk}{\secretfont{BK}}					   % binder key
+\newcommand{\ets}{\secretfont{ETS}}					   % early traffic secret
+\newcommand{\eems}{\secretfont{EEMS}}				   % early exporter master secret
+\newcommand{\dhe}{\secretfont{DHE}}				       % DHE key
+\newcommand{\hs}{\secretfont{HS}}					   % handshake secret
+\newcommand{\chts}{\secretfont{CHTS}}				   % client handshake traffic secret
+\newcommand{\shts}{\secretfont{SHTS}}				   % server handshake traffic secret
+\newcommand{\hts}{\secretfont{HTS}}
+\newcommand{\dhs}{\secretfont{dHS}}				       % derived early secret
+\newcommand{\ms}{\secretfont{MS}} 					   % master secret
+\newcommand{\cats}{\secretfont{CATS}}				   % client application traffic secret
+\newcommand{\sats}{\secretfont{SATS}}                  % server application traffic secret
+
+\newcommand{\ems}{\secretfont{EMS}} 
+\newcommand{\rms}{\secretfont{RMS}} 
+
+\newcommand{\keyfont}[1]{\ensuremath{\mathit{#1}}} % font style for secret
+\newcommand{\pskid}{\keyfont{pskid}}   % psk identity
+\newcommand{\pskey}{\keyfont{psk}}   % psk identity
+\newcommand{\binder}{\keyfont{binder}}
+
+\newcommand{\chtk}{\keyfont{htk}_C}
+\newcommand{\shtk}{\keyfont{htk}_S}
+
+\newcommand{\chtiv}{\keyfont{htiv}_C}
+\newcommand{\shtiv}{\keyfont{htiv}_S}
+
+\newcommand{\bfk}{\keyfont{fk}_b} 
+\newcommand{\cfk}{\keyfont{fk}_C}
+\newcommand{\sfk}{\keyfont{fk}_S} 
+\newcommand{\fk}{\keyfont{fk}}
+
+\newcommand{\catk}{\keyfont{atk}_C}
+\newcommand{\satk}{\keyfont{atk}_S}
+
+
+% labels
+\newcommand{\labelfont}[1]{\ensuremath{\texttt{#1}}}
+\newcommand{\labelsym}{\ell}									% symbol used for the short labels
+\newcommand{\shortLabelCmd}[1]{\ensuremath{\labelsym_{#1}}}
+
+\newcommand{\labelExtBinder}{\shortLabelCmd{0}}
+\newcommand{\labelExtBinderText}{\labelfont{"ext binder"}}
+\newcommand{\labelResBinder}{\labelExtBinder}
+\newcommand{\labelResBinderText}{\labelfont{"res binder"}}
+
+\newcommand{\labelETS}{\shortLabelCmd{1}}
+\newcommand{\labelETSText}{\labelfont{"c e traffic"}}
+
+\newcommand{\labelEEMS}{\shortLabelCmd{2}}
+\newcommand{\labelEEMSText}{\labelfont{"e exp master"}}
+
+\newcommand{\labelDerived}{\shortLabelCmd{3}}
+\newcommand{\labelDerivedText}{\labelfont{"derived"}}
+
+\newcommand{\labelClientHTS}{\shortLabelCmd{4}}
+\newcommand{\labelClientHTSText}{\labelfont{"c hs traffic"}}
+
+\newcommand{\labelServerHTS}{\shortLabelCmd{5}}
+\newcommand{\labelServerHTSText}{\labelfont{"s hs traffic"}}
+
+\newcommand{\labelFinished}{\shortLabelCmd{6}}
+\newcommand{\labelFinishedText}{\labelfont{"finished"}}
+
+\newcommand{\labelClientATS}{\shortLabelCmd{7}}
+\newcommand{\labelClientATSText}{\labelfont{"c ap traffic"}}
+
+\newcommand{\labelServerATS}{\shortLabelCmd{8}}
+\newcommand{\labelServerATSText}{\labelfont{"s ap traffic"}}
+
+\newcommand{\labelEMS}{\shortLabelCmd{9}}
+\newcommand{\labelEMSText}{\labelfont{"exp master"}}
+
+\newcommand{\labelRMS}{\shortLabelCmd{10}}
+\newcommand{\labelRMSText}{\labelfont{"res master"}}
+
+\newcommand{\labelk}{\shortLabelCmd{11}}
+\newcommand{\labelkText}{\labelfont{"key"}}
+\newcommand{\labeliv}{\shortLabelCmd{12}}
+\newcommand{\labelivText}{\labelfont{"iv"}}
+
+
+
+% messages
+\newcommand{\msgfont}[1]{\mathtt{#1}}
+
+\newcommand{\emptymessage}{\texttt{""}}
+
+\newcommand{\PartialClientHello}{\msgfont{PartialClientHello}}
+\newcommand{\ClientHello}{\msgfont{ClientHello}}
+\newcommand{\CH}{\msgfont{CH}}
+
+\newcommand{\ClientKeyShare}{\msgfont{ClientKeyShare}}
+\newcommand{\CKS}{\msgfont{CKS}}
+
+\newcommand{\ClientPreSharedKey}{\msgfont{ClientPreSharedKey}}
+\newcommand{\CPSKtls}{\msgfont{CPSK}}
+
+\newcommand{\ServerHello}{\msgfont{ServerHello}}
+\newcommand{\SH}{\msgfont{SH}}
+
+\newcommand{\ServerKeyShare}{\msgfont{ServerKeyShare}}
+\newcommand{\SKS}{\msgfont{SKS}}
+
+\newcommand{\ServerPreSharedKey}{\msgfont{ServerPreSharedKey}}
+\newcommand{\SPSKtls}{\msgfont{SPSK}}
+
+\newcommand{\EncryptedExtensions}{\msgfont{EncryptedExtensions}}
+\newcommand{\EE}{\msgfont{EE}}
+
+\newcommand{\ServerFinished}{\msgfont{ServerFinished}}
+\newcommand{\SF}{\msgfont{SF}}
+
+\newcommand{\ClientFinished}{\msgfont{ClientFinished}}
+\newcommand{\CF}{\msgfont{CF}}
+
+\newcommand{\Finished}{\msgfont{Finished}}
+
+\newcommand{\sfin}{\ensuremath{\mathit{fin}_S}}
+\newcommand{\cfin}{\ensuremath{\mathit{fin}_C}}
+
+
+%
+% Usage of hash functions, abstractions
+%
+\newcommand{\abstractMAC}{\abstractstyle{MAC}}
+\newcommand{\abstractExtract}{\abstractstyle{Extract}}
+\newcommand{\abstractExpand}{\abstractstyle{Expand}}
+\newcommand{\abstractHash}{\abstractstyle{H}}
+
+\newcommand{\KS}{\procfont{KS}}
+\newcommand{\MAC}{\procfont{MAC}}
+%\newcommand{\Hash}{\procfont{H}}
+\newcommand{\Hashtls}{\abstractHash}
+\newcommand{\blocklen}{bl}
+\newcommand{\digest}{\mathsf{h}}
+
+\newcommand{\DeriveTrafficKeys}{\algostyle{DeriveTK}}
+
+
+% RFC references
+\newcommand{\tlsfield}[1]{\texttt{#1}}  % fields in TLS messages, like "legacy_version"
+\newcommand{\tlsfunction}[1]{\texttt{#1}}  % functions in TLS messages, like "Derive-Secret"
+
+
+%
+% Key Exchange and MSKE Model
+%
+
+% Key exchange
+\newcommand{\KEpskeyspace}{\KE.\algostyle{PSKS}}
+
+% protocol variables
+\def\PROTOCOLVARIABLESTLS{cid,pskid,keys,stage,acc}
+\foreach \protvar in \PROTOCOLVARIABLESTLS {%
+	\expandafter\xdef\csname\protvar\endcsname{\noexpand\protvarstyle{\protvar}}
+}
+% some more, manually
+
+\newcommand{\initcid}{\protvarstyle{cid}_{\initiator}}
+\newcommand{\respcid}{\protvarstyle{cid}_{\responder}}
+\newcommand{\rolecid}[1][\role]{\protvarstyle{cid}_{#1}}
+
+% protocol values
+\def\PROTOCOLVALUES{fs, running,accepted,rejected,initiator,responder}
+\foreach \protval in \PROTOCOLVALUES {%
+	\expandafter\xdef\csname\protval\endcsname{\noexpand\protvalstyle{\protval}}
+}
+\newcommand{\wfstwo}{\protvalstyle{wfs2}}
+\newcommand{\STAGES}{\protvalstyle{N}}
+
+
+% Oracles
+\newcommand{\NewSecret}{\oraclestyle{NewSecret}}
+\newcommand{\qNewSecret}{\querynum{NS}}
+
+% game variables
+\def\GAMEVARIABLESTLS{REPLAY, INT, STAGES, accepted, time,revpsk, FS, EAUTH, pskeys}
+\foreach \gamevar in \GAMEVARIABLESTLS {%
+	\expandafter\xdef\csname\gamevar\endcsname{\noexpand\gamevarstyle{\gamevar}}
+}
+% some more, manually
+\newcommand{\reprogram}{\gamevarstyle{repr}}
+\newcommand{\tacceptedtls}{\gamevarstyle{accepted}}
+\newcommand{\tcid}{\gamevarstyle{t_{cid}}}
+\newcommand{\ttest}{\gamevarstyle{t_{Test}}}
+\newcommand{\hascontpart}{\gamevarstyle{untampered}}
+\newcommand{\testedsessions}{\mathcal{T}}
+\newcommand{\ROtimelog}{\gamevarstyle{T}}
+
+
+% Key exchange message compiler
+\newcommand{\MaulSend}{\algostyle{Transform}_{\algostyle{Send}}}
+\newcommand{\MaulRecv}{\algostyle{Transform}_{\algostyle{Recv}}}
+\newcommand{\MaulKeys}{\algostyle{K}_{\algostyle{Transform}}}
+
+% KE Proof commands
+\mathchardef\hyphen="2D % Hyphen
+
+\newcommand{\outputs}{\Rightarrow}
+\newcommand{\CR}{\notionstyle{CR}}
+
+\newcounter{GameNo}
+\setcounter{GameNo}{-1}
+\newcommand{\gamehop}[2][]{
+	\refstepcounter{GameNo}%
+	\medskip\noindent%
+	\textsc{Game \theGameNo{}}\ifthenelse{\isempty{#1}}{}{ (#1)}.\hspace{1em}\label{#2}%
+}
+
+\newcommand{\refGameText}[1]{Game~\ref{#1}\xspace}
+\newcommand{\refGameMath}[2][\advA]{\ensuremath{\Gm^{#1}_{\ref{#2}}}\xspace}
+
+\newcommand{\thisGame}{Game~\theGameNo{}\xspace}
+\newcommand{\thisGameMath}[1][\advA]{\ensuremath{\Gm^{#1}_{\theGameNo}}\xspace}
+
+\newcommand{\prevGameMath}[1][\advA]{%
+	{\addtocounter{GameNo}{-1}%
+		{\ensuremath{\Gm^{#1}_{\theGameNo}}\xspace}%
+		\addtocounter{GameNo}{1}}%
+	\xspace%
+}
+\newcommand{\prevGameText}{%
+	{\addtocounter{GameNo}{-1}%
+		{Game~\theGameNo\xspace}%
+		\addtocounter{GameNo}{1}}%
+	\xspace%
+}
+
+
+\newcommand{\ROExtr}{\RO_{\algofont{Extr}}}
+\newcommand{\ROExpnd}{\RO_{\algofont{Expnd}}}
+
+\newcommand{\MUEUFCMAcorr}{\notionstyle{MU\hyphen{}EUF\hyphen{}CMA^{corr}}}
+\newcommand{\Tag}{\oraclestyle{Tag}}
+\newcommand{\Vrfy}{\oraclestyle{Vrfy}}
+
+\newcommand{\CollRes}{\notionstyle{CR}}
+
+
+
+\newcommand{\TLSPSK}{\mathtt{TLS1.3\hyphen{}PSK}}
+\newcommand{\TLSPSKECDHE}{\mathtt{TLS1.3\hyphen{}PSK\hyphen{}(EC)DHE}}
+
+\newcommand{\Hello}{\msgfont{Hello}}
+\newcommand{\KeyShares}{\msgfont{KeyShares}}
+
+
+\newcommand{\psklen}{\hashlen}
+
+\newcommand{\skeyTable}{\mathsf{SKEYS}}
+\newcommand{\macTable}{\mathsf{TAGS}}
+\newcommand{\programmingTable}{\mathsf{PrgList}}
+\newcommand{\roTable}{\mathsf{ROList}}
+\newcommand{\collTracker}{\mathsf{CollList}}
+\newcommand{\ksRandomizer}{\mathsf{KSRnd}}
+\newcommand{\dheTable}{\mathsf{DHEList}}
+\newcommand{\rndTable}{\mathsf{RndList}}
+
+
+%
+% Components
+%
+
+% Schemes
+\newcommand{\hash}{\algofont{H}}
+\newcommand{\HKDFExtr}{\algofont{HKDF.Extract}}
+\newcommand{\HKDFExpnd}{\algofont{HKDF.Expand}}
+
+\newcommand{\ipad}{\mathsf{ipad}}
+\newcommand{\opad}{\mathsf{opad}}
+
+\newcommand{\SHA}[1]{\texttt{SHA{#1}}}
+
+
+% MACs
+\newcommand{\abstractMACScheme}{\algostyle{M}}
+\newcommand{\abstractMACKGen}{\algostyle{KGen}}
+\newcommand{\abstractMACTag}{\algostyle{Tag}}
+\newcommand{\abstractMACVerify}{\algostyle{Vrfy}}
+
+
+%
+% TLS key schedule function and indiff stuff
+%
+\newcommand{\TLSKDF}{\algostyle{TKDF}}
+
+\newcommand{\indiff}{\notionstyle{indiff}}
+\newcommand{\rdindiff}{\notionstyle{rd{\mhyphen}indiff}}
+
+\newcommand{\ROtls}{\algostyle{RO}}
+\newcommand{\Functls}{\algostyle{F}}
+\newcommand{\SimRO}{\algostyle{SimRO}} % RO simulation
+
+\newcommand{\Fn}{\oraclestyle{Fn}} % function evaluation oracle
+\newcommand{\inconsistent}{\mathsf{inconsistent}} % collision flag
+\newcommand{\corr}{\mathsf{corr}} % corruption flag (per user)
+
+\newcommand{\ESp}{\FuncSp{ES}}
+\newcommand{\FSp}{\FuncSp{FS}}
+\newcommand{\SSp}{\FuncSp{SS}}
+\newcommand{\HH}{\mathsf{HH}}
+\newcommand{\hh}{\mathsf{hh}}
+
+\newcommand{\Chash}{\mathsf{Ch}}
+\newcommand{\Thash}{\mathsf{Th}}
+
+\newcommand{\In}{\mathbf{In}}
+
+\newcommand{\PrivO}{\oraclestyle{Priv}}
+\newcommand{\PubO}{\oraclestyle{Pub}}
+\newcommand{\qPriv}{\mathsf{q}_\PrivO}
+
+\newcommand{\qPub}{\mathsf{q}_\PubO}
+\newcommand{\Sim}{\mathsf{Sim}}
+\newcommand{\lbl}{\ell}
+\newcommand{\Gindiff}{\mathsf{G}^{\indiff}}
+
+% \newtheorem{thm}{Theorem}[section]
+% \newtheorem{lem}[thm]{Lemma}
+%\newenvironment{theorem}{\begin{thm}}{\end{thm}}
+%\newenvironment{lemma}{\begin{lem}}{\end{lem}}
+
+%
+% TLS random oracles
+%
+
+% the original single one ...
+\newcommand{\ROhash}{\RO_{\hash}}
+
+% ... to two for transcript and component hash
+\newcommand{\ROthash}{\RO_{\Thash}}
+\newcommand{\ROchash}{\RO_{\Chash}}
+
+% ... component hash to HMAC
+\newcommand{\ROhmac}{\RO_{\HMAC}}
+
+% ... HMAC to 11 TLS KDF outputs
+\newcommand{\RObinder}{\RO_{\binder}}
+\newcommand{\ROets}{\RO_{\ets}}
+\newcommand{\ROeems}{\RO_{\eems}}
+\newcommand{\ROchtk}{\RO_{\chtk}}
+\newcommand{\ROcfin}{\RO_{\CF}}
+\newcommand{\ROshtk}{\RO_{\shtk}}
+\newcommand{\ROsfin}{\RO_{\SF}}
+\newcommand{\ROcats}{\RO_{\cats}}
+\newcommand{\ROsats}{\RO_{\sats}}
+\newcommand{\ROems}{\RO_{\ems}}
+\newcommand{\ROrms}{\RO_{\rms}}
+
+
+%
+% Indiff Simulator
+%
+\newcommand{\simInString}{s}
+\newcommand{\simIndex}{i}
+\newcommand{\simOut}{y}
+\newcommand{\roIndex}{r}
+\newcommand{\hmackey}{K}
+\newcommand{\hmactext}{\Y}
+\newcommand{\lblT}{\mathcal{L}}
+\newcommand{\cachetable}{M}
+\newcommand{\rlookuptable}{T}
+\newcommand{\kdflbl}{\ell}
+\newcommand{\kdflbllen}{\text{len}_{\ell}}
+\newcommand{\hashcontext}{d}
+
+
+
+%
+% figure formatting
+%
+
+
+
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% TikZ
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\definecolor{TLSmsgcolor}{named}{OliveGreen}
+\definecolor{StageSeparatorColor}{named}{MidnightBlue}
+\definecolor{PSKonlycolor}{named}{BurntOrange}
+\definecolor{PSKECDHEonlycolor}{named}{BrickRed}
+
+%
+% Figures
+%
+
+\newcommand{\Encryption}[3][->]{
+	\NextLine[0.5]
+	\draw[>=latex, gray, #1] (\ArrowLeft,\Y) -- node[above=-0.1] {#2} node[below] {#3} (\ArrowRight,\Y) ;
+%	\NextLine[0.5]
+}
+
+% Spacing factor for NextLines
+\def\NextLineSpacing{\iffull0.5\else0.4\fi}
+
+\DeclareMathVersion{normal3}
+
+% NextLine
+% 1st argument (optional): amount of spacing to increment by, default 1.0
+% Example: \NextLine
+% Example: \NextLine[1.5]
+
+
+
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

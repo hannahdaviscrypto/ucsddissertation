@@ -1,0 +1,36 @@
+% leave blank space below
+
+\heading{Rd-indiff of \pqcnameRoundTwo{NewHope}.}
+We next demonstrate how read-only indifferentiability can highlight subpar methods of oracle cloning, using the example of \pqcnameRoundTwo{NewHope}~\cite{nistpqc:NewHope}.
+The base KEM $\kemScheme_1$ defined in the specification of \pqcnameRoundTwo{NewHope} relies on just two random oracles, $G$ and $H_4$. (The base scheme defined by transform $\QpkeToKem_{10}$, which uses 3 random oracles $H_2$, $H_3$, and $H_4$, is equivalent to $\kemScheme_1$ and can be obtained by applying the output-splitting cloning functor to instantiate $H_2$ and $H_3$ with $G$. \pqcnameRoundTwo{NewHope}'s security proof explicitly claims this equivalence~\cite{nistpqc:NewHope}.)
+
+\begin{figure}[t]
+\oneCol{0.65}{
+	\underline{Adversary $\advA^{\Init,\pub,\priv,\Fin}$}\\
+	\quad $\Init()$ \\
+	\quad $y \gets \pub(0)$ ;
+	 $d \getsr \{1,2\}$ ; $y_d \gets \priv(d,0)$\\
+	\quad If ($y_d[1..256]) = y[1..256]$ then $\Fin(1)$ else 
+	 $\Fin(0)$
+}
+	\caption{Adversary against the rd-indiff security of $\construct{F}_{\pqcnameRoundTwo{NewHope}}$.}
+	\label{fig-newhope-adv}
+	\hrulefill
+\end{figure}
+
+The final KEM $\kemScheme_2$ instantiates these two functions through~$\SHAKE{256}$ without explicit domain separation, setting $\aFunc{H}_4(X) = \SHAKE{256}(X,32)$ and $\aFunc{G}_(X) = \SHAKE{256}(X,96)$.
+For consistency with our results, which focus on sol function spaces, we model $\SHAKE{256}$ as a random member of a sol function space $\GenroSp{\functionInSet}$ with some very large output length $L$, and assume that the adversary does not request more than $L$ bits of output from  $\SHAKE{256}$ in a single call. We let $\GenroSp{\functionOutSet}$ be the arity-2 sol function space defining sub-functions $G$ and $H_4$.
+In this setting, the cloning functor $\construct{F}_{\pqcnameRoundTwo{NewHope}}: \GenroSp{\functionInSet} \to \GenroSp{\functionOutSet}$ used by $\pqcnameRoundTwo{NewHope}$ is defined by $\construct{F}_{\pqcnameRoundTwo{NewHope}}[\functionIn](1,X)= s(X)[1..256]$ and $\construct{F}_{\pqcnameRoundTwo{NewHope}}[\functionIn](2,X) = s(X)[1..768]$.
+We will show that this functor cannot achieve rd-indiff for the given oracle spaces and the working domain $\workDom=\bits^*$. In Figure~\ref{fig-newhope-adv}, we give an adversary~$\advA$ which has high advantage in the rd-indiff game $\ngameCCINDIFF{\construct{F}_{\pqcnameRoundTwo{NewHope}},\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\workDom,\simulator}$ for any indifferentiability simulator~$\simulator$. When $b=1$ in game $\ngameCCINDIFF{\construct{F}_{\pqcnameRoundTwo{NewHope}},\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\workDom,\simulator}$, we have that
+\[ y_d[1..256] = \construct{F}_{\pqcnameRoundTwo{NewHope}}[s](d,0)[1..256] =  \aFunc{\functionIn}(0)[1..256] = y[1..256],\]
+so adversary $\advA$ will always call $\Fin$ on the bit $1$ and win.
+When $b=0$ in game $\ngameCCINDIFF{\construct{F}_{\pqcnameRoundTwo{NewHope}},\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\workDom,\simulator}$, the two strings $y_1 =\aFunc{\functionOut}_0(1,X)$ and $y_2 = \aFunc{\functionOut}_0(2,X)$ will have different $256$-bit prefixes, except with probability $\epsilon = 2^{-256}$. 
+Therefore, when $\advA$ queries $\pub(0)$, the simulator's response $y$ can share the prefix of most one of the two strings $y_1$ and $y_2$. 
+Its response must be independent of $d$, which is not chosen until after the query to $\pub$, so $\Pr[y[1..256] = y_d[1..256]] \leq 1/2+\epsilon$, regardless of the behavior of $\simulator$.
+Hence, $\advA$ breaks the indifferentiability of~$\queryRO^{\pqcnameRoundTwo{NewHope}}$ with probability roughly~$1/2$, rendering \pqcnameRoundTwo{NewHope}'s random oracle functor differentiable.
+
+The implication of this result is that \pqcnameRoundTwo{NewHope}'s implementation differs noticeably from the model in which its security claims are set, even when $\SHAKE{256}$ is assumed to be a random oracle.
+This admits the possibility of hash function collisions and other sources of vulnerability that are not eliminated by the security proof. 
+To claim provable security for \pqcnameRoundTwo{NewHope}'s implementation, further justification is required to argue that these potential collisions are rare or unexploitable. 
+We do not claim that an attack on read-only indifferentiability implies an attack on the IND-CCA security of \pqcnameRoundTwo{NewHope}, but it does highlight a gap that needs to be addressed. 
+Read-only indifferentiability constitutes a useful tool for detecting such gaps and measuring the strength of various oracle cloning methods. 

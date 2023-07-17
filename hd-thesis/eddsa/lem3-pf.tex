@@ -1,0 +1,17 @@
+\section{Proof of Lemma~\ref{lm-ourF1}} \label{sec-lem3}
+\begin{proof}[Lemma~\ref{lm-ourF1}] 
+	This bound is due to a standard argument and depends on the probability that $\advA_1$ correctly guesses the secret key $\sk$. Since input $\sk$ is $k$-bit, the $\MD$ transform defined in Construction \ref{MD} only iterates once and outputs $e = \hh(\IV\|sk\|P)$ for padding $P \in \bits^{3k}$ and initialization vector $\IV \in \bits^{2k}$. 
+	
+	We define games $\Gm_0$ and $\Gm_1$ in Figure \ref{fig-lm2}. 
+	Following the definition of PRG advantage, we have 
+	$$\prgAdv{\ourF_1}{\advA_1} \leq \Pr[\Gm_0] - \Pr[\Gm_1]$$
+	In $\Gm_0$, $\e$ is the result of functor $\ourF_1$ applying $\MD$ transform internally. Since $\sk$ is $k$-bit, we have $e = \hh(\IV\|sk\|P)$. We set a $\bad$ flag if $sk$ is queried, and reassigning $\HASH$ output with $e$ does not have any effect since $e = \hh(X)$ when $X = \IV\|sk\|P$. 
+	
+	In $\Gm_1$, we replace $e$ with a truly random $2k$-bit string and we stop reassign $h$ with $e$ when bad flag is set. By the Fundamental Lemma of Game-Playing from~\cite{EC:BelRog06} we have
+	$$ \Pr[\Gm_0] - \Pr[\Gm_1] \leq \Pr[\Gm_1 \text{ sets } \bad].$$
+	
+	We know $\Gm_1$ sets the $\bad$ flag only if $\advA_1$ makes a query $\HASH(\IV\|sk\|P)$, and this is bounded by the probability that $\advA_1$ correctly guesses the secret key $sk$. Since $sk$ is a random $k$-bit string and is never revealed by any oracle, this probability is at most $\frac{1}{2^k}$ that any one query to $\HASH$ has $sk$. By the union bound over all queries to $\HASH$, we have
+	$$\Pr[\Gm_1 \text{ sets } \bad] \leq \frac{\Queries{\HASH}{\advA_1}}{2^k}.$$
+	Overall, we have
+	$$\prgAdv{\ourF_1}{\advA_1} \leq \Pr[\Gm_0] - \Pr[\Gm_1] \leq \frac{\Queries{\HASH}{\advA_1}}{2^k}$$
+\end{proof}

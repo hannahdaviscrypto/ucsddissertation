@@ -1,0 +1,276 @@
+\scalebox{0.7}{%
+\framebox{%
+\begin{minipage}[t]{10.5cm}
+\begin{tikzpicture}
+
+	% Set the X coordinates of the client, server, and arrows
+	\edef\ClientX{0}
+	\edef\ArrowLeft{0}
+
+		\edef\ArrowRight{9}
+		\edef\ServerX{9}
+	% Set the starting Y coordinate
+	\edef\Y{0}
+
+	% Draw header boxes
+	\node [rectangle,draw,inner sep=5pt,right] at (\ClientX,\Y) {\textbf{Client}};
+	\node [rectangle,draw,inner sep=5pt,left] at (\ServerX,\Y) {\textbf{Server}};
+
+	\NextLine[1.5]
+	
+	\ClientAction{$\clientNonce \sample \bits^{\nl}$}
+	\NextLine
+	\ClientAction{$\clientExponent \sample \Z_p$, $\clientKeyShare \assign g^\clientExponent$}
+	\NextLine
+	\ClientAction{\TLSmsg{$\ClientHello$}: $\clientNonce$}
+	\NextLine
+	\ClientAction{\PSKECDHEonly{+~$\ClientKeyShare$: $\clientKeyShare$}}
+	\NextLine
+	
+	\SharedAction{$\es \assign \abstractExtract(0, \psk)$}
+	\NextLine
+	\SharedAction{$\des \assign \abstractExpand(\es, \labelDerived \concat \Hash(\emptymessage))$}
+	\NextLine
+	\SharedAction{$\bk \assign \abstractExpand(\es, \labelExtBinder \concat \abstractHash(\emptymessage))$}
+	\NextLine
+	\SharedAction{$\bfk \assign \abstractExpand(\bk, \labelFinished)$}
+	\NextLine
+	
+	\ClientAction{$\binder \assign \abstractMAC(\bfk, \abstractHash(\CH^{-}))$}
+	\NextLine
+	\ClientAction{\TLSmsg{+~$\ClientPreSharedKey$}: $\pskid, \binder$}
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\ClientToServer{}{}
+	\NextLine
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	\ServerAction{\textbf{abort} if $\binder \neq \abstractMAC(\bfk, \abstractHash(\CH^{-}))$}
+	\NextLine
+
+	\AcceptStage{1}{$\ets \assign \abstractExpand(\es, \labelETS \concat \abstractHash(\CH))$}
+	\NextLine[1.5]
+	\AcceptStage{2}{$\eems \assign \abstractExpand(\es, \labelEEMS \concat \abstractHash(\CH))$}
+	\NextLine[1.5]
+	
+	\ServerAction{$\serverNonce \sample \bits^{\nl}$}
+	\NextLine
+	\ServerAction{$\serverExponent \sample \Z_p$, $\serverKeyShare \assign g^\serverExponent$}
+	\NextLine
+	\ServerAction{\TLSmsg{$\ServerHello$}: $\serverNonce$}
+	\NextLine
+	\ServerAction{\PSKECDHEonly{+~$\ServerKeyShare$: $\serverKeyShare$}}
+	\NextLine
+	\ServerAction{\TLSmsg{+~$\ServerPreSharedKey$}: $\pskid$}
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\ServerToClient{}{}
+	\NextLine
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	\ClientAction{\PSKECDHEonly{$\dhe \assign Y^x$}}
+	\ServerAction{\PSKECDHEonly{$\dhe \assign X^y$}}
+	\SharedAction{\PSKonly{$\dhe \assign 0$}}
+	\NextLine
+	
+	\SharedAction{$\hs \assign \abstractExtract(\des, \dhe)$}
+	\NextLine
+	\SharedAction{$\chts \assign \abstractExpand(\hs, \labelClientHTS \concat \abstractHash(\CH \concat \SH))$}
+	\NextLine
+	\SharedAction{$\shts \assign \abstractExpand(\hs, \labelServerHTS \concat \abstractHash(\CH \concat \SH))$}
+	\NextLine
+	\SharedAction{$\dhs \assign \abstractExpand(\hs, \labelDerived \concat \abstractHash(\emptymessage))$}
+	\NextLine
+	\AcceptStage{3}{$\chtk \assign \DeriveTrafficKeys(\chts)$}
+	\NextLine[1.5]
+	\AcceptStage{4}{$\shtk \assign \DeriveTrafficKeys(\shts)$}
+	\NextLine[1.5]
+	
+	\ServerAction{\TLSmsg{$\{ \EncryptedExtensions \}$}}
+	\NextLine
+	
+	\SharedAction{$\sfk \assign \abstractExpand(\shts, \labelFinished)$}
+	\NextLine
+	
+	\ServerAction{$\sfin \assign \abstractMAC(\sfk, \abstractHash(\CH \concat \dotsb \concat \EE ))$}
+	\NextLine
+	\ServerAction{\TLSmsg{$\{ \ServerFinished \}$}: $\sfin$}
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\ServerToClient{}{}
+	\NextLine
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	
+	\ClientAction{\textbf{abort} if $\sfin \neq \HMAC(\sfk, \abstractHash(\CH \concat \dotsb \concat \EE))$}
+	\NextLine
+	\SharedAction{$\ms \assign \abstractExtract(\dhs, 0)$}
+	\NextLine
+	\AcceptStage{5}{$\cats \assign \abstractExpand(\ms, \labelClientATS \concat \abstractHash(\CH \concat \dotsb \concat \SF))$}
+	\NextLine
+	\AcceptStage{6}{$\sats \assign \abstractExpand(\ms, \labelServerATS \concat \abstractHash(\CH \concat \dotsb \concat \SF))$}
+	\NextLine
+	\AcceptStage{7}{$\ems \assign \abstractExpand(\ms, \labelEMS \concat \abstractHash(\CH \concat \dotsb \concat \SF))$}
+	\NextLine[1.5]
+	\SharedAction{$\cfk \assign \abstractExpand(\chts, \labelFinished)$}
+	\NextLine
+	
+	\ClientAction{$\cfin \assign \abstractMAC(\cfk, \abstractHash(\CH \concat \dotsb \concat \SF))$}
+	\NextLine
+	\ClientAction{\TLSmsg{$\{ \ClientFinished \}$}: $\cfin$}
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\ClientToServer{}{}
+	\NextLine
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	
+	\ServerAction{\textbf{abort} if $\cfin \neq \abstractMAC(\cfk, \abstractHash(\CH \concat \dotsb \concat \SF))$}
+	\NextLine
+	\AcceptStage{8}{$\rms \assign \abstractExpand(\ms, \labelRMS \concat \abstractHash(\CH \concat \dotsb \concat \CF))$}
+\end{tikzpicture}
+\end{minipage}
+}
+%
+\framebox{%
+\begin{minipage}[t]{11.5cm}
+\begin{tikzpicture}
+
+	% Set the X coordinates of the client, server, and arrows
+	\edef\ClientX{0}
+	\edef\ArrowLeft{0}
+		\edef\ArrowRight{10}
+		\edef\ServerX{10}
+
+	% Set the starting Y coordinate
+	\edef\Y{0}
+
+	% Draw header boxes
+	\node [rectangle,draw,inner sep=5pt,right] at (\ClientX,\Y) {\textbf{Client}};
+	\node [rectangle,draw,inner sep=5pt,left] at (\ServerX,\Y) {\textbf{Server}};
+
+	\NextLine[1.5]
+	
+	\ClientAction{$\clientNonce \sample \bits^{\nl}$}
+	\NextLine
+	\ClientAction{$\clientExponent \sample \Z_p$, $\clientKeyShare \assign g^\clientExponent$}
+	\NextLine
+	\ClientAction{\TLSmsg{$\ClientHello$}: $\clientNonce$}
+	\NextLine
+	\ClientAction{\PSKECDHEonly{+~$\ClientKeyShare$: $\clientKeyShare$}}
+	\NextLine
+	
+% 	\SharedAction{\old{$\es \assign \HKDFExtr(0, \psk)$}}
+% 	\NextLine
+% 	\SharedAction{\old{$\des \assign \HKDFExpnd(\es, \labelDerived \concat \Thash(\emptymessage))$}}
+% 	\NextLine
+% 	\SharedAction{\old{$\bk \assign \HKDFExpnd(\es, \labelExtBinder \concat \Thash(\emptymessage))$}}
+% 	\NextLine
+% 	\SharedAction{\old{\TODO{Missing before!} $\bfk \assign \HKDFExpnd(\bk, \labelFinished)$}}
+% 	\NextLine
+	\NextLine[4]
+	
+	\ClientAction{$\binder \assign \TLSKDF_{\binder}(\psk, \abstractHash(\CH^{-}))$}
+	\NextLine
+	\ClientAction{\TLSmsg{+~$\ClientPreSharedKey$}: $\pskid, \binder$}
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\ClientToServer{}{}
+	\NextLine
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	\ServerAction{\textbf{abort} if $\binder \neq \TLSKDF_{\binder}(\psk, \abstractHash(\CH^{-}))$}
+	\NextLine
+
+	\AcceptStage{1}{$\ets \assign \TLSKDF_{\ets}(\psk, \abstractHash(\CH))$}
+	\NextLine[1.5]
+	\AcceptStage{2}{$\eems \assign \TLSKDF_{\eems}(\psk, \abstractHash(\CH))$}
+	\NextLine[1.5]
+	
+	\ServerAction{$\serverNonce \sample \bits^{\nl}$}
+	\NextLine
+	\ServerAction{$\serverExponent \sample \Z_p$, $\serverKeyShare \assign g^\serverExponent$}
+	\NextLine
+	\ServerAction{\TLSmsg{$\ServerHello$}: $\serverNonce$}
+	\NextLine
+	\ServerAction{\PSKECDHEonly{+~$\ServerKeyShare$: $\serverKeyShare$}}
+	\NextLine
+	\ServerAction{\TLSmsg{+~$\ServerPreSharedKey$}: $\pskid$}
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\ServerToClient{}{}
+	\NextLine
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	\ClientAction{\PSKECDHEonly{$\dhe \assign Y^x$}}
+	\ServerAction{\PSKECDHEonly{$\dhe \assign X^y$}}
+	\SharedAction{\PSKonly{$\dhe \assign 0$}}
+	\NextLine
+	
+% 	\SharedAction{\old{$\hs \assign \HKDFExtr(\des, \dhe)$}}
+% 	\NextLine
+% 	\SharedAction{\old{$\chts \assign \HKDFExpnd(\hs, \labelClientHTS \concat \Thash(\CH \concat \SH))$}}
+% 	\NextLine
+% 	\SharedAction{\old{$\shts \assign \HKDFExpnd(\hs, \labelServerHTS \concat \Thash(\CH \concat \SH))$}}
+% 	\NextLine
+% 	\SharedAction{\old{$\dhs \assign \HKDFExpnd(\hs, \labelDerived \concat \Thash(\emptymessage))$}}
+% 	\NextLine
+	\NextLine[4]
+	
+	\AcceptStage{3}{$\chtk \assign \TLSKDF_{\chtk}(\psk, \dhe, \abstractHash(\CH \concat \SH))$}
+	\NextLine[1.5]
+	\AcceptStage{4}{$\shtk \assign \TLSKDF_{\shtk}(\psk, \dhe, \abstractHash(\CH \concat \SH))$}
+	\NextLine[1.5]
+	
+	\ServerAction{\TLSmsg{$\{ \EncryptedExtensions \}$}}
+	\NextLine
+	
+% 	\SharedAction{\old{$\sfk \assign \HKDFExpnd(\shts, \labelFinished)$}}
+% 	\NextLine
+	\NextLine[1]
+	
+	\ServerAction{$\sfin \assign \TLSKDF_{\sfin}(\psk, \dhe, \abstractHash(\CH \concat \SH), \abstractHash(\CH \concat \dotsb \concat \EE ))$}
+	\NextLine
+	\ServerAction{\TLSmsg{$\{ \ServerFinished \}$}: $\sfin$}
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\ServerToClient{}{}
+	\NextLine
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	
+	\ClientAction{\textbf{abort} if \scriptsize$\sfin \neq \TLSKDF_{\sfin}(\psk, \dhe, \abstractHash(\CH \concat \SH), \abstractHash(\CH \concat \dotsb \concat \EE ))$}
+	\NextLine
+	
+% 	\SharedAction{\old{$\ms \assign \HKDFExtr(\dhs, 0)$}}
+% 	\NextLine
+	\NextLine[1]
+	
+	\AcceptStage{5}{$\cats \assign \TLSKDF_{\cats}(\psk, \dhe, \abstractHash(\CH \concat \dotsb \concat \SF))$}
+	\NextLine
+	\AcceptStage{6}{$\sats \assign \TLSKDF_{\sats}(\psk, \dhe, \abstractHash(\CH \concat \dotsb \concat \SF))$}
+	\NextLine
+	\AcceptStage{7}{$\ems \assign \TLSKDF_{\ems}(\psk, \dhe, \abstractHash(\CH \concat \dotsb \concat \SF))$}
+	\NextLine[1.5]
+	
+% 	\SharedAction{\old{$\cfk \assign \HKDFExpnd(\chts, \labelFinished)$}}
+% 	\NextLine
+	\NextLine[1]
+	
+	\ClientAction{$\cfin \assign \TLSKDF_{\cfin}(\psk, \dhe, \abstractHash(\CH \concat \SH), \abstractHash(\CH \concat \dotsb \concat \SF))$}
+	\NextLine
+	\ClientAction{\TLSmsg{$\{ \ClientFinished \}$}: $\cfin$}
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\ClientToServer{}{}
+	\NextLine
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	
+	\ServerAction{\textbf{abort} if \scriptsize$\cfin \neq \TLSKDF_{\cfin}(\psk, \dhe, \abstractHash(\CH \concat \SH), \abstractHash(\CH \concat \dotsb \concat \SF ))$}
+	\NextLine
+	\AcceptStage{8}{$\rms \assign \TLSKDF_{\rms}(\psk, \dhe, \abstractHash(\CH \concat \dotsb \concat \CF))$}
+\end{tikzpicture}
+\end{minipage}
+}
+}

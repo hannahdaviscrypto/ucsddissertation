@@ -1,0 +1,91 @@
+\begin{minipage}[t]{\iffull0.44\else0.35\fi\textwidth}
+\iffull\else\resizebox{5cm}{!}{\fi %% resizebox in lncs
+\begin{tikzpicture}[on grid]
+	\tikzstyle{extract}=[Blue,draw,rectangle]
+	\tikzstyle{expand}=[Red,draw,rectangle,rounded corners]
+	\tikzstyle{context}=[latex-,dashed,font=\scriptsize]
+	
+	%
+	% main secrets
+	%
+	\node (DHE) {$\DHE = g^{xy}$};
+	\node [below=3 of DHE] (HS) {$\HS$};
+	\node [below=3 of HS] (dHS) {$\dHS$};
+	\node [below=3 of dHS] (MS) {$\MS$};
+	
+	%
+	% main secret derivation
+	%
+	\node [extract,below=1.5 of DHE] (ext-HS) {$\sExtract$};
+	\node [expand,below=1.5 of HS] (exp-dHS) {$\sExpand$};
+	\node [extract,below=1.5 of dHS] (ext-MS) {$\sExtract$};
+	
+	\begin{scope}[-latex]
+		\draw (DHE) -- (ext-HS);
+		\draw (ext-HS) -- (HS);
+		\draw (HS) -- (exp-dHS);
+		\draw (exp-dHS) -- (dHS);
+		\draw (dHS) -- (ext-MS);
+		\draw (ext-MS) -- (MS);
+	\end{scope}
+	
+	%
+	% CHTS secrets and derivation
+	%
+	\node [right=2.75 of HS] (CHTS) {$\CHTS$};
+	\node [right=2.5 of CHTS] (tkchs) {$\tkchs$};
+	\node [below right=1 and 2.5 of CHTS] (CFK) {$\CFK$};
+	
+	\node [expand,right=1.5 of HS] (exp-CHTS) {$\sExpand$};
+	\draw [context] (exp-CHTS) -- ++(0,0.75) node [above] {$\Hash(\sCHELO \conc \sSHELO)$};
+	
+	\node [expand,right=1.25 of CHTS] (exp-tkchs) {$\sExpand$};
+	\node [expand,below right=1 and 1.25 of CHTS] (exp-CFK) {$\sExpand$};
+	
+	\begin{scope}[-latex]
+		\draw (HS) -- (exp-CHTS);
+		\draw (exp-CHTS) -- (CHTS);
+		\draw (CHTS) -- (exp-tkchs);
+		\draw (exp-tkchs) -- (tkchs);
+		\draw (CHTS) |- (exp-CFK);
+		\draw (exp-CFK) -- (CFK);
+	\end{scope}
+	
+	%
+	% SHTS secrets and derivation
+	%
+	\node [below right=2 and 2.75 of HS] (SHTS) {$\SHTS$};
+	\node [right=2.5 of SHTS] (tkshs) {$\tkshs$};
+	\node [below right=1 and 2.5 of SHTS] (SFK) {$\SFK$};
+	
+	\node [expand,below right=2 and 1.5 of HS] (exp-SHTS) {$\sExpand$};
+	\draw [context] (exp-SHTS) -- ++(0,0.75) node [above] {$\Hash(\sCHELO \conc \sSHELO)$};
+	
+	\node [expand,right=1.25 of SHTS] (exp-tkshs) {$\sExpand$};
+	\node [expand,below right=1 and 1.25 of SHTS] (exp-SFK) {$\sExpand$};
+	
+	\begin{scope}[-latex]
+		\draw (HS) -- ++(0.75,0) |- (exp-SHTS);
+		\draw (exp-SHTS) -- (SHTS);
+		\draw (SHTS) -- (exp-tkshs);
+		\draw (exp-tkshs) -- (tkshs);
+		\draw (SHTS) |- (exp-SFK);
+		\draw (exp-SFK) -- (SFK);
+	\end{scope}
+	
+	%
+	% ATS secret and derivation
+	%
+	\node [right=3 of MS] (ATS) {$\ATS$};
+	
+	\node [expand,right=1.5 of MS] (exp-ATS) {$\sExpand$};
+	\draw [context] (exp-ATS) -- ++(0,0.75) node [above] {$\Hash(\sCHELO \conc \dots \conc \sSFIN)$};
+	
+	\begin{scope}[-latex]
+		\draw (MS) -- (exp-ATS);
+		\draw (exp-ATS) -- (ATS);
+	\end{scope}
+	
+\end{tikzpicture}
+\iffull\else}\fi %% resizebox in lncs
+\end{minipage}

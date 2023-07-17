@@ -1,0 +1,84 @@
+\iffull
+	% no short table
+\else
+
+	\begin{table}[t]
+		\centering
+		\small
+		
+		\renewcommand{\arraystretch}{0.001}
+		\renewcommand{\tabcolsep}{0.15cm}
+		\begin{tabular}{@{}llllllllllll@{}}
+		\toprule
+		 & \multicolumn{4}{c}{Adversary resources}	& & & & \multicolumn{2}{c}{Security bound}	\\
+		 \cmidrule{2-5} \cmidrule{9-10} \\
+		$b$ & $t$~~~~~	& $\#N$	& $\#S$ & $\#RO$ & Target  &&  Mode~~~~~~~ & DFGS\,{\scriptsize\cite{JC:DFGS21}}	& Us (Cor.~\ref{cor:full-psk-ecdhe-ke},~\ref{cor:psk-ke})	\\
+		\midrule
+	128 & $2^{60}$ & $2^{25}$ & $2^{35}$ & $2^{50}$ & $2^{-68}$ && PSK-only & \cellcolor{green!25}$\approx 2^{-119}$	& \cellcolor{green!25}$\approx 2^{-152}$	\\ 
+	128 & $2^{80}$ & $2^{35}$ & $2^{55}$ & $2^{70}$ & $2^{-48}$ && PSK-only & \cellcolor{green!25}$\approx 2^{-59~}$	& \cellcolor{green!25}$\approx 2^{-112}$	\\ 
+	\midrule
+	128 & $2^{60}$ & $2^{25}$ & $2^{35}$ & $2^{50}$ & $2^{-68}$ && \texttt{secp256r1} & $\approx 2^{-61}$	& \cellcolor{green!25}$\approx 2^{-132}$	\\ 
+	128 & $2^{80}$ & $2^{35}$ & $2^{55}$ & $2^{70}$ & $2^{-48}$ && \texttt{secp256r1} & $1$	& \cellcolor{green!25}$\approx 2^{-92~}$	\\ 
+	\midrule
+	128 & $2^{60}$ & $2^{25}$ & $2^{35}$ & $2^{50}$ & $2^{-68}$ && \texttt{x25519} & $\approx 2^{-57}$	& \cellcolor{green!25}$\approx 2^{-128}$	\\ 
+	128 & $2^{80}$ & $2^{35}$ & $2^{55}$ & $2^{70}$ & $2^{-48}$ && \texttt{x25519} & $1$	&\cellcolor{green!25}$\approx 2^{-88~}$	\\ 
+	\midrule
+	192 & $2^{60}$ & $2^{25}$ & $2^{35}$ & $2^{50}$ & $2^{-132}$ && \texttt{secp384r1} & \cellcolor{green!25}$\approx 2^{-189}$ 	&\cellcolor{green!25}$\approx 2^{-259}$ 	\\ 
+	192 & $2^{80}$ & $2^{35}$ & $2^{55}$ & $2^{70}$ & $2^{-112}$ && \texttt{secp384r1} & $\approx 2^{-108}$	&\cellcolor{green!25}$\approx 2^{-219}$ 	\\ 
+	\midrule
+	224 & $2^{60}$ & $2^{25}$ & $2^{35}$ & $2^{50}$ & $2^{-164}$ && \texttt{x448} & $\cellcolor{green!25}\approx 2^{-200}$ 	&\cellcolor{green!25}$\approx 2^{-280}$ 	\\ 
+	224 & $2^{80}$ & $2^{35}$ & $2^{55}$ & $2^{70}$ & $2^{-144}$ && \texttt{x448} & $\approx 2^{-110}$	&\cellcolor{green!25}$\approx 2^{-240}$ 	\\ 
+	\midrule
+	256 & $2^{60}$ & $2^{25}$ & $2^{35}$ & $2^{50}$ & $2^{-196}$ && \texttt{secp521r1} & $\cellcolor{green!25}\approx 2^{-200}$ 	&\cellcolor{green!25}$\approx 2^{-280}$ 	\\ 
+	256 & $2^{80}$ & $2^{35}$ & $2^{55}$ & $2^{70}$ & $2^{-176}$ && \texttt{secp521r1} & $\approx 2^{-110}$	&\cellcolor{green!25}$\approx 2^{-240}$ 	\\ 
+	%
+	% $2^{60}$	&$2^{20}$	&$2^{35}$	& \texttt{x25519}	&$2^{-68}$  & $\approx 2^{-119}$	& $\approx 2^{-152}$	&& $\approx 2^{-57}$	&$\approx 2^{-129}$ \\	 \midrule 
+	% $2^{80}$	&$2^{30}$	&$2^{55}$	& \texttt{secp256r1}	&$2^{-48}$  & $\approx 2^{-59}$	& $\approx 2^{-112}$	&& 1			&$\approx 2^{-93}$ \\	 
+	% $2^{80}$	&$2^{30}$	&$2^{55}$	& \texttt{x25519}	&$2^{-48}$  & $\approx 2^{-59}$	& $\approx 2^{-112}$	&& 1			&$\approx 2^{-89}$ \\
+	% $2^{80}$	&$2^{30}$	&$2^{55}$	& \texttt{secp384r1}	&$2^{-112}$ & $\approx 2^{-146}$	& ---	&& $\approx 2^{-109}$	&$\approx 2^{-220}$	\\
+		\bottomrule
+		\end{tabular}
+
+		\medskip
+		
+		\caption{%
+			Exemplary concrete advantages of a key exchange adversary with given resources $t$ (running time), $\#N$ (number of pre-shared keys), $\#S$ (number of sessions), and $\#RO$ (number of random oracle queries) in breaking the security of the TLS~1.3 PSK handshake protocols.
+			%
+			Numbers based on the prior bounds by Dowling et al.~\cite{JC:DFGS21}
+			and our bounds for PSK-(EC)DHE and PSK-only (in Corollaries~\ref{cor:full-psk-ecdhe-ke} resp.~\ref{cor:psk-ke}).
+			``Target'' indicates the maximal advantage~$t/2^b$ tolerable for a given bound on $t$ when aiming for the respective curve's (or hash function's, in case of PSK-only mode) bit security level~$b$;
+			entries in \colorbox{green!25}{green}-shaded cells meet that target.
+			Mode indicates PSK-only mode (with \SHA{384}) or otherwise PSK-(EC)DHE mode with the given curve \texttt{secp256r1}, \texttt{x25519} (with \SHA{256}), or \texttt{secp384r1}, \texttt{x448}, \texttt{secp521r1} (with \SHA{384}).
+		}
+		\label{tbl:bounds-overview}
+	\end{table}
+\fi
+
+
+\section{Evaluation}
+\label{sec:evaluation}
+Asymptotically, our tighter security bounds improve on prior analysis of TLS~1.3 by a quadratic factor.
+We evaluate ours and prior bounds over a wide range of fully concrete resource parameters, following the approach of Davis and Günther~\cite{ACNS:DavGun21}.
+\iffull
+	The
+full range of evaluated parameters is given in 
+	Tables~\ref{tbl:bounds-full-psk-only} and~\ref{tbl:bounds-full-psk-dhe} 
+		below,
+along with reasoning for how we chose the various ranges of resource parameters.
+The tables show that while the prior PSK-(EC)DHE bound by Dowling et al.~\cite{JC:DFGS21} meets the target security goals in a number of configurations,
+there are at least some settings for all elliptic-curve groups in which the targeted security is not met.
+Our bounds do significantly better than the target in all configurations we considered.
+The gap for the PSK-only handshake is less significant as the loosest prior reduction for TLS~1.3 was to the Diffie--Hellman problem.
+
+Overall, our bounds improve on previous analyses of the PSK-only handshake by~$15$ to~$53$ bits of security, and those of the PSK-(EC)DHE handshake by~$60$ to~$131$ bits of security, across all our parameters evaluated.
+
+	\input{tls-thesis/appendix-evaluation}
+
+
+
+	
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

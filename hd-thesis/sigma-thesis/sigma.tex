@@ -1,0 +1,183 @@
+\section{The SIGMA Protocol}
+\label{sec:sigma}
+
+The \SIGMA family of key exchange protocols introduced by Krawczyk~\cite{C:Krawczyk03,SIGMA-fullversion} describes several variants for building authenticated Diffie--Hellman key exchange using the ``SIGn-and-MAc'' approach.
+Its design has been adopted in several Internet security protocols, including, e.g., the Internet Key Exchange protocol~\cite{rfc2409,rfc4306} as part of the IPsec Internet security protocol~\cite{rfc2401} and the newest version~1.3 of the Transport Layer Security (TLS) protocol~\cite{rfc8446}.
+
+Beyond the basic \SIGMA design, we are particularly interested in the \SIGMAI variant which forms the basis of the TLS~1.3 key exchange and aims at hiding the protocol participants' identities as additional feature.
+We here present an augmented version of the basic \SIGMA/\SIGMAI protocols which includes explicit exchange of session-identifying random numbers (nonces) to be closer to SIGMA(-like) protocols in practice,
+somewhat following the ``full-fledged'' \SIGMA variant~\cite[Appendix~B]{SIGMA-fullversion}.
+We illustrate these protocol flows in Figure~\ref{fig:sigma-protocol}. %
+\iffull
+ and Figure~\ref{fig:sigma-formal} formalizes both as key exchange protocols according to the syntax of Section~\ref{sec:ake-syntax}.
+\else
+% ; we refer to Appendix~\ref{apx:sigma} for their full formalization as key exchange protocols according to Definition~\ref{def:KE-protocol}.
+\fi
+
+The \SIGMA and \SIGMAI protocols make use of
+a signature scheme~$\SIGScheme = (\SIGKGen\cab \SIGSign\cab \SIGVerify)$,
+a MAC scheme~$\MACScheme = (\MACKGen\cab \MACTag\cab \MACVerify)$,
+a pseudorandom function~$\PRF$,
+and a function~$\RO$ which we model as a random oracle.
+The parties' long-term secret keys consist of one signing key, i.e., $\KE.\KEKGen = \SIGScheme.\SIGKGen$.
+The protocols consists of three messages exchanged and accordingly two steps performed by both initiator and responder,
+which we describe in more detail now.
+
+\begin{figure}[t]
+	\centering
+	
+	\input{sigma-thesis/fig-sigma-protocol}
+	
+	\caption{%
+		The \SIGMA/\SIGMAI protocol flow diagram.
+		\fbox{Boxed} code is only performed in the \SIGMAI variant.
+		Values~$\inputlabel[x]$ indicate label strings (distinct per~$x$).
+	}
+	\label{fig:sigma-protocol}
+\end{figure}
+\definecollection{SIGMAformal}
+\begin{collect*}{SIGMAformal}{}{}{}{} %%% ===== COLLECT BEGIN =====
+\begin{figure}[tp]
+  	\begin{minipage}[t]{0.49\textwidth}
+		\begin{algorithm}{$\KEActivate(\id, \sk, \peerid,\peerpk,\role)$}
+			\item $\st'.\role \gets \role$
+			\item $\st'.\status \gets \running$
+			\item if $\role = \initiator$ then
+			\item \hindent $(\st',m') \gets \RunInitI(\id,\sk,\st')$
+			\item else $m' \gets \bot$
+			\item return $(\st',m')$
+  		\end{algorithm}
+
+  		\ExptSepSpace
+
+		\begin{algorithm}{$\KERun(\id,\sk,\st,\peerpk,m)$}
+			\item if $\st.\status \neq \running $ then
+			\item return $\bot$
+			\item if $\st.\role = \initiator$ then
+			\item \hindent $(\st',m') \gets \RunInit(\id,\sk,\st,\peerpk,m)$
+			\item else if $\st.\sid = \bot$
+			\item \hindent $(\st',m') \gets \RunRespI(\id,\sk,\st,\peerpk,m)$
+			\item else
+			\item \hindent $(\st',m') \gets \RunRespII(\id,\sk,\st,\peerpk,m)$
+			\item return $(\st',m')$
+		\end{algorithm}
+		
+		\ExptSepSpace
+		
+		\begin{algorithm}{$\RunInitI(\id,\sk,\st)$}
+			\item $\nonce_I \sample \bits^{\nl}$
+			\item $\x \sample \ZZ_p$
+			\item $\X \gets g^{\x}$
+			\item $\st'.\state \gets (\nonce_I, \X, \x)$
+			\item $m' \gets (\nonce_I, \X)$
+			\item return $(\st',m')$
+		\end{algorithm}
+		
+		\ExptSepSpace
+		
+		\begin{algorithm}{$\RunRespI(\id,\sk,\st,\peerpk,m)$}
+			\item $(\nonce_I,\X) \gets m$ 
+			\item $\nonce_R \sample \bits^{\nl}$
+			\item $\y \sample \ZZ_p$
+			\item $\Y \gets g^{\y}$
+			\item $\st'.\sid \gets (\nonce_I, \nonce_R,\X,\Y)$
+			\item $\sigma \gets \SIGScheme.\SIGSign(\sk,\labelrs\|\nonce_I\|\nonce_R\|\X\|\Y)$
+			\item $\mk \gets \RO(\nonce_I\|\nonce_R\|\X\|\Y\|\X^{\y})$
+			\item $\ks \gets \PRF(\mk,0)$
+			\item $\kt \gets \PRF(\mk,1)$
+			\item \frame{$\ke \gets \PRF(\mk,2)$}
+			\item $\tau \gets \MACScheme.\MACTag(\kt, \labelrm\|\nonce_I\|\nonce_R\|\id)$
+			\item $\st'.\state \gets (\nonce_I,\nonce_R,\X,\Y,\ks,\kt)$ \newline
+				\frame{$\st'.\state \gets (\nonce_I, \nonce_R,\X,\Y,\ks,\kt,\ke)$}
+			\item $m' \gets (\nonce_R, \Y, \id, \sigma, \tau)$ \newline
+				\frame{$m' \gets (\nonce_R, \Y, \ENCEnc(\ke,(\id,\sigma,\tau)))$}
+			\item return $(\st', m')$
+		\end{algorithm}
+	\end{minipage}
+	\begin{minipage}[t]{0.49\textwidth}
+		\begin{algorithm}{$\RunInit(\id,\sk,\st,\peerpk,m)$}
+			\item $(\nonce_R,\Y,\peerid,\sigma, \tau) \gets m$ \newline
+				\frame{$(\nonce_R,\Y,\ciph) \gets m$}
+			\item $(\nonce_I,\X,\x) \gets \st.\state$
+			\item $\st'.\sid \gets (\nonce_I,\nonce_R,\X,\Y)$
+			
+			\item $\mk \gets \RO(\nonce_I\|\nonce_R\|\X\|\Y\|\Y^{\x})$
+			\item $\ks \gets \PRF(\mk,0)$
+			\item $\kt \gets \PRF(\mk,1)$
+			\item \frame{$\ke \gets \PRF(\mk,2)$}
+			
+			\item \frame{$(\peerid,\sigma,\tau) \gets \ENCDec(\ke,\ciph)$}
+			\item $\st'.\peerid \gets \peerid$
+			
+			\item if $\SIGScheme.\SIGVerify(\peerpk[\peerid], \labelrs\|\nonce_I\|\nonce_R\|\X\|\Y, \sigma)$\\
+				and $\MACScheme.\MACVerify(\kt, \labelrm\|\nonce_I\|\nonce_R\|\peerid, \tau)$ then
+			\item \hindent $\st'.\status \gets \accepted$
+			\item \hindent $\st'.\skey \gets \ks$
+			\item \hindent $\sigma' \gets \SIGScheme.\SIGSign(\sk, \labelis\|\nonce_I\|\nonce_R\|\X\|\Y)$
+			\item \hindent $\tau' \gets \MACScheme.\MACTag(\kt, \labelim\|\nonce_I\|\nonce_R\|\id)$
+			\item \hindent $m' \gets (\id, \sigma', \tau')$ \newline
+				\null\hindent \frame{$m' \gets \ENCEnc(\ke,(\id,\sigma',\tau'))$}
+			\item else
+			\item \hindent $m' \gets \bot$
+			\item \hindent $\st'.\status \gets \rejected$
+			\item return $(\st', m')$
+		\end{algorithm}
+
+		\ExptSepSpace
+
+		\begin{algorithm}{$\RunRespII(\id,\sk,\st,\peerpk,m)$}
+			\item $(\nonce_I,\nonce_R,\X,\Y,\ks,\kt) \gets \st.\state$ \newline
+				\frame{$(\nonce_I,\nonce_R,\X,\Y,\ks,\kt,\ke) \gets st.\state$}
+			\item $(\peerid,\sigma',\tau')\gets m$ \newline
+				\frame{$(\peerid,\sigma',\tau')\gets \ENCDec(\ke,m)$}
+			\item $\st'.\peerid\gets \peerid$
+			\item if $\SIGScheme.\SIGVerify(\peerpk[\peerid], \labelis\|\nonce_I\|\nonce_R\|\X\|\Y, \sigma')$\\
+				and $\MACScheme.\MACVerify(\kt, \labelim\|\nonce_I\|\nonce_R\|\peerid, \tau')$ then
+			\item \hindent $\st'.\status \gets \accepted$
+			\item \hindent $\st'.\skey \gets \ks$
+			\item else $\st'.\status \gets \rejected$
+			\item $m' \gets \emptystring$
+			\item return $(\st', m')$
+		\end{algorithm}
+	\end{minipage}
+  	\caption{%
+		The formalized \SIGMA/\SIGMAI key exchange protocols (cf.\ Section~\ref{sec:ake-syntax}).
+		\fbox{Boxed} code is only performed in the \SIGMAI variant.
+  	}
+  	\label{fig:sigma-formal}
+\end{figure}
+\end{collect*}
+
+%\SIGMAformal
+
+\begin{description}
+	\item[Initiator Step~1.]
+	The initiator picks a Diffie--Hellman exponent~$\x \sample \ZZ_p$ and a random nonce~$\nonce_I$ of length~$nl$ and sends $\nonce_I$ and~$g^\x$.
+	
+	
+	\item[Responder Step~1.]
+	The responder also picks a random DH exponent~$\y$ and a random nonce~$\nonce_R$.
+	It then derives a master key as~$\mk \gets \RO(\nonce_I\cab \nonce_R\cab \X\cab \Y\cab \X^\y)$ from nonces, DH shares, and the joint DH secret~$g^{\x\y} = (g^\x)^\y$.
+	From~$\mk$, keys are derived via $\PRF$ with distinct labels:
+	the session key~$\ks$,
+	the MAC key~$\kt$,
+	and (only in \SIGMAI) the encryption key~$\ke$.
+	
+	The responder computes a signature~$\sigma$ with~$\sk_R$ over nonces and DH shares (and a unique label~$\labelrs$) and a MAC value~$\tau$ under key~$\kt$ over the nonces and its identity~$R$ (and unique label~$\labelrm$).
+	It sends $\nonce_I$, $g^\y$, as well as $R$, $\sigma$, and~$\tau$ to the initiator.
+	In \SIGMAI the last three elements are encrypted using~$\ke$ to conceal the responder's identity against passive adversaries.
+	
+	
+	\item[Initiator Step~2.]
+	The initiator also computes~$\mk$ and keys~$\ks$, $\kt$, and (in \SIGMAI, used to decrypt the second message part) $\ke$.
+	It ensures both the received signature~$\sigma$ and MAC~$\tau$ verify, and aborts otherwise.
+	
+	It computes its own signature~$\sigma'$ under~$\sk_I$ on nonces and DH shares (with a different label~$\labelis$)
+	and a MAC~$\tau'$ under~$\kt$ over the nonces and its identity~$I$ (with yet another label~$\labelim$).
+	It sends $I$, $\sigma'$, and~$\tau'$ to the responder (in \SIGMAI encrypted under~$\ke$)
+	and accepts with session key~$\ks$ using the nonces and DH shares $(\nonce_I, \nonce_R, \X, \Y)$ as session identifier.
+	
+	\item[Responder Step~2.]
+	The responder finally checks the initiator's signature~$\sigma'$ and MAC~$\tau'$ (aborting if either fails)
+	and then accepts with session key~$\skey = \ks$ and session identifier~$\sid = (\nonce_I, \nonce_R, \X, \Y)$.
+\end{description}

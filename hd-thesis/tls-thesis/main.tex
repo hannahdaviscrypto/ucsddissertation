@@ -1,0 +1,293 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% Extensions to Tighter Security for TLS 1.3
+% Authors: Hannah Davis, Denis Diemert, Felix Günther, Tibor Jager
+% Started: September 2020
+% Submissions: EUROCRYPT 2022 (accepted)
+% ePrint: -
+% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%\newcommand{\titletext}{Extensions to Tight Security for TLS 1.3}
+
+
+
+
+
+%
+% version modifiers
+%
+
+\newif\iffull
+\fulltrue  % comment out for short version
+
+\newif\iflncs
+%\lncstrue  % enable *FORMAT* modifiers for LNCS version
+
+\newif\ifanon
+% \anontrue   % enable anonymous version
+
+\newif\ifdraft
+% \drafttrue  % comment out to remove notes, \TODO{} macros etc.
+
+\newif\ifproceedings % enable for the proceedings version w/o, e.g., appendices
+%  \proceedingstrue
+
+
+
+\ifproceedings
+\newcommand{\titletext}{On the Concrete Security of TLS 1.3 PSK Mode\thanks{%
+Some of this work was done while Hannah Davis was visiting ETH Zurich.
+Felix Günther was supported in part by German Research Foundation (DFG) Research Fellowship grant~\mbox{GU~1859/1-1}.
+Tibor Jager was supported by the European Research Council (ERC) under the European Union's Horizon 2020 research and innovation programme, grant agreement 802823.
+}}
+\newcommand{\shorttitletext}{}
+\else
+\newcommand{\titletext}{On the Concrete Security of TLS 1.3 PSK Mode}
+\newcommand{\shorttitletext}{}
+\fi
+
+
+
+%
+
+
+
+
+
+
+
+
+% ================================================================
+% ================================================================
+
+
+\iflncs
+	\let\accentvec\vec % Preserve \vec modification of amsmath, avoiding the warning  
+\ifanon
+	\documentclass[envcountsame]{llncs}
+	\pagestyle{plain} % show page numbers
+\else
+	\documentclass[twoside,envcountsame,runningheads]{llncs}
+\fi
+	\let\spvec\vec
+	\let\vec\accentvec % use regular \vec notation with arrow, not Springer boldface one
+\else
+	\documentclass[11pt]{article}
+	\usepackage[letterpaper,hmargin=1in,vmargin=1in]{geometry}
+\fi
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+
+\usepackage{xifthen}
+\usepackage{amsmath}
+\usepackage{soul}	\let\strikethrough\st\let\st\undefined % \st already used...
+\usepackage{amssymb}
+\usepackage{multicol}
+\usepackage{xspace}
+\usepackage{dsfont}
+%\usepackage{bbold}
+\usepackage{amsfonts}
+\usepackage{graphicx}
+\usepackage[normalem]{ulem}
+\usepackage[usenames,dvipsnames,table]{xcolor}
+\usepackage[english]{babel}
+\usepackage{enumitem}	\setlist[enumerate,itemize,description]{labelindent=1em,leftmargin=2em}
+\usepackage[normalem]{ulem}
+% \usepackage{authblk}
+\iffull\else
+	% unset llncs.cls definition of proof environment
+	\let\proof\relax
+	\let\endproof\relax
+\fi
+\usepackage{amsthm}
+
+\usepackage{booktabs}
+\usepackage{multirow}
+
+\usepackage{collect}
+
+\usepackage{tikz}
+\usetikzlibrary{calc,backgrounds,shapes.geometric,positioning,matrix}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.15}
+
+\ifanon
+	\PassOptionsToPackage{
+		colorlinks=true,linkcolor=black,urlcolor=black,citecolor=black
+	}{hyperref} % anonymous submission version with black links, no backref
+\else
+	\PassOptionsToPackage{
+		pagebackref,
+		colorlinks=true,linkcolor=black,urlcolor=Blue,citecolor=Blue,
+		bookmarksdepth=3,bookmarksopen=true
+	}{hyperref} % full version with colored links
+\fi
+\usepackage{hyperref}
+
+
+% --- -----------------------------------------------------------------
+% --- Document-specific definitions.
+% --- -----------------------------------------------------------------
+
+\usepackage{crypto-environments}
+
+\input{commands}
+
+\title{\titletext}
+
+\ifanon
+	\author{}
+	\institute{}
+\else
+	\iflncs
+		\author{
+			\Davis\inst{1} \and
+			\Diemert\inst{2} \and
+			\Guenther\inst{3} \and
+			\Jager\inst{2}
+		}
+		\institute{%
+			\DavisCompany,
+			\DavisAddress\\
+			\email{\DavisEmail}
+			%
+			\and
+			%
+			\DiemertCompany,
+			\DiemertAddress\\
+			\email{\DiemertEmail},
+			\email{\JagerEmail}
+			%
+			\and
+			%
+			\GuentherCompany,
+			\GuentherAddress\\
+			\email{\GuentherEmail}
+		}
+		\index{Davis, Hannah}
+		\index{Diemert, Denis}
+		\index{G{\"u}nther, Felix}
+		\index{Jager, Tibor}
+	\else
+		\author{%
+			\textsc{\Davis}\thanks{~\DavisThanks} \and
+			\textsc{\Diemert}\thanks{~\DiemertThanks} \and
+			\textsc{\Guenther}\thanks{~\GuentherThanks} \and
+			\textsc{\Jager}\thanks{~\JagerThanks}
+		}
+	\fi
+\fi
+
+% --- -----------------------------------------------------------------
+% --- The document starts here.
+% --- -----------------------------------------------------------------
+
+\begin{document}
+
+%%%%%%%%%%%%%%% INPUT FILES HERE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+ \ifdraft
+%\input{notes}
+ \fi
+
+
+\input{introduction}
+% \input{components}
+\input{tls13-psk-handshake}
+\input{mske-psk-model}
+
+% indiff background
+\iffull
+	\section{Indifferentiability Background}
+	\label{app:indiff-background}
+
+	\input{indiff-bg}
+\fi
+
+\input{ks-indiff}
+\input{modularizing}
+
+% proof section / TODO rename file
+\input{short-proof}
+
+\input{evaluation}
+
+% \ifanon\else
+%  \section*{Acknowledgments}
+%  \input{acks}
+% \fi
+
+% --- -----------------------------------------------------------------
+% --- The Bibliography.
+% --- -----------------------------------------------------------------
+
+\iffull
+\bibliographystyle{abbrv}
+\else
+% \bibliographystyle{ultrashortabbrv}
+\bibliographystyle{splncs04}
+\fi
+\bibliography{../cryptobib/abbrev3,../cryptobib/crypto,local}
+
+% --- -----------------------------------------------------------------
+% --- The Appendix.
+% --- -----------------------------------------------------------------
+
+\ifproceedings
+	% no appendices for the proceedings version
+\else
+	\newpage
+
+	\appendix
+
+	\iffull
+	 \section*{Appendix}
+	\else
+	\section*{Supplementary Material}
+	\fi
+
+	% handshake details
+	\iffull
+	\else
+	\input{appendix-handshake}
+	\fi
+
+	% Modular transform
+	\iffull
+	\else
+		\input{appendix-modular-transform}
+	\fi
+
+	% indiff stuff
+	\iffull
+	\else
+		\input{appendix-indiff}
+	\fi
+	\input{appendix-coll-res-RO}
+
+	% Full TLS proof details
+	\iffull
+	\else
+	\input{full-psk-dhe-proof}
+	\input{psk-only-pf}
+	\fi
+
+	% Further infos for domain separation
+	\input{appendix-domsep}
+
+	% Evaluation results
+	\iffull
+	\else
+		\input{appendix-evaluation}
+	\fi 
+\fi % end ifproceedings
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

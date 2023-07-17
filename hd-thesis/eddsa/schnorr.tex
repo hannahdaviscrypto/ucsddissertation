@@ -1,0 +1,377 @@
+\section{Security of EdDSA} \label{sec-schemes}
+
+%\heading{Obtaining $\EdDSA$ via $\DRTransform$.} Now one can see that if $\DS$ is the (general) $\Schnorr$ scheme then (for appropriate choices of the other arguments of the transform) $\fDS$ is $\EdDSA$. Thus the transform generalizes the way $\EdDSA$ is built from $\Schnorr$. Detail this. 
+
+
+\begin{figure}[t]
+\twoCols{0.3}{0.4}
+{
+  \begin{algorithm-initial}{$\DS.\MakeSK$}
+  \item $\s \getsr \Z_{\Prime}$ % \comment{$\DS=\SchSig$}
+ %  \item $\eEDSA_1\getsr\bits^k$ ; $\s\gets\CFEDSA(\eEDSA_1)$ \comment{$\DS = \SchSigCl{\CFEDSA}$}
+  \item Return $\s$
+  \end{algorithm-initial}
+  
+\begin{algorithm-subsequent}{$\DS.\MakePK(\s)$}
+  \item  $\curvepoint{A} \gets \s\cdot \generatorEDSA$
+  ; Return $\curvepoint{A}$
+\end{algorithm-subsequent}
+
+\begin{algorithm-subsequent}{$\DS.\Sign[\HH](\s, \curvepoint{A}, \msg)$}
+\item $r \getsr \Z_{\Prime}$ ; $\curvepoint{R} \gets \littler\cdot \generatorEDSA$
+\item $c \gets \HH(\curvepoint{R}\|\curvepoint{A}\| \msg)$
+\item $\z \gets (\s c + \littler) \mod \Prime$
+\item Return $(\curvepoint{R}, \z)$
+  \end{algorithm-subsequent}
+  \begin{algorithm-subsequent}{$\DS.\Vf[\HH](\curvepoint{A}, \msg, \sigma)$}
+  \item $(\curvepoint{R}, \z) \gets \sigma$
+  \item  $c \gets \HH(\curvepoint{R}\|\curvepoint{A}\| \msg)$
+  \item Return $\VF(\curvepoint{A},\curvepoint{R},c,\z)$
+  \end{algorithm-subsequent}  \vspace{2pt}
+ }
+{
+\begin{algorithm-initial}{$\fDS.\MakeSK$}
+		\item $\sk \getsr \bits^k$
+		; Return $\sk$
+\end{algorithm-initial}	
+		
+\begin{algorithm-subsequent}{$\fDS.\MakePK(\sk)$}
+  \item  $\eEDSA_1\|\eEDSA_2 \gets \HH_1(\sk)$
+		; $\s \gets \Clamp(\eEDSA_1)$
+		\item $\curvepoint{A} \gets \s\cdot \generatorEDSA$
+  ; Return $\curvepoint{A}$
+\end{algorithm-subsequent}		
+
+
+	\ExptSepSpace
+	\begin{algorithm-subsequent}{$\fDS.\Sign[\HH](\sk,\curvepoint{A},\msg)$}
+		\item $\eEDSA_1\|\eEDSA_2 \gets \HH_1(\sk)$
+		; $\s \gets \Clamp(\eEDSA_1)$ 
+		\item $\littler \gets \HH_2(\eEDSA_2,\msg)$
+		; $\curvepoint{R} \gets \littler \cdot \generatorEDSA$
+		\item $c \gets \HH_3(\curvepoint{R}\|\curvepoint{A}\|\msg)$
+		\item $\z \gets (\s c + \littler) \bmod \Prime$
+		\item Return $(\curvepoint{R},\z)$
+	\end{algorithm-subsequent}
+	\ExptSepSpace
+	\begin{algorithm-subsequent}{$\fDS.\Vf[\HH](\curvepoint{A}, \msg, \sigma)$}
+		\item $(\curvepoint{R}, \z) \gets \sigma$
+		\item $c \gets \HH_3(\curvepoint{R}\|\curvepoint{A}\|\msg) \bmod \Prime$
+		\item Return $\VF(\curvepoint{A},\curvepoint{R},c,\z)$
+	\end{algorithm-subsequent}  \vspace{2pt}
+ }
+	\twoCols{0.3}{0.4}{
+	\begin{oracle}{\underline{$\CF(e)$}\comment{$e \in \bits^{k}$}}
+		
+		\item $t \gets 2^{k-2}$
+		\item for $i \in [4..k-2]$
+		\item \quad $t \gets t+2^{i-1}\cdot e[i]$
+		\item $s\gets t\bmod \Prime$
+		\item return $s$
+	\end{oracle}
+	}
+	{
+		\begin{algorithm-initial}{$\sVF(\curvepoint{A}, \curvepoint{R}, c, \z)$}
+			\item Return ($\z \cdot \generatorEDSA = c \cdot \curvepoint{A} + \curvepoint{R}$)
+		\end{algorithm-initial} \vspace{10pt}
+	
+		\begin{algorithm-initial}{$\pVF(\curvepoint{A}, \curvepoint{R}, c, \z)$}
+			\item Return $2^\cofactor(\z \cdot  \generatorEDSA)= 2^\cofactor(c \cdot \curvepoint{A} + \curvepoint{R})$
+		\end{algorithm-initial} 
+	}
+
+\vspace{-8pt}
+\caption{\textbf{Top Left:} the Schnorr scheme. \textbf{Top Right:} The EdDSA scheme. \textbf{Bottom Left:} EDDSA clamping function (generalized for any $k$; in the original definition, $k=256$). \textbf{Bottom Right:} Strict and Permissive verification algorithms as choices for $\VF$.
+}
+\label{fig-eddsa}\label{fig-schnorr}\label{fig:VFs}
+\hrulefill
+\vspace{-10pt}
+\end{figure}
+
+\headingu{The Schnorr scheme.} Let the prime-order group $\G_{\Prime}$ of $k$-bit strings with generator $\generatorEDSA$ be as described in Section~\ref{sec-prelims}. The algorithms of the  Schnorr signature scheme $\DS=\SchSig$
+%  and also give an extension $\SchSigCl{\CFEDSA}$ where $\CFEDSA\Colon\bits^k\to\Z_{\Prime}$ is a clamping function. The algorithms of the two schemes 
+are shown on the left in Figure~\ref{fig-schnorr}. 
+% The schemes differ only in their $\MakeSK$ algorithms, as indicated at lines 1,2. (The reason to introduce $\SchSigCl{\CFEDSA}$ is that we reduce $\EdDSA$ to it via Theorem~\ref{th-dd} and then reduce it to $\SchSig$ for the particular $\EdDSA$ clamping function exploiting self-reducibility of the DL problem.) 
+The function space $\DS.\HASHSET$ is $\AllFuncs(\bits^*,\Z_{\Prime})$. (Implementations may use a hash function that outputs a string and embed the result in $\Z_{\Prime}$ but following prior proofs~\cite{EC:AABN02} we view the hash function as directly mapping into $\Z_{\Prime}$.) Verification is parameterized by an algorithm $\VF$ to allow us to consider strict and permissive verification in a modular way. The corresponding choices of verification algorithms are at the bottom of Figure~\ref{fig:VFs}. The signing randomness space is $\DS.\SigCoins = \Z_{\Prime}$.
+
+% \authnote{Reviewer}{At some point you seem to assume that the hash function H for Schnorr signatures outputs values from $\Z_{\Prime}$. I've never seen this. I think it's always a t-bit string embedded into $\Z_{\Prime}$. }{red}
+% \textcolor{blue}{In pratice, it is indeed the case that H maps to $\{0,1\}^k$ instead of $\Z_{\Prime}$, but the proof by Seurin Eurocrypt'12 for the security of Schnorr under RO still works by replacing $\Prime$ with $2^k$}
+
+Schnorr signatures have a few variants that differ in details. In Schnorr's paper~\cite{JC:Schnorr91}, the challenge is $c = \HH(\curvepoint{R}\|\msg) \bmod \Prime$. Our inclusion of the public key in the input to $\HH$ follows Bernstein~\cite{EPRINT:Bernstein15} and helps here because it is what $\EdDSA$ does. It doesn't affect security. (The security of the scheme that includes the public key in the hash input is implied by the security of the one that doesn't via a reduction that includes the public key in the message.) Also in~\cite{JC:Schnorr91}, the signature is $(c, \z)$. The version we use, where it is $(\curvepoint{R},\z)$, is from~\cite{EC:AABN02}. However, BBSS~\cite{NORDSEC:BBSS18} shows that these versions have equivalent security.
+
+
+
+
+
+\heading{The EdDSA scheme.} Let the prime-order group $\G_{\Prime}$ of $k$-bit strings with generator $\generatorEDSA$ be as before and assume $2^{k-5} < \Prime < 2^k$. Let $\CFEDSA\Colon\bits^k\to \Z_{\Prime}$ be the clamping function shown at the bottom of Figure~\ref{fig-eddsa}. The algorithms of the scheme $\fDS$ are shown on the right side of Figure~\ref{fig-eddsa}. The key length is $k$. As before, the verification algorithm $\VF$ is a parameter. The $\HH$ available to the algorithms defines three sub-functions. The first, $\HH_1\Colon\bits^k\to\bits^{2k}$, is used at lines 2,4, where its output is parsed into $k$-bit halves. The second, $\HH_2\Colon\bits^k\cross\bits^*\to\Z_{\Prime}$, is used at line~5 for de-randomization. The third, $\HH_3\Colon\bits^*\to\Z_{\Prime}$, plays the role of the function $\HH$ for the Schnorr schemes. Formally, $\fDS.\HASHSET$ is the arity-3 function space consisting of all $\HH$ mapping as just indicated.
+
+In~\cite{bernstein2012high,SP:BCJZ21}, the output of the clamping is an integer that (in our notation) is in the range $2^{k-2},\ldots,2^{k-1}-8$. When used in the scheme, however, it is (implicitly) modulo $\Prime$. It is convenient for our analysis, accordingly, to define $\CFEDSA$ to be the result modulo $\Prime$ of the actual clamping. Note that in $\EdDSA$ the prime $\Prime$ has magnitude a little more than $2^{k-4}$ and less than $2^{k-3}$.
+
+There are several versions of EdDSA depending on the choice for verification algorithms: strict,  permissive or batch $\VF$. We specify the first two choices in Figure~\ref{fig:VFs}. Our results hold for all choices of $\VF$, meaning $\EdDSA$ is secure with respect to $\VF$ assuming $\Schnorr$ is secure with respect to $\VF$. It is in order to make this general claim that we abstract out $\VF$. 
+
+%We discuss their security in \fullorAppendix{sec-vf}. 
+
+\heading{Security of $\EdDSA$ with independent ROs.} As a warm-up, we show security of $\EdDSA$ when the three functions it uses are independent random oracles, the setting assumed by BCJZ~\cite{SP:BCJZ21}. However, while they assume hardness of DL, our result is more general, assuming only security of $\Schnorr$ with a monolithic random oracle. We can then use known results on $\Schnorr$~\cite{JC:PoiSte00,EC:AABN02} to recover the result of BCJZ~\cite{SP:BCJZ21}, but the proof is simpler and more modular. Also, other known results on $\Schnorr$~\cite{C:RotSeg21,INDOCRYPT:BelDai20,EC:FucPloSeu20} can be applied to get better bounds. Following this, we will turn to the ``real'' case, where the three functions are all $\MD$ with a random compression function.
+
+The Theorem below is for a general prime $\Prime > 2^{k-5}$ but in $\EdDSA$ the prime is $2^{k-4} < \Prime < 2^{k-3}$ so the value of $\delta$ below is $\delta = 2^{k-5}/\Prime > 2^{k-5}/2^{k-3} = 1/4$, so the factor $1/\delta$ is $\leq 4$. We capture the three functions of $\EdDSA$ being independent random oracles by setting functor $\idFunctortwo$ below to the identity functor, and similarly capture $\Schnorr$ being with a monolithic random oracle by setting $\idFunctor$ to be the identity functor. 
+
+% It may be worth recalling our convention that query counts of an adversary include those made by oracles in its game, so for example $\Queries{\HASH}{\advA} \geq \Queries{\SignO}{\advA}$ will always be true, in case one asks why the added term in the bound below shows no explicit dependency on the latter.
+
+
+% Recall that $\Queries{\HASH}{\advA}$ counts the number of $\HASH$ queries made in the execution of the game with $\advA$, while $\QueriesD{\HASH}{\advA}$, referred to below, is the number of direct queries, meaning those made by $\advA$ to $\HASH$ directly.
+
+
+
+\begin{theorem}\label{th-eddsa-r} Let $\DS=\SchSig$ be the $\Schnorr$ signature scheme of Figure~\ref{fig-schnorr}. Let $\CFEDSA\Colon\allowbreak\bits^k\allowbreak\to\allowbreak\Z_{\Prime}$ be the clamping function of Figure~\ref{fig-eddsa}. Assume % $2^{k} > 
+$\Prime > 2^{k-5}$ and let $\delta = 2^{k-5}/\Prime$. Let $\fDS = \DRTransform[\DS,\CFEDSA]$ be the $\EdDSA$ signature scheme. 
+Let $\idFunctor\Colon\AllFuncs(\bits^*,\Z_{\Prime})\to \AllFuncs(\bits^*,\Z_{\Prime})$ be the identity functor.  Let $\idFunctortwo\Colon\fDS.\HASHSET\to \fDS.\HASHSET$ be the identity functor. Let $\advA$ be an adversary attacking the $\UFCMA$ security of $\fDS$. 
+% Let $ b \cdot (\ell-1) - 2k$ be the maximum length in bits of a message input to $\SignO$. 
+Then there is an adversary $\advB$ such that
+\begin{align*}
+	\ufAdv{\fDS,\idFunctortwo}{\advA} \leq & 
+	 (1/\delta)\cdot\ufAdv{\DS,\idFunctor}{\advB} 
+	 + \frac{2\cdot \Queries{\HASH}{\advA}}{2^k} 	 \;.
+\end{align*}
+Adversary $\advB$ preserves the queries and running time of $\advA$. 
+\end{theorem}
+\begin{proof}[Theorem~\ref{th-eddsa-r}] Let $\jDS = \SchSigCl{\CFEDSA}$. 
+By Theorem~\ref{th-dd}, we have 
+	$$\ufAdv{\fDS,\idFunctortwo}{\advA} \leq   \prgAdv{\idFunctortwo_1}{\advA_1} + \prfAdv{\idFunctortwo_2}{\advA_2} + \ufAdv{\jDS,\idFunctortwo_3}{\advA_3} \;.$$
+It is easy to see that
+\begin{align*}
+	\prgAdv{\idFunctortwo_1}{\advA_1} &\leq \frac{\QueriesD{\HASH}{\advA_1}}{2^k} \leq \frac{\Queries{\HASH}{\advA}}{2^k} \\
+	% \frac{1 + 2\ell \cdot \Queries{\SignOO}{\advA} + \Queries{\HASH}{\advA}}{2^k} \\
+	\prfAdv{\idFunctortwo_2}{\advA_2}  \leq& \frac{\QueriesD{\HASH}{\advA_2}}{2^k}\leq \frac{\Queries{\HASH}{\advA}}{2^k} \;.
+\end{align*}  
+Under the assumption $\Prime > 2^{k-5}$ made in the theorem, 
+	BCJZ~\cite{SP:BCJZ21} established that $|\Img(\CFEDSA)|=2^{k-5}$. So $|\Img(\CFEDSA)|/|\Z_{\Prime}| = 2^{k-5}/\Prime = \delta$. Let $\advB = \advA_3$ and note that $\idFunctortwo_3 = \idFunctor$. So by Theorem~\ref{th-jc} we have 
+\begin{align}
+	\ufAdv{\jDS,\idFunctortwo_3}{\advA_3} &\leq (1/\delta)\cdot\ufAdv{\DS,\idFunctor}{\advB} \;.
+\end{align}
+Collecting terms, we obtain the claimed bound stated in Theorem~\ref{th-eddsa-r}. \qed
+\end{proof}
+
+
+\begin{figure}[t]
+\oneCol{0.8}{
+\begin{algorithm-subsequentC}{Functor $\ourF_1[\hh](\sk)$}{$|\sk|=k$}
+\item $\e \gets \MD[\hh](\sk)$ ; Return $\eEDSA$ \comment{$|\eEDSA|=2k$} 
+\end{algorithm-subsequentC}
+\begin{algorithm-subsequentC}{Functor $\ourF_2[\hh](\eEDSA_2,\msg)$}{$|\eEDSA_2|=k$}
+\item Return $\MD[\hh](\eEDSA_2\|\msg)\bmod\Prime$
+\end{algorithm-subsequentC}
+\begin{algorithm-subsequentC}{Functor $\ourF_3[\hh](X)$}{also called $\ModMD$}
+\item Return $\MD[\hh](X)\bmod\Prime$
+\end{algorithm-subsequentC}
+}
+\vspace{-8pt}
+\caption{The arity-3 functor $\ourF$ for $\EdDSA$. Here $\hh\Colon\bits^{b+2k}\to\bits^{2k}$ is a compression function.}
+\label{fig-our-functor}
+\hrulefill
+\vspace{-10pt}
+\end{figure}
+
+
+
+
+\heading{Analysis of the $\ourF$ functor.} Let $\fDS$ be the result of the $\DRTransform$ transform applied to $\SchSig$ and a clamping function $\CFEDSA\Colon\bits^k\to\Z_{\Prime}$. Security of $\EdDSA$ is captured as security in game $\UFCMA_{\fDS,\ourF}$ when $\ourF$ is the functor that builds the component hash functions in the way that $\EdDSA$ does, namely from a MD-hash function. To evaluate this security, we start by defining the functor $\ourF$ in Figure~\ref{fig-our-functor}. It is an arity-3 functor, and we separately specify $\ourF_1,\ourF_2,\ourF_3$. (Functor $\ourF_3$ will be called $\ModMD$ in later analyses.) The starting space, from which $\hh$ is drawn, is $\AllFuncs(\bits^{b+2k},\bits^{2k})$, the set of compression functions. The prime $\Prime$ is as before, and is public.
+
+
+We want to establish the three assumptions of Theorem~\ref{th-dd}. Namely: (1) $\ourF_1$ is PRG-secure (2) $\ourF_2$ is PRF secure and (3) security holds in game $\UFCMA_{\SchSig^*,\ourF_3}$ where $\SchSig^* = \JCTransform[\SchSig,\CFEDSA]$. Bridging from $\SchSig^*$ to $\SchSig$ itself will use Theorem~\ref{th-jc}.
+
+\begin{figure}[t]
+	\oneCol{0.6}{
+		\ExperimentHeader{Games {$\Gm_0$}, \fbox{$\Gm_1$}}
+		
+		\begin{oracle}{$\Initialize$}
+			\item $\sk\getsr\bits^k$ 
+			; $\eEDSA\getsr \bits^{2k}$  
+			\item Return $\eEDSA$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\HASH(X)$}
+			\item If $\FTable[X]\neq\bot$ then return $\FTable[X$] 
+			\item $Y\getsr\bits^{2k}$ 
+			\item If $X = \IV\|\sk\|P$ then $\bad \gets \true$ ; \fbox{$Y \gets e$}
+			\item $\FTable[X]\gets Y$ ; Return $\FTable[X]$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(c')$}
+			\item Return ($c'=1$) \vspace{2pt}
+		\end{oracle}
+	}
+	\vspace{-5pt}
+	\caption{Games $\Gm_0$ and $\Gm_1$ in the proof of Lemma~\ref{lm-ourF1}. Boxed code is only in $\Gm_1$.}
+	\label{fig-lm2}
+	\hrulefill
+	\vspace{-10pt}
+\end{figure}
+
+\begin{lemma}\label{lm-ourF1} Let functor $\ourF_1\Colon \AllFuncs(\bits^{b+2k},\bits^{2k}) \to \AllFuncs(\bits^k,\bits^{2k})$ be defined as in Figure~\ref{fig-our-functor}. Let $\advA_1$ be an adversary. Then
+\begin{align}
+	\prgAdv{\ourF_1}{\advA_1} & \leq \frac{\QueriesD{\HASH}{\advA_1}}{2^k}  \leq \frac{\Queries{\HASH}{\advA_1}}{2^k} \;. \label{eq-lm-ourF1}
+\end{align}
+\end{lemma}
+
+\begin{proof}[Lemma~\ref{lm-ourF1}] Since the input $\sk$ to $\ourF_1[\hh]$ is $k$-bits long, the $\MD$ transform defined in Section~\ref{sec-our-def-framework} only iterates once and the output is $e = \hh(\IV\|\sk\|P)$, for padding $P \in \bits^{3k}$ and initialization vector $\IV \in \bits^{2k}$ that are fixed and known. Now consider the games in Figure~\ref{fig-lm2}, where the boxed code is only in $\Gm_1$. Then we have
+\begin{align*}
+	\prgAdv{\ourF_1}{\advA_1} &= \Pr[\Gm_1(\advA_1)] - \Pr[\Gm_0(\advA_1)] \\
+	&\leq \Pr[\Gm_0(\advA_1)\mbox{ sets }\bad] \\
+    &\leq 	\frac{\Queries{\HASH}{\advA_1}}{2^k} \;.
+\end{align*}
+The second line above is by the Fundamental Lemma of Game Playing, which applies since $\Gm_0,\Gm_1$ are identical-until-$\bad$. \qed
+\end{proof}
+
+% The proof of this lemma can be found in Appendix~\ref{sec-lem3}.
+
+We turn to PRF security of the $\ourF_2$ functor. Note that the construction is what BRT called $\AMAC$~\cite{EC:BelBerTes16}. They proved its PRF security by a combination of standard-model and ROM results. First they showed $\AMAC$ is PRF-secure if the compression function $\hh$ is PRF-secure under leakage of a certain function of the key. Then they show that ideal compression functions have this PRF-under-leakage security. Putting this together implies PRF security of $\ourF_2$. However, we found it hard to put the steps and Lemmas in BRT together to get a good, concrete bound for the PRF security of $\ourF_2$. Instead we give a direct proof, with an explicit bound, using our result on the indifferentiability of $\ModMD$ from Theorem~\ref{th-md-indiff} together with the indifferentiability composition theorem~\cite{TCC:MauRenHol04}.
+
+
+\begin{lemma}\label{lm-ourF2} Let functor $\ourF_2\Colon \AllFuncs(\bits^{b+2k},\bits^{2k}) \to \AllFuncs(\bits^k\cross\bits^*,\Z_{\Prime})$ be defined as in Figure~\ref{fig-our-functor}. Let $\ell$ be an integer such that all messages queried to $\HASH$ are no more than $b \cdot (\ell-1) - k$ bits long. Let $\advA_2$ be an adversary. Then
+\begin{align*}
+	\prfAdv{\ourF_2}{\advA_2}  \leq& \frac{\Queries{\HASH}{\advA_2}}{2^k}
+	+ \frac{2\Prime (\QueriesD{\HASH}{\advA_2}+ \ell \Queries{\FUNCO}{\advA_2})}{2^{2k}}
+	+ \frac{(\QueriesD{\HASH}{\advA_2} + \ell \Queries{\FUNCO}{\advA_2})^2}{2^{2k}}
+	+ \frac{\Prime\QueriesD{\HASH}{\advA_2} \cdot \ell\Queries{\FUNCO}{\advA_2}}{2^{2k}} 
+	.
+	\label{eq-lm-ourF2}
+\end{align*}
+\end{lemma}
+\begin{proof}[Lemma~\ref{lm-ourF2}]
+	In Section~\ref{sec-chop}, we prove the indifferentiability of functor $\ourF_3$ (c.f. Figure~\ref{fig-our-functor}), which we also call $\ModMD$.
+	Define $\construct{R}\Colon\AllFuncs(\bits^*,\Z_{\Prime})\to \AllFuncs(\bits^k \times \bits^*,\Z_{\Prime})$ to be the identity functor such that $\construct{R}[\HH](x, y)=\HH(x \concat y)$ for all $x, y, \HH$ in the appropriate domains.
+	Notice that when $\construct{R}$ is given access to the $\ModMD$ functor as its oracle, the resulting functor is exactly $\ourF_2$. 
+	Using this property, we will reduce the PRF security of functor $\ourF_2$ to the indifferentiability of $\ModMD$.
+
+	For any simulator algorithm $\simulator$, the indifferentiability composition theorem~\cite{TCC:MauRenHol04} grants the existence of distinguisher $\advD$ and adversary $\advA_5$ such that
+	\[
+	\prfAdv{\ourF_2}{\advA_2} \leq \prfAdv{\construct{R}}{\advA_5}+ \genAdv{\indiff}{\ModMD, \simulator}{\advD}.
+	\]
+	We let $\simulator$ be the simulator guaranteed by Theorem~\ref{th-md-indiff} and separately bound each of these terms.
+	Adversary $\advA_5$ simulates the PRF game for its challenger $\advA_2$ by forwarding all $\FUNCO$ queries to its own $\FUNCO$ oracle and
+	answering $\HASH$ queries using the simulator, which has access to the $\HASH$ oracle of $\advA_5$.
+	Since the simulator is efficient and makes at most one query to its oracle each time it is run, we can say the runtime of $\advA_5$ is approximately the same as that of $\advA_2$.
+	$\advA_5$ makes the same number of $\FUNCO$ and $\HASH$ queries as $\advA_2$. 
+
+	Next, we want to compute $\prfAdv{\construct{R}}{\advA_5}$. When $\construct{R}$ is evaluated with access to a random function $\hh$, its outputs are random unless the adversary makes a relevant query involving the secret key.
+	The adversary can only distinguish if the output of $\FUNCO$ is randomly sampled or from $\construct{R}[\hh]$ if it queries $\HASH$ on the $k$-bit secret key ($\eEDSA_2$), which has probability $\frac{1}{2^{k}}$ for a single query. 
+	Taking a union bound over all $\HASH$ queries, we have
+	$$\prfAdv{\construct{R}}{\advA_5} \leq \frac{\Queries{\HASH}{\advA_{2}}}{2^{k}}.$$
+
+	Distinguisher $\advD$ simulates the PRF game for $\advA_2$, by replacing functor $\ModMD$ with its own $\PrivO$ oracle within the $\FUNCO$ oracle and forwarding $\advA_2$'s direct $\HASH$ queries to $\PubO$.
+	$\advD$ hence makes $\Queries{\advA_2}{\FUNCO}$ queries to $\PrivO$ of maximum length $b \cdot (\ell-1)$ and $\QueriesD{\advA_2}{\HASH}$ to $\PubO$. 
+	To bound the second term, we apply Theorem~\ref{th-md-indiff} on the indifferentiability of shrink-MD transforms.
+	This theorem is parameterized by two numbers $\gamma$ and $\epsilon$; 
+	in Section~\ref{sec-chop}, we show that $\ModMD$ belongs to the shrink-MD class for $\gamma = \lfloor \frac{2^{2k}}{\Prime} \rfloor$ and $\epsilon = \frac{\Prime}{2^{2k}}$.
+	Then the theorem gives
+	\[\genAdv{\indiff}{\ModMD, \simulator}{\advD} \leq 2(\Queries{\PubO}{\advD}+ \ell \Queries{\PrivO}{\advD}) \epsilon
+	+ \frac{(\Queries{\PubO}{\advD} + \ell \Queries{\PrivO}{\advD})^2}{2^{2k}} 
+	+ \frac{ \Queries{\PubO}{\advD} \cdot \ell \Queries{\PrivO}{\advD}}{\gamma}.\]
+	
+	By substituting $\Queries{\PubO}{\advD} = \QueriesD{\HASH}{\advA_2}$ and $\Queries{\PrivO}{\advD} = \Queries{\FUNCO}{\advA_2}$, we obtain the bound stated in the theorem.\qed
+\end{proof}
+
+Finally we turn to $\ourF_3$. The following considers the UF security of $\jDS = \SchSigCl{\CFEDSA}$ with the hash function being an MD one,  meaning with $\ourF_3$, and reduces this to the UF security of the same scheme with the hash function being a monolithic random oracle. Formally, the latter is captured by game $\UFCMA_{\jDS,\construct{R}}$ where $\construct{R}$ is the identity functor. One route to this result is to exploit the public-indifferentiability of $\MD$ established by DRS~\cite{EC:DodRisShr09}. However we found it simpler to give a direct proof and bound based on our Theorem~\ref{th-md-indiff}.
+
+\begin{lemma}\label{lm-ourF3} Let functor $\ourF_3\Colon \AllFuncs(\bits^{b+2k},\bits^{2k}) \to \AllFuncs(\bits^*,\Z_{\Prime})$ be defined as in Figure~\ref{fig-our-functor}. Assume $2^k > \Prime$. Let $\jDS = \SchSigCl{\CFEDSA}$ where $\CFEDSA\Colon\bits^k\to\Z_p$ is a clamping function. Let $\construct{R}\Colon\AllFuncs(\bits^*,\Z_{\Prime})\to \AllFuncs(\bits^*,\Z_{\Prime})$ be the identity functor, meaning $\construct{R}[\HH]=\HH$. Let $\advA_3$ be a $\UFCMA$ adversary 
+% making $\Queries{\HASH}{\advA_3}, \Queries{\SignO}{\advA_3}$ queries to its respective oracles, 
+and let $\ell$ be an integer such that the maximum message length
+	$\advA_3$ queries to $\SignO$ is at most $ b \cdot (\ell-1) - 2k$ bits. Then we can construct adversary $\advA_4$ such that
+\begin{align}
+	\ufAdv{\jDS,\ourF_3}{\advA_3} & \leq \ufAdv{\jDS,\construct{R}}{\advA_4}+ \frac{2\Prime(\QueriesD{\HASH}{\advA_3}+ \ell \Queries{\SignO}{\advA_3})}{2^{2k}} \\
+	& + \frac{(\QueriesD{\HASH}{\advA_3}+ \ell \Queries{\SignO}{\advA_3})^2}{2^{2k}}+ \frac{\Prime \QueriesD{\HASH}{\advA_3}\cdot \ell \Queries{\SignO}{\advA_3}}{2^{2k}} \;.
+\end{align}
+	Adversary $\advA_4$ has approximately equal runtime and query complexity to $\advA_3$.
+\end{lemma}
+\begin{proof}[Lemma~\ref{lm-ourF3}]
+	Again, we rely on the indifferentiability of functor $\ourF_3 = \ModMD$, as shown in Section~\ref{sec-chop}.
+	The general indifferentiability composition theorem~\cite{TCC:MauRenHol04} states that for any simulator $\simulator$ and adversary $\advA_3$, there exist distinguisher $\advD$ and adversary $\advA_4$ such that
+	\[\ufAdv{\jDS,\ourF_3}{\advA_3}  \leq \ufAdv{\jDS,\construct{R}}{\advA_4} + \genAdv{\indiff}{\ourF_3, \simulator}{\advD}.\]
+
+	Let $\simulator$ be the simulator whose existence is implied by Theorem~\ref{th-md-indiff}.
+	The distinguisher runs the unforgeability game for its adversary, replacing $\ourF_3[\HASH]$ in scheme algorithms and adversarial $\HASH$ queries with its $\PrivO$ and $\PubO$ oracles respectively.
+	It makes $\QueriesD{\HASH}{\advA_3}$ queries to $\PubO$ and $\Queries{\SignO}{\advA_3}$ queries to $\PrivO$, and the maximum length of any query to $\PrivO$ is $b \cdot (\ell-1)$ bits
+	because each element of group $\G_{\Prime}$ is a $k$-bit string (c.f. Section~\ref{sec-prelims}).
+ 	We apply Theorem~\ref{th-md-indiff} to obtain the bound 
+	\[\genAdv{\indiff}{\ourF_3, \simulator}{\advD} \leq 2(
+	\QueriesD{\HASH}{\advA_3}+ \ell \Queries{\SignO}{\advA_3}) \epsilon
+	+ \frac{(\QueriesD{\HASH}{\advA_3}+ \ell \Queries{\SignO}{\advA_3})^2}{2^{2k}}+\frac{ \QueriesD{\HASH}{\advA_3}\cdot \ell \Queries{\SignO}{\advA_3}}{\gamma}.\]
+	
+	Adversary $\advA_4$ is a wrapper for $\advA_3$, which answers all of its queries to $\HASH$ by running $\simulator$ with access to its own $\HASH$ oracle; since the simulator runs in
+	constant time and makes only one query to its oracle, the runtime and query complexity approximately equal those of $\advA_3$.
+	
+	Substituting $\frac{1}{\gamma} \geq \frac{\Prime}{2^{2k}}$ and $\epsilon = \frac{\Prime}{2^{2k}}$ gives the bound.\qed
+\end{proof}
+	
+\heading{Security of $\EdDSA$ with MD.} We now want to conclude security of $\EdDSA$, with an MD-hash function, assuming security of $\Schnorr$ with a monolithic random oracle.  The Theorem is for a general prime $\Prime$ in the range $2^{k} > \Prime > 2^{k-5}$ but in $\EdDSA$ the prime is $2^{k-4} < \Prime < 2^{k-3}$ so the value of $\delta$ below is $\delta = 2^{k-5}/\Prime > 2^{k-5}/2^{k-3} = 1/4$, so the factor $1/\delta$ is $\leq 4$. Again recall our convention that query counts of an adversary include those made by oracles in its game, implying for example that $\Queries{\HASH}{\advA} \geq \Queries{\SignO}{\advA}$.
+
+\begin{theorem}\label{th-eddsa-1} Let $\DS=\SchSig$ be the $\Schnorr$ signature scheme of Figure~\ref{fig-schnorr}. Let $\CFEDSA\Colon\allowbreak\bits^k\allowbreak\to\allowbreak\Z_{\Prime}$ be the clamping function of Figure~\ref{fig-eddsa}. Assume $2^{k} > \Prime > 2^{k-5}$ and let $\delta = 2^{k-5}/\Prime$. Let $\fDS = \DRTransform[\DS,\CFEDSA]$ be the $\EdDSA$ signature scheme. 
+Let $\construct{R}\Colon\AllFuncs(\bits^*,\Z_{\Prime})\to \AllFuncs(\bits^*,\Z_{\Prime})$ be the identity functor.  
+Let $\ourF$ be the functor of Figure~\ref{fig-our-functor}. Let $\advA$ be an adversary attacking the $\UFCMA$ security of $\fDS$. Again let $ b \cdot (\ell-1) - 2k$ be the maximum length in bits of a message input to $\SignO$. Then there is an adversary $\advB$ such that
+\begin{align*}
+	\ufAdv{\fDS,\ourF}{\advA} \leq & 
+	 (1/\delta)\cdot\ufAdv{\DS,\construct{R}}{\advB} 
+	+ \frac{ % 1 + 2\ell \cdot \Queries{\SignOO}{\advA} + \Queries{\HASH}{\advA}}{2^k}
+	\Queries{\HASH}{\advA}}{2^{k-1}}
+	+ \frac{\Prime (\QueriesD{\HASH}{\advA}+ \ell \Queries{\SignO}{\advA})}{2^{2k-2}}\\
+	& + \frac{(\QueriesD{\HASH}{\advA} + \ell \Queries{\SignO}{\advA_2})^2}{2^{2k-1}}
+	+ \frac{\Prime\QueriesD{\HASH}{\advA} \cdot \ell\Queries{\SignO}{\advA}}{2^{2k-1}} 
+	\;.
+\end{align*}
+Adversary $\advB$ preserves the queries and running time of $\advA$. 
+\end{theorem}
+\begin{proof}[Theorem~\ref{th-eddsa-1}] Let $\jDS = \SchSigCl{\CFEDSA}$. 
+By Theorem~\ref{th-dd}, we have 
+	$$\ufAdv{\fDS,\ourF}{\advA} \leq   \prgAdv{\ourF_1}{\advA_1} + \prfAdv{\ourF_2}{\advA_2} + \ufAdv{\jDS,\ourF_3}{\advA_3}.$$
+Now applying Lemma~\ref{lm-ourF1}, we have  
+	$$\prgAdv{\ourF_1}{\advA_1} \leq \frac{
+	% 1 + 2\ell \cdot \Queries{\SignOO}{\advA} + 
+	\Queries{\HASH}{\advA}}{2^k} \;.$$ 
+Applying Lemma~\ref{lm-ourF2}, we have
+	\begin{align*}
+		\prfAdv{\ourF_2}{\advA_2}  \leq& \frac{\Queries{\HASH}{\advA_2}}{2^k}
+		+ \frac{2\Prime (\QueriesD{\HASH}{\advA_2}+ \ell \Queries{\FUNCO}{\advA_2})}{2^{2k}}
+		+ \frac{(\QueriesD{\HASH}{\advA_2} + \ell \Queries{\FUNCO}{\advA_2})^2}{2^{2k}}
+		+ \frac{\Prime\QueriesD{\HASH}{\advA_2} \cdot \ell\Queries{\FUNCO}{\advA_2}}{2^{2k}} 
+		.
+	\end{align*}
+	We substitute $\Queries{\HASH}{\advA_2} = \Queries{\HASH}{\advA}$, $\QueriesD{\HASH}{\advA_2} = \QueriesD{\HASH}{\advA}$  and
+	$\Queries{\FUNCO}{\advA_2} = \Queries{\SignO}{\advA}$.
+	By Lemma~\ref{lm-ourF3} we obtain
+	\begin{align*}
+	\ufAdv{\jDS,\ourF_3}{\advA_3} \leq& \ufAdv{\jDS,\construct{R}}{\advB} + \frac{2\Prime(\Queries{\HASH}{\advA_3}+ \ell \Queries{\SignO}{\advA_3})}{2^{2k}} \\
+	 	& + \frac{(\Queries{\HASH}{\advA_3}+ \ell \Queries{\SignO}{\advA_3})^2}{2^{2k}}+ \frac{\Prime \Queries{\HASH}{\advA_3}\cdot\ell \Queries{\SignO}{\advA_3}}{2^{2k}} \;.
+	\end{align*}
+	Recall that adversary $\advA_3$ has the same query complexity as $\advA$.
+
+Under the assumption $\Prime > 2^{k-5}$ made in the theorem, 
+	BCJZ~\cite{SP:BCJZ21} established that $|\Img(\CFEDSA)|=2^{k-5}$. So $|\Img(\CFEDSA)|/|\Z_{\Prime}| = 2^{k-5}/\Prime = \delta$. So by Theorem~\ref{th-jc} we have 
+\begin{align}
+	\ufAdv{\jDS,\construct{R}}{\advB} &\leq (1/\delta)\cdot\ufAdv{\DS,\construct{R}}{\advB} \;.
+\end{align}
+By substituting with the number of queries made by $\advA$ as in Theorem~\ref{th-dd} and collecting terms, we obtain the claimed bound stated in Theorem~\ref{th-eddsa-1}. \qed
+\end{proof}
+
+%\heading{Handling secret-key clamping.}
+%As a final step, therefore, we give a simple reduction from the ``clamped'' scheme $\SchSigCl{\CFEDSA}$ to the original Schnorr scheme. 
+%
+%\begin{lemma}\label{lm-clamp}
+%	Let $\DS = \SchSigCl{\CF}$ where $\CF\Colon\bits^k\to\Z_p$ is the clamping function defined at the bottom of Figure~\ref{fig-eddsa}. Let $\construct{R}\Colon\AllFuncs(\bits^*,\Z_{\Prime})\to \AllFuncs(\bits^*,\Z_{\Prime})$ be the identity functor.  Let $\advA_4$ be any adversary attacking the $\UFCMA$ security of $\DS$.
+%	Then
+%\begin{align}
+%	\ufAdv{\DS, \construct{R}}{\advA_4} & \leq 16 \cdot \ufAdv{\SchSig, \construct{R}}{\advA_4} \;.
+%\end{align}
+%\end{lemma}
+%\begin{proof}[Lemma~\ref{lm-clamp}] 
+%	The proof is a direct result of applying Theorem~\ref{th-jc}. 
+%	BCJZ established in~\cite{SP:BCJZ21} that there are $2^{k-5}$ valid clamped secret keys for $\EdDSA$, so $\delta = |\Img(\CF)|/|\keySet| = \frac{1}{16}$ and we have the claimed bound.\qed
+%\end{proof}
+%
+
+We can now obtain security of $\EdDSA$ under number-theoretic assumptions via known results on the security of $\Schnorr$. Namely, we use the known results to bound $\ufAdv{\DS,\construct{R}}{\advB}$ above. From~\cite{JC:PoiSte00,EC:AABN02} we can get a bound and proof based on the DL problems, and from~\cite{C:RotSeg21} with a better bound. We can also get an almost tight bound under the MBDL assumption via~\cite{INDOCRYPT:BelDai20} and a tight bound in the AGM via~\cite{EC:FucPloSeu20}. 
+
+
+
+

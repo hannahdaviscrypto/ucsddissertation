@@ -1,0 +1,370 @@
+\section{Analysis of cloning functors}
+\label{sec-framework}\label{sec-domain-separation}
+
+Section~\ref{sec-cc-indiff} defined the rd-indiff metric of security for functors and give a framework to prove rd-indiff of translating functors. We now apply this to derive security results about particular, practical cloning functors. 
+
+
+
+\heading{Arity-$n$ function spaces.} The cloning functors apply to function spaces where a function specifies sub-functions, corresponding to the different random oracles we are trying to build. 
+%In practice the sub-functions tend to be either sol or xol (see Section~\ref{sec-prelims} for definitions). The latter can however be captured (although with some impact on efficiency) via sol functions with some large, maximum output length. This is done by seeing the xol function as part of the functor, in the sense that an xol call $x,\ell$ can be rendered as the functor calling the sol function on $x$ and then using the $\ell$-bit prefix of the response. Accordingly, we restrict attention to sol when considering cloning functors. 
+%
+%\mb{The above actually gives a reduction that allows us to capture methods using xol functions in our framework of sol functions, by how we define the functor. It may be worth formalizing this and flushing it out more. We could do it for some NIST example like NewHope.}
+Formally, a function space $\roSp$ is said to have arity $n$ if its members are two-argument functions $f$ whose first argument is an integer $i \in \allowbreak [1..n]$. For $i\in \allowbreak [1..n]$ we let $f_i = f(i,\cdot)$ and $\roSp_i \allowbreak = \allowbreak \set{f_i}{f\in\roSp}$, and refer to the latter as the $i$-th subspace of $\roSp$. We let $\Dom_i(\roSp)$ be the set of all $X$ such that $(i,X) \allowbreak \in \allowbreak \GenroSpDom{\roSp}$. 
+
+We say that $\roSp$ has sol subspaces if $\roSp_i$ is a set of sol functions with domain $\Dom_i(\roSp)$, for all $i \allowbreak \in \allowbreak [1..n]$. More precisely, there must be integers $\OL_1(\roSp), \allowbreak \ldots, \allowbreak \OL_n(\roSp)$ such that $\roSp_i \allowbreak = \allowbreak \AllSOLFuncs{\Dom_i(\roSp)}{\OL_i(\roSp)}$ for all $i\in [1..n]$. In this case, we let $\Rng_i(\roSp) \allowbreak = \allowbreak \bits^{\OL_i(\roSp)}$. This is the most common case for practical uses of ROs.
+
+
+%The second choice is that it is the set of all xol functions having some domain, again denoted $\Dom_i(\roSp)$, meaning $\roSp_i =  \AllXOLFuncs{\Dom_i(\roSp)}$. In this case we let $\Rng_i(\roSp) = \bits^{*}$ and refer to $\roSp_i$ as an xol subspace. 
+%We can now define the domain of $\roSp$ as $\GenroSpDom{\roSp} \allowbreak = \allowbreak \set{(i,X)}{i\in [1..n]\allowbreak  \mbox{ and }\allowbreak  X \allowbreak \in \allowbreak  \Dom_i(\roSp)}$, and the range of $\roSp$ as $\GenroSpRng{\roSp} \allowbreak = \allowbreak \Rng_1(\roSp)\cup\cdots\cup\Rng_n(\roSp)$.
+
+
+
+%We say that $\roSp$ is a function space if $\roSp = \roSp_1\cross\cdots\cross\roSp_n$ for some sets $\roSp_1,\ldots,\roSp_n$ (called the subspaces) having the property that, for each $i\in [1..n]$ there is a set $\Dom_i(\roSp)$ (called the domain of $\roSp_i$) such that one of the following holds:
+%\begin{newitemize}
+%	\item $\roSp_i =  \AllSOLFuncs{\Dom_i(\roSp)}{\ell_i}$ for some $\ell_i$, meaning $\roSp_i$ is a set of sol functions. In this case, let $\Rng_i(\roSp) = \bits^{\ell_i}$.
+%	\item $\roSp_i =  \AllXOLFuncs{\Dom_i(\roSp)}$, meaning $\roSp_i$ is a set of xol functions. In this case, let $\Rng_i(\roSp) = \bits^{*}$.
+%\end{newitemize}
+%We identify a tuple of functions $(f_1,\ldots,f_n)\allowbreak  \in \allowbreak  \roSp$ with the single, two-argument function $f$ defined by $f(i,X)=f_i(X)$ for all $i\in [1..n]$ and all $X\allowbreak  \in \allowbreak  \Dom_i(\roSp)$. The domain of $\roSp$ is accordingly defined as $\GenroSpDom{\roSp} \allowbreak = \allowbreak \set{(i,X)}{i\in [1..n]\allowbreak  \mbox{ and }\allowbreak  X \allowbreak \in \allowbreak  \Dom_i(\roSp)}$. The range of $\roSp$ is $\GenroSpRng{\roSp} \allowbreak = \allowbreak \Rng_1(\roSp)\cup\cdots\cup\Rng_n(\roSp)$. 
+
+To explain, access to $n$ random oracles is modeled as access to a two-argument function $f$ drawn at random from $\roSp$, written $f \getsr\roSp$. If $\roSp$ has sol subspaces, then for each $i$, the function $f_i$ is a sol function, with a certain domain and output length depending only on $i$.
+% or an xol function (with a certain domain depending only on $i$).  In either case, 
+All such functions are included. This ensures input independence as we defined it earlier. Thus if $f \getsr\roSp$, then for each $i$ and any distinct inputs to $f_i$, the outputs are independently distributed. Also functions $f_1,\ldots,f_n$ are independently distributed when $f \getsr\roSp$. Put another way, we can identify $\roSp$ with $\roSp_1\cross\cdots\cross\roSp_n$. 
+
+% We say that $\roSp$ is a sol (respectively, xol) function space if $\roSp_1,\ldots,\roSp_n$ are all sets of sol (respectively, xol) functions, meaning the first (respectively, second) case above holds for all $i$. Note that $\roSp$ may be neither sol nor xol, which happens when some subspaces are sol and others are xol. When $n=1$ we may write $f(X)$ in place of $f_1(X)=f(1,X)$, identifying $\GenroSpDom{\roSp}$ with $\Dom_1(\roSp)$. 
+
+
+
+
+\heading{Domain-separating functors.} We can now formalize the domain separation method by seeing it as defining a certain type of (translating) functor. 
+
+Let the ending space $\GenroSp{\functionOutSet}$ be an arity $n$ function space. Let $\construct{F}  \Colon \GenroSp{\functionInSet}\to \GenroSp{\functionOutSet}$ be a translating functor and $\QuT,\AnT$ be its query and answer translations, respectively. Assume $\QuT$ returns a vector of length~1 and that $\AnT((i,X),\vecV)$ simply returns $\vecV[1]$. We say that $\construct{F}$ is \textit{domain separating} if the following is true: $\QuT(i_1,X_1)\neq \QuT(i_2,X_2)$ for any $(i_1,X_1),(i_2,X_2) \in \GenroSpDom{\functionOutSet}$ that satisfy $i_1\neq i_2$. 
+
+To explain, recall that the ending function is obtained as $\functionOut \gets \construct{F}[\functionIn]$, and defines $\functionOut_i$ for $i\in [1..n]$. Function $\functionOut_i$ takes input $X$, lets $(u)\gets\QuT(i,X)$ and returns $\functionIn(u)$. The domain separation requirement is that if $(u_i)\gets\QuT(i,X_i)$ and $(u_j)\gets\QuT(j,X_j)$, then $i\neq j$ implies $u_i\neq u_j$, regardless of $X_i,X_j$. Thus if $i\neq j$ then the inputs to which $\functionIn$ is applied are always different. The domain of $\functionIn$ has been ``separated'' into disjoint subsets, one for each $i$. 
+
+% \label{sec-ds-methods}
+\heading{Practical cloning functors.}
+We show that many popular methods for oracle cloning in practice, including ones used in NIST KEM submissions, can be cast as translating functors. 
+
+
+%\figref{fig:prac-domsep} shows the pseudocode for their query and answer translators and notes in which NIST submissions they appear.
+% We then discuss each approach individually, explaining its parameters, its advantages and disadvantages, and the intuition justifying its security.
+
+In the following, the starting space $\GenroSp{\functionInSet} = \AllSOLFuncs{\bits^*}{\OL(\GenroSp{\functionInSet})} $ is assumed to be a sol function space with domain $\bits^*$ and an output length denoted $\OL(\GenroSp{\functionInSet})$. The ending space $\GenroSp{\functionOutSet}$ is an arity $n$ function spaces that has sol subspaces. 
+
+%If $\functionIn \in \GenroSp{\functionInSet}$ we write $\functionIn(X)$ in place of $\functionIn(1,X)$ or $\functionIn_1(X)$. 
+
+%In this discussion, we will assume that the goal is to build $n > 1$ independent random oracles from a single random oracle.
+%Formally, we consider the ``target'' function space $\FuncSp{\functionOutSet}$ having arity $\GenroSpCardinality{\functionOutSet}= n> 1$ and domain $\GenroSpDom{\functionOutSet} = [1..n] \times \bits^*$,
+%and the ``starting'' function space $\FuncSp{\functionInSet}$ having arity $1$ and domain $\bits^*$.
+%We will further assume that $\GenroSpRng{\functionOutSet} = \GenroSpRng{\functionInSet}$ and that this range is finite. 
+
+%\begin{figure}[ht]
+%	\centering
+%	
+%	\begin{tabular}{|p{2cm}||p{2.9cm}|p{2.9cm}|p{3.8cm}|}
+%		\hline
+%		Method		& \textbf{Prefixing}	& \textbf{Length\newline differentiating}	& \textbf{Output splitting} \\ \hline \hline
+%		
+%		Requirements	&
+%			vector $\pfvec$ of distinct prefixes
+%			&
+%			distinct $|x|$ per~$i$
+%			&
+%			fixed length-$l$ output
+%			\\ \hline
+%		
+%		Query\newline Translator
+%			&
+%			\begin{algorithm}{$\FixedprefixqueryRO{\pfvec}(i,x)$}	
+%				\item Return $(\pfvec[i]\concat x)$ 
+%			\end{algorithm}
+%			&
+%			\begin{algorithm}{$\LengthqueryRO(i,x)$}
+%				\item Return $(x)$
+%			\end{algorithm}
+%			&
+%			\begin{algorithm}{$\SplittingqueryRO(i,x)$}
+%				\item Return $(x)$
+%			\end{algorithm}
+%			\\ \hline
+%		
+%		Answer\newline Translator
+%			&
+%			\begin{algorithm}{$\FixedprefixanswerRO(s,y)$}
+%				\item Return $y$
+%			\end{algorithm}
+%			&
+%			\begin{algorithm}{$\LengthanswerRO(s,y)$}
+%				\item Return $y$
+%			\end{algorithm}
+%			&
+%			\begin{algorithm}{$\SplittinganswerRO(s,y)$}
+%				\item  $(i,x) \gets  s$
+%				\item Return $y[(i-1)l+1..il]$
+%			\end{algorithm}
+%			\\ \hline
+%		
+%		Applied in\newline NIST KEMs
+%			&
+%			\pqcnameRoundTwo{ClassicMcEliece}, \pqcnameRoundTwo{Frodo}, \pqcnameRoundOne{LIMA}, \pqcnameRoundTwo{NTRU Prime}, \pqcnameRoundOne{SIKE}, \pqcnameRoundOne{QC-MDPC},  \pqcnameRoundTwo{ThreeBears}
+%			&
+%			\pqcnameRoundOne{EMBLEM}, \pqcnameRoundTwo{HQC}, \pqcnameRoundTwo{RQC}, \pqcnameRoundTwo{LAC}, \pqcnameRoundOne{LOCKER}, \pqcnameRoundTwo{NTS-KEM}, \pqcnameRoundTwo{SABER},\hspace{2cm}\pqcnameRoundOne{Round2}, \pqcnameRoundTwo{Round5}
+%			&
+%			\pqcnameRoundTwo{FrodoKEM}, \pqcnameRoundOne{NTRU-HRSS-KEM}, \pqcnameRoundOne{QC-MDPC}, \pqcnameRoundOne{Round2}, \pqcnameRoundTwo{Round5}
+%			\\ \hline
+%	\end{tabular}
+%	
+%	\medskip
+%	
+%	\caption{%
+%		Query and answer translators for practical oracle cloning methods, and the NIST KEMs that employ them.
+%		(Round 1 submissions are in \pqcnameRoundOne{gray}, and Round 2 submissions are in \pqcnameRoundTwo{black}.)
+%	}
+%	\label{fig:prac-domsep}
+%\end{figure}
+%We have shown that invertible translating oracle constructions can achieve the goal of constructing multiple random oracles from a single random oracle.
+%Here we show that many popular methods of domain separating hash functions which are used to clone random oracles are in fact invertible translating constructions, justifying their effectiveness.
+
+%In this discussion, we will assume that the goal is to build $n>1$ independent random oracles from a single random oracle. Formally, let $\GenroSp{\functionInSet}$ be a function space with arity $n$ and let $\GenroSp{\functionOutSet}$ be a funciton space with arity one.
+%We also assume, in order to stay close to the specifications of current cryptographic hash functions, that $\GenroSpDom{\functionInSet} = [1..n]\times \bits^*$, and $\GenroSpDom{\functionOutSet} = \bits^*$, meaning that the domain of all random oracles drawn from these function spaces will be $\bits^*$. 
+
+
+\heading{Prefixing.}
+Here we formalize the canonical method of domain separation.
+Prefixing is used in the following NIST PQC submissions: \pqcnameRoundTwo{ClassicMcEliece}, \pqcnameRoundTwo{FrodoKEM}, \pqcnameRoundOne{LIMA}, \pqcnameRoundTwo{NTRU Prime}, \pqcnameRoundOne{SIKE}, \pqcnameRoundOne{QC-MDPC},  \pqcnameRoundTwo{ThreeBears}.
+
+Let $\pfvec$ be a vector of strings. We require that it be \textit{prefix-free}, by which we mean that $i\neq j$ implies that $\pfvec[i]$ is not a prefix of $\pfvec[j]$. Entries of this vector will be used as prefixes to enforce domain separation. One example is that the entries of $\pfvec$ are distinct strings all of the same length. Another is that a $\pfvec[i]=\mathrm{E}(i)$ for some prefix-free code $\mathrm{E}$ like a Huffman code. 
+
+Assume $\OL_i(\GenroSp{\functionOutSet})=\OL(\GenroSp{\functionInSet})$ for all $i\in [1..n]$, meaning all ending functions have the same output length as the starting function. % Assume $\GenroSpDom{\functionInSet}=\bits^*$. 
+The functor $\pfFunctor{\pfvec} \Colon \GenroSp{\functionInSet} \to \GenroSp{\functionOutSet}$ corresponding to $\pfvec$ is defined by $\pfFunctor{\pfvec}[\functionIn](i\cab X) \allowbreak = \allowbreak \functionIn(\pfvec[i]\| X)$. To explain, recall that the ending function is obtained as $\functionOut \gets \pfFunctor{\pfvec}[\functionIn]$, and defines $\functionOut_i$ for $i\in [1..n]$. Function $\functionOut_i$ takes input $X$, prefixes $\pfvec[i]$ to $X$ to get a string $X'$, applies the starting function $\functionIn$ to $X'$ to get $Y$, and returns $Y$ as the value of $\functionOut_i(X)$. 
+
+We claim that $\pfFunctor{\pfvec}$ is a translating functor that is also a domain-separating functor as per the definitions above. To see this, define query translator~$\FixedprefixqueryRO{\pfvec}$ by $\FixedprefixqueryRO{\pfvec}(i,X)= (\pfvec[i]\| X)$, the 1-vector whose sole entry is $\pfvec[i]\| X$. The answer translator $\FixedprefixanswerRO{\pfvec}$, on input $(i,X),\vecV$, returns $\vecV[1]$,  
+% if $\vecV\neq ()$ ---
+meaning it ignores $i,X$ and returns the sole entry in its 1-vector $\vecV$.
+% --- and otherwise ---if $\vecV=()$--- returns the default value $0^{\OL(\GenroSp{\functionInSet})}$. 
+
+% If $\GenroSp{\functionInSet}$ is a xol function space then we define the functor $\pfFunctor{\pfvec} \Colon \GenroSp{\functionInSet} \to \GenroSp{\functionOutSet}$ by $\pfFunctor{\pfvec}[\functionIn](i,(x,\ell)) = \functionIn(\pfvec[i]\| X)$.
+
+%\begin{theorem}\label{thm-prefix} Let $m$, $n$, $l$, and $\ell$ be positive integers, let $\FuncSp{\functionOutSet}$ be a function space with arity $n$, domain $[1..n]\times\bits^*$, and range $\bits^l$, and let $\FuncSp{\functionInSet}$ be a function space with arity $1$, domain $\bits^*$, and range $\bits^l$. Let $\vecX$ be a vector with $n$ entries in $\bits^m$.  Let $\FixedprefixqueryRO_{\vecX}$ and $\answerRO$ and their  inverses $\FixedprefixqueryRO_{\vecX}^{-1}$ and $\answerInv$ be as defined in~\figref{fig:prac-domsep}. Let $q\geq 1$ be an integer and let $\GenroSp{H} \subseteq \AllFuncs{\cup_{i=1}^\ell \bits^i}{\rangeSet}$ be a $q$-wise independent function space.
+%	Define read-only simulator $\Gensimulator{q}$ as per the bottom panel of Figure~\ref{fig-th-cc-indiff-invertible}. Let $\construct{F} = startin\construct{TF}_{\FixedprefixqueryRO_{\vecX},\answerRO}$.
+%	Let $\advA$ be any distinguisher making no queries to its $\priv$ oracle outside of $\workDom$ and at most $q$ queries to its $\pub$ oracle outside of $\supportQuT(\FixedprefixqueryRO_{\vecX}^{-1})$. Assume that $\ell$ is the maximum length of any query $\advA$ makes to its $\pub$ oracle. Then
+%		\[
+%	\AdvCCINDIFF{\construct{F},\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\Gensimulator{q}}{\advA} = 0 \;.
+%	\]
+%\end{theorem}
+%\begin{proof} 
+%\qed
+%\end{proof}
+
+We proceed to the inverses, which are defined as follows:
+\begin{center}\begin{tabular}{c|c}
+\begin{minipage}{2in}\begin{tabbing}
+	123\=123\=\kill
+	\underline{Algorithm $\FixedprefixqueryInv{\pfvec}(U)$} \\[2pt]
+	$\vecW \gets ()$ \\
+	For $i=1,\ldots,n$ do \\
+	\> If $\pfvec[i]\prefix U$ then $\pfvec[i]\|X\gets U$ ; $\vecW[1]\gets (i,X)$ \\
+	Return $\vecW$
+\end{tabbing}\end{minipage}
+&
+\begin{minipage}{2in}\begin{tabbing}
+	123\=123\=\kill
+	\underline{Algorithm $\FixedprefixanswerInv{\pfvec}(U,\vecY)$} \\[2pt]
+	If $\vecY\neq ()$ then $V\gets \vecY[1]$  \\
+	Else $V \gets 0^{\OL(\GenroSp{\functionInSet})}$ \\
+	Return $V$ \\
+\end{tabbing}\end{minipage}
+\end{tabular}\end{center}
+The working domain is the full one: $\workDom = \GenroSpDom{\functionOutSet}$. We now verify Equation~(\ref{eq-invertible-def}). Let $\QuT,\QuTInv,\AnT,\AnTInv$ be $\FixedprefixqueryRO{\pfvec},\FixedprefixqueryInv{\pfvec},\FixedprefixanswerRO{\pfvec},\FixedprefixanswerInv{\pfvec}$, respectively. Then for all $W = (i,X) \in \GenroSpDom{\functionOutSet}$, we have:
+\begin{align*}
+\construct{TF}_{\QuT,\AnT}
+	[\mathrm{P}[\aFunc{\functionOut}]_{\QuTInv,\AnTInv}](W) &= \mathrm{P}[\aFunc{\functionOut}]_{\QuTInv,\AnTInv}(\pfvec[i]\|X) \\
+&= \AnTInv(\pfvec[i]\|X,(\functionOut(i,X))) \\ 	
+&= \aFunc{\functionOut}(i,X) \;.
+\end{align*}
+We observe that $(\FixedprefixqueryInv{\pfvec},\FixedprefixanswerInv{\pfvec})$ provides perfect translation indistinguishability. Since $\FixedprefixqueryInv{\pfvec}$ does not have full support, we can't use Theorem~\ref{th-cc-indiff-invertible}, but we can conclude rd-indiff via Theorem~\ref{th-cc-indiff-invertible-gen}.
+
+%\mb{Some conclusion or result is needed here with regard to rd-indiff obtained via our Theorems. It need not be a formal Theorem, but perhaps some text summary of what one gets.}
+
+\heading{Identity.} Many NIST PQC submissions simply let $\functionOut_i(X)  = \functionIn(X)$, meaning the ending functions are identical to the starting one. This is captured by the identity functor $\idFunctor
+\Colon \GenroSp{\functionInSet} \to \GenroSp{\functionOutSet}$, defined by $\idFunctor[\functionIn](i,X) = \functionIn(X)$. This again assumes $\OL_i(\GenroSp{\functionOutSet})=\OL(\GenroSp{\functionInSet})$ for all $i\in [1..n]$, meaning all ending functions have the same output length as the starting function. This functor is translating, via $\IdqueryRO(i,X)=X$ and $\IdanswerRO((i,X),\vecV)=\vecV[1]$.
+%  if $\vecV\neq ()$, and  $0^{\OL(\GenroSp{\functionInSet})}$ otherwise. 
+It is however \textit{not}, at least in general, domain separating.
+
+Clearly, this functor is not, in general, rd-indiff. To make secure use of it nonetheless, applications can restrict the inputs to the ending functions to enforce a virtual domain separation, meaning, for $i\neq j$, the schemes never query $\functionOut_i$ and $\functionOut_j$ on the same input. One way to do this is length differentiation. Here, for $i\in [1..n]$, the inputs to which $\functionOut_i$ is applied all have the same length $l_i$, and $l_1,\ldots,l_n$ are distinct. Length differentiation is used in the following NIST PQC submissions: \pqcnameRoundTwo{BIKE},\pqcnameRoundOne{EMBLEM}, \pqcnameRoundTwo{HQC}, \pqcnameRoundTwo{RQC}, \pqcnameRoundTwo{LAC}, \pqcnameRoundOne{LOCKER}, \pqcnameRoundTwo{NTS-KEM}, \pqcnameRoundTwo{SABER}, \pqcnameRoundOne{Round2}, \pqcnameRoundTwo{Round5},\pqcnameRoundOne{Titanium}. There are, of course, many other similar ways to enforce the virtual domain separation.
+
+There are two ways one might capture this with regard to security. One is to restrict the domain $\GenroSpDom{\functionOutSet}$ of the ending space. For example, for length differentiation, we would require that there exist distinct $l_1,\ldots,l_n$ such that for all $(i,X)\in \GenroSpDom{\functionOutSet}$ we have $|X|=l_i$. For such an ending space, the identity functor would provide security. The approach we take is different. We don't restrict the domain of the ending space, but instead define security with respect to a subdomain, which we called the working domain, where the restriction is captured. This, we believe, is better suited for practice, for a few reasons. One is that a single implementation of the ending functions can be used securely in different applications that each have their own working domain. Another is that implementations of the ending functions do not appear to enforce any restrictions, leaving it up to applications to figure out how to securely use the functions. In this context, highlighting the working domain may help application designers think about what is the working domain in their application and make this explicit, which can reduce error. 
+
+But we warn that the identity functor approach is more prone to misuse and in the end more dangerous and brittle than some others. 
+
+As per the above, inverses can only be given for certain working domains. Let us say that $\workDom\subseteq\GenroSpDom{\functionOutSet}$ separates domains if for all $(i_1,X_1),(i_2,X_2)\in\workDom$ satisfying $i_1\neq i_2$, we have $X_1\neq X_2$. Put another way, for any $(i,X)\in \workDom$ there is at most one $j$ such that $X\in \Dom_j(\GenroSp{\functionOutSet})$. We assume an efficient inverter for~$\workDom$. This is a deterministic algorithm $\WDInv_{\workDom}$ that on input $X\in\bits^*$ returns the unique $i$ such that $(i,X)\in\workDom$ if such an $i$ exists, and otherwise returns $\bot$. (The uniqueness is by the assumption that $\workDom$ separates domains.) 
+
+As an example, for length differentiation, we pick some \textit{distinct} integers $l_1,\ldots,l_n$ such that $\bits^{l_i}\subseteq \Dom_i(\GenroSp{\functionOutSet})$ for all $i\in [1..n]$. We then let $\workDom = \set{(i,X)\in\GenroSpDom{\functionOutSet}}{|X|=l_i}$. This separates domains. Now we can define $\WDInv_{\workDom}(X)$ to return the unique $i$ such that $|X| = l_i$ if $|X| \in \{l_1,\ldots,l_n\}$, otherwise returning $\bot$.
+
+The inverses are then defined using $\WDInv_{\workDom}$, as follows, where $U\in \GenroSpDom{\functionInSet}=\bits^*$:
+\begin{center}\begin{tabular}{c|c}
+\begin{minipage}{2in}\begin{tabbing}
+	123\=123\=\kill
+	\underline{Algorithm $\IdqueryInv(U)$} \\[2pt]
+	$\vecW \gets ()$ ;
+	$i\gets \WDInv_{\workDom}(U)$ \\
+	If $i\neq\bot$ then $\vecW[1]\gets (i,U)$ \\
+	Return $\vecW$
+\end{tabbing}\end{minipage}
+&
+\begin{minipage}{2in}\begin{tabbing}
+	123\=123\=\kill
+	\underline{Algorithm $\IdanswerInv(U,\vecY)$} \\[2pt]
+	If $\vecY\neq ()$ then $V\gets \vecY[1]$  \\
+	Else $V \gets 0^{\OL(\GenroSp{\functionInSet})}$ \\
+	Return $V$
+\end{tabbing}\end{minipage}
+\end{tabular}\end{center}
+The correctness condition of Equation~(\ref{eq-invertible-def}) over $\workDom$ is met, and since $\WDInv_{\workDom}(X)$ never returns $\bot$ for $X \in \workDom$, the second condition of invertibility is also met. $(\IdqueryInv,\IdanswerInv)$ provides perfect translation indistinguishability. Since $\IdqueryInv$ does not have full support, we can't use Theorem~\ref{th-cc-indiff-invertible}, but we can conclude rd-indiff via Theorem~\ref{th-cc-indiff-invertible-gen}.
+
+
+%\mb{Are the above claims true?}
+%
+%\mb{Some conclusion or result is needed here with regard to rd-indiff obtained via our Theorems. It need not be a formal Theorem, but perhaps some text summary of what one gets.}
+
+%\begin{theorem}\label{thm-ldiff} Let $n$, $l$, and $\ell$ be integers. 
+%Let $\FuncSp{\functionOutSet}$ be a function space with arity $n$, domain $[1..n]\times\bits^*$, and range $\bits^l$, and let $\FuncSp{\functionInSet}$ be a function space with arity $1$, domain $\bits^*$, and range $\bits^l$. 
+%Let $\workDom\subset [1..n]\times\bits^*$ have the property that for all $x\in \bits^*$ and all $i,i'\in [1..n]$, $(i,x) \in \workDom$ and $(i',x) \in \workDom$ only if $i = i'$. 
+%Let $\LengthqueryRO_\workDom$ and $\answerRO$ be the query and answer translations described in~\figref{fig:prac-domsep}, and let their inverses $\LengthqueryRO^{-1}_\workDom$ and $\AnTInv$ be as defined in~\figref{fig:prac-domsep}. 
+%Let $q\geq 1$ be an integer and let $\GenroSp{H} \subseteq \AllFuncs{\cup_{i=1}^\ell \bits^i}{\rangeSet}$ be a $q$-wise independent function space.
+%Define read-only simulator $\Gensimulator{q}$ as per the bottom panel of Figure~\ref{fig-th-cc-indiff-invertible}. Let $\construct{F} = startin\construct{TF}_{\LengthqueryRO_\workDom,\answerRO}$.
+%Let $\advA$ be any distinguisher making no queries to its $\priv$ oracle outside of $\workDom$, and, to its $\pub$ oracle, at most $q$ queries which are not in $\supportQuT(\LengthqueryRO_\workDom^{-1})$ and let $\ell$ be the maximum length of query  $\advA$ to $\pub$. Then
+%		\[
+%	\AdvCCINDIFF{\construct{F},\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\Gensimulator{q}}{\advA} = 0 \;.
+%	\]
+%\end{theorem}
+%\begin{proof}
+%
+%	\qed
+%\end{proof}
+
+\heading{Output-splitting.} We formalize another method that we call output splitting. It is used in the following NIST PQC submissions: \pqcnameRoundTwo{FrodoKEM}, \pqcnameRoundOne{NTRU-HRSS-KEM}, \pqcnameRoundOne{Odd Manhattan},\pqcnameRoundOne{QC-MDPC}, \pqcnameRoundOne{Round2}, \pqcnameRoundTwo{Round5}.
+
+ Let $\ell_i = \OL_1(\GenroSp{\functionOutSet}) + \cdots + \OL_{i}(\GenroSp{\functionOutSet})$ for $i\in [1..n]$. Let $\ell = \OL(\GenroSp{\functionInSet})$ be the output length of the sol functions $\functionIn \in  \GenroSp{\functionInSet}$, and assume $\ell = \ell_n$. The output-splitting functor $\splFunctor \Colon \GenroSp{\functionInSet} \to \GenroSp{\functionOutSet}$ is defined by $\splFunctor[\functionIn](i,X) = \functionIn(X)[\ell_{i-1}\!+\!1 .. \ell_{i}]$. That is, if $\functionOut \gets \splFunctor[\functionIn]$, then $\functionOut_i(X)$ lets $Z \gets \functionIn(X)$ and then returns bits $\ell_{i-1}\!+\!1$ through $\ell_{i}$ of $Z$. This functor is translating, via $\SplittingqueryRO(i,X)=X$ and $\SplittinganswerRO((i,X),\vecV)=\vecV[1][\ell_{i-1}\!+\!1 .. \ell_{i}]$. It is however \textit{not} domain separating. 
+
+The inverses are defined as follows, where $U\in \GenroSpDom{\functionInSet}=\bits^*$:
+\begin{center}\begin{tabular}{c|c}
+\begin{minipage}{2in}\begin{tabbing}
+	123\=123\=\kill
+	\underline{Algorithm $\SplittingqueryInv(U)$} \\[2pt]
+	For $i=1,\ldots,n$ do $\vecW[i] \gets (i,U)$ \\
+	Return $\vecW$
+\end{tabbing}\end{minipage}
+&
+\begin{minipage}{2in}\begin{tabbing}
+	123\=123\=\kill
+	\underline{Algorithm $\SplittinganswerInv(U,\vecY)$} \\[2pt]
+	$V\gets \vecY[1]\|\cdots \|\vecY[n]$  \\
+	Return $V$
+\end{tabbing}\end{minipage}
+\end{tabular}\end{center}
+The correctness condition of Equation~(\ref{eq-invertible-def}) over $\workDom = \GenroSp{\functionOutSet}$ is met, and $(\SplittingqueryInv,\SplittinganswerInv)$ provides perfect translation indistinguishability. Since $\SplittingqueryInv$ has full support, we can conclude rd-indiff via Theorem~\ref{th-cc-indiff-invertible}.
+%\mb{Are the above claims true?}
+%
+%\mb{Some conclusion or result is needed here with regard to rd-indiff obtained via our Theorems. It need not be a formal Theorem, but perhaps some text summary of what one gets.}
+%\begin{theorem}\label{thm-outspl} Let $n$ and $l$ be integers. 
+%Let $\FuncSp{\functionOutSet}$ be the arity-$n$ function space 
+%$ \AllFuncs{[1..n]\times\bits^*}{\bits^l}$.
+%Let $\workDom = \GenroSpDom{\functionOutSet}$.
+%Let $\FuncSp{\functionInSet}$ be the function space $\AllFuncs{\bits^*}{\bits^{nl}}$.
+%Let $\SplittingqueryRO$ and $\SplittinganswerRO$ be the query and answer translations described in~\figref{fig:prac-domsep}, and let their inverses $\SplittingqueryInv$ and $\SplittinganswerInv$ be as defined in~\figref{fig:prac-domsep}.
+%Let $q\geq 1$ be an integer and let $\GenroSp{H} \subseteq \AllFuncs{\bits^l}{\rangeSet}$ be a $q$-wise independent function space.
+%Define read-only simulator $\Gensimulator{q}$ as per the bottom panel of Figure~\ref{fig-th-cc-indiff-invertible}. 
+%Let $\construct{F} = \construct{TF}_{\SplittingqueryRO,\SplittinganswerRO}$.
+%Let $\advA$ be any distinguisher making at most $q$ queries, to its $\pub$ oracle which are not in $\supportQuT(\SplittingqueryInv)$ and let $\ell$ be the maximum length of query  $\advA$ to $\pub$. Then
+%		\[
+%	\AdvCCINDIFF{\construct{F},\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\Gensimulator{q}}{\advA} = 0 \;.
+%	\]
+%\end{theorem}
+%\begin{proof}
+%	We will show that $(\SplittingqueryRO,\SplittinganswerRO)$ is invertible with partial inverses $\SplittingqueryInv$ and $\SplittinganswerInv$.
+%	First consider the construction $\mathrm{P}[\aFunc{\functionOut}]_{\SplittingqueryInv,\SplittinganswerInv}(U)$, which is defined in Section~\ref{sec-cc-indiff}. This function, on an input $U \in \bits^*$ calls $\SplittingqueryInv$, which returns a vector $\vecX$ of length $n$ in which the $i^{\text{th}}$ entry is the query $(i,U)$. Then $\mathrm{P}[\aFunc{\functionOut}]_{\SplittingqueryInv,\SplittinganswerInv}(U)$ queries its oracle $\aFunc{\functionOut}$ on each of the entries of $\vecX$, returning a vector $\vecY$ of length $n$ whose entries are elements of $\bits^l$. It then calls $\SplittinganswerInv(U,\vecY)$, which concatenates these entries into a bitstring of length $n*l$.
+%	
+%	To satisfy the first condition of invertibility, we must show that for all $U \in \GenroSpDom{\functionOutSet}$ and all $\aFunc{\functionOut} \in \FuncSp{\functionOutSet}$, \[\construct{F}[\mathrm{P}[\aFunc{\functionOut}]_{\SplittingqueryInv,\SplittinganswerInv}](U) = \aFunc{\functionOut}(U).\]
+%	We separate $U$ into the ordered pair $(i,x)$. The oracle construction on the left-hand side truncates $i$, and queries its oracle on only $x$. The oracle, as discussed above, calls $\aFunc{\functionOut}(j,x)$ for every $j\in [1..n]$, and concatenates the results into a single $n*l$-bit string $Y$. Then the oracle construction calls $\SplittinganswerRO(U,Y)$, which returns the $i^{\text{th}}$ substring of $l$ bits. Of course, this is simply the result of the function call $\aFunc{\functionOut}(i,x) = \aFunc{\functionOut}(U)$, so the first condition of invertibility holds.
+%	
+%	The second condition of invertibility requires that $\mathrm{P}[\aFunc{\functionOut}]_{\SplittingqueryInv,\SplittinganswerInv}$ and $\Func{\functionIn}$ are distributed identically when $\aFunc{\functionOut}$ and $\aFunc{\functionIn}$ are drawn from $\FuncSp{\functionOutSet}$ and $\FuncSp{\functionInSet}$, respectively. 
+%	Since both function spaces include all possible functions from their domains to their ranges, the outputs of both $\aFunc{\functionOut}$ and $\aFunc{\functionIn}$ on any input are uniformly random bitstrings. Therefore the output of $\aFunc{\functionInSet}$ is a uniformly random $n*l$-bit string, and the output of $\mathrm{P}[\aFunc{\functionOut}]_{\SplittingqueryInv,\SplittinganswerInv}$ is the concatentation of $n$ uniformly random $l$-bit strings, which is itself a uniformly random $n*l$-bit string. Therefore $(\SplittingqueryRO,\SplittinganswerRO)$ is invertible, and the theorem follows from Theorem~\ref{th-cc-indiff-invertible-gen}.
+%\end{proof}
+%
+%\heading{Further methods.}
+%In \lncsorfull{Appendix~\ref{apx:intrusive}}, we will discuss a further oracle cloning method which is specific to KEMs. This method, like length differentiation, does not require any change to a scheme's existing hash function calls, but can be secure even when a scheme must query two distinct oracles on the same input.
+%We give the query and answer translator partial inverses for each of the concrete oracle cloning methods introduced in Section~\ref{sec-domain-separation}, along with brief justifications of their invertibility.
+%\begin{figure}
+%	\begin{tabular}{|p{3cm}|p{3.5cm}|p{5.5cm}|} \hline
+%		Method name & Query translator inverse & Answer translator inverse\\ \hline
+%		Prefixing & 
+%		\begin{algorithm}{ $\FixedprefixqueryRO{\pfvec}^{-1}(U)$}
+%			\item for $i$ in $[1..n]$
+%			\item \hindent if $\pfvec[i]\prefix x$ then return $(i,x)$
+%			\item return $\bot$
+%		\end{algorithm} &
+%		\begin{algorithm}{$\answerInv(S,\vecY)$}
+%			\item Return $\vecY[0]$
+%		\end{algorithm} \\ \hline
+%		Length differentiating &
+%		\begin{algorithm}{$\LengthqueryRO^{-1}[\workDom(U)]$}
+%			\item for $i$ in $[1..n]$
+%			\item \hindent if $(i,S) \in \workDom$ then return $(i,S)$.
+%		\end{algorithm} & 
+%		\begin{algorithm}{$\answerInv(S,\vecY)$}
+%			\item Return $\vecY[0]$
+%		\end{algorithm} \\ \hline
+%		Output splitting &
+%		\begin{algorithm}{$\SplittingqueryInv(U)$}
+%			\item Return $((i,S))_{i \in [1..n]}$
+%		\end{algorithm}& 
+%		\begin{algorithm}{$\SplittinganswerInv(S,\vecY)$}
+%			\item Return $\vecY[1]\| \vecY[2] \|\cdots\|\vecY[n]$
+%		\end{algorithm}\\ \hline
+%	\end{tabular}
+%	\caption{Query and answer translator inverses for the functions of~\figref{fig:prac-domsep}.}
+%	\label{fig:qt-inverses}
+%\end{figure}
+%
+%
+%First consider the construction $\mathrm{P}[\aFunc{\functionOut}]_{\SplittingqueryInv,\SplittinganswerInv}(U)$, which is defined in Section~\ref{sec-cc-indiff}. This function, on an input $S \in \bits^*$ calls $\SplittingqueryInv$, which returns a vector $\vecW$ of length $n$ in which the $i^{\text{th}}$ entry is the query $(i,S)$. Then $\mathrm{P}[\aFunc{\functionOut}]_{\SplittingqueryInv,\SplittinganswerInv}(U)$ queries its oracle $\aFunc{\functionOut}$ on each of the entries of $\vecW$, returning a vector $\vecY$ of length $n$ whose entries are elements of $\bits^l$. It then calls $\SplittinganswerInv(S,\vecY)$, which concatenates these entries into a bitstring of length $n*l$.
+%
+%To satisfy the first condition of invertibility, we must show that for all $S \in \GenroSpDom{\functionOutSet}$ and all $\aFunc{\functionOut} \in \FuncSp{\functionOutSet}$, \[\construct{F}[\mathrm{P}[\aFunc{\functionOut}]_{\SplittingqueryInv,\SplittinganswerInv}](U) = \aFunc{\functionOut}(U).\]
+%We separate $U$ into the ordered pair $(i,x)$. The oracle construction on the left-hand side truncates $i$, and queries its oracle on only $x$. The oracle, as discussed above, calls $\aFunc{\functionOut}(j,x)$ for every $j\in [1..n]$, and concatenates the results into a single $n*l$-bit string $Y$. Then the oracle construction calls $\SplittinganswerRO(S,Y)$, which returns the $i^{\text{th}}$ substring of $l$ bits. Of course, this is simply the result of the function call $\aFunc{\functionOut}(i,x) = \aFunc{\functionOut}(U)$, so the first condition of invertibility holds.
+%
+%The second condition of invertibility requires that $\mathrm{P}[\aFunc{\functionOut}]_{\SplittingqueryInv,\SplittinganswerInv}$ and $\Func{\functionIn}$ are distributed identically when $\aFunc{\functionOut}$ and $\aFunc{\functionIn}$ are drawn from $\FuncSp{\functionOutSet}$ and $\FuncSp{\functionInSet}$, respectively. 
+%Since both function spaces include all possible functions from their domains to their ranges, the outputs of both $\aFunc{\functionOut}$ and $\aFunc{\functionIn}$ on any input are uniformly random bitstrings. Therefore the output of $\aFunc{\functionInSet}$ is a uniformly random $n*l$-bit string, and the output of $\mathrm{P}[\aFunc{\functionOut}]_{\SplittingqueryInv,\SplittinganswerInv}$ is the concatentation of $n$ uniformly random $l$-bit strings, which is itself a uniformly random $n*l$-bit string. Therefore $(\SplittingqueryRO,\SplittinganswerRO)$ is invertible, and the theorem follows from Theorem~\ref{th-cc-indiff-invertible-gen}.
+%
+%Invertibility is a minimal requirement for a translating oracle construction to be rd-indifferentiable. However, for many practical oracle constructions we can simplify this definition and give a sufficient condition for invertibility and, via the theorem that follows, rd-indifferentiabililty.
+%
+%We say that the \textit{inverse} of a query translation $\QuT$ for $\GenroSp{\functionInSet}$,$\GenroSp{\functionOutSet}$,$\workDom$ is a function $\QuTInv:\GenroSpDom{\functionInSet}\to\workDom\cup\{\bot\}$,
+%which is injective on its support, which for all $x \in \workDom$ has the property that $\QuTInv \circ \QuT(x)=x$.
+%\begin{lemma}\label{th-qt-invertible} Let $\aFunc{\functionInSet}$ and $\aFunc{\functionOutSet}$ be function spaces such that $\GenroSpRng{\functionInSet} = \GenroSpRng{\functionOutSet}$. Let $\workDom \subseteq \GenroSpDom{\functionOutSet}$. Let $\QuT\Colon \GenroSpDom{\functionOutSet} \to \GenroSpDom{\functionInSet}$ be a query translation for $\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\workDom$ with inverse $\QuTInv$. 
+%	Let $\AnT \Colon \GenroSpDom{\functionOutSet}\cross \GenroSpRng{\functionInSet} \to \GenroSpRng{\functionOutSet}$ be defined such that $\AnT(x,y) = y$ for all $x \in \GenroSpDom{\functionOutSet}$ and $y \in \GenroSpRng{\functionInSet}$.
+%	Then $(\QuT,\AnT)$ is invertible.
+%\end{lemma}
+%\begin{proof}
+%	We can define the partial inverses $\QuTInv_p$ and $\AnTInv$ of $\QuT$ and $\AnT$, respectively.
+%	
+%	Define $\QuTInv_p\Colon \GenroSpDom{\functionOutSet} \to \workDom^*$ as the function with the same support as $\QuTInv$ that on all inputs $x$ in its support, returns a vector of length $1$ whose only entry is $\QuTInv(x)$.
+%	For any $U\in\GenroSpDom{\functionInSet}$ and any vector $\vecY$ over $\GenroSpRng{\functionOutSet}$, define $\AnTInv(U,\vecY)=\vecY[1]$. Since $\GenroSpRng{\functionOutSet} = \GenroSpRng{\functionInSet}$, $\AnTInv$ has the appropriate domain and range to be a partial inverse of $\AnT$.
+%	
+%	To simplify the first condition of invertibility, we evaluate $\AnTInv$, then expand the pseudocode of  $\construct{TF}_{\QuT,\AnT}$.
+%	\[ 	\construct{TF}_{\QuT,\AnT}
+%	[\mathrm{P}[\aFunc{\functionOut}]_{\QuTInv,\AnTInv}](x) = \construct{TF}_{\QuT,\AnT}
+%	[\aFunc{\functionOut}\circ\QuTInv_p](x)= \AnT(x,\aFunc{\functionOut}\circ\QuTInv_p\circ \QuT(x))\;.\]
+%	We note that since $\aFunc{\functionOut}$ is evaluated component-wise on vectors, and $\QuTInv_p$ always returns a vector of length at most $1$, we can replace $\QuTInv_p$ with $\QuTInv$. Then the latter two functions cancel each other out for all inputs in $\workDom$, leaving the right-hand-side Since $\QuTInv$ is the inverse of $\QuT$, these functions cancel each other out. Evaluating $\AnT$ shows that this expression equals $\aFunc{\functionOut}(x)$, and the first condition of invertibility holds.
+%	
+%	Secondly,  we require that the functions $\mathrm{P}[\aFunc{\functionOut}]_{\QuTInv_p,\AnTInv}$ and $\aFunc{\functionIn}$ are identically distributed on the support of $\QuTInv_p$.
+%	Evaluating $\AnTInv$ on the left-hand side, we see that this is true if and only if $\aFunc{\functionOut}\circ\QuTInv_p$ is distributed identically to $\aFunc{\functionIn}$ on the support of $\QuTInv_C$. As before, we replace $\QuTInv_p$ with $\QuTInv$. 
+%	Since both $\aFunc{\functionOut}$ and $\aFunc{\functionIn}$ are sampled uniformly at random from all functions with their domain and range, they both are distributed identically on distinct queries, unless a collision occurs under $\QuTInv$. However, since $\QuTInv$ is injective on its support, no collisions exist, and the second condition holds.
+%	It follows that $(\QuT,\AnT)$ is invertible.
+%\end{proof}
+%
+%
+%To demonstrate the use of this theorem, we show invertibility for the prefixing and length-differentiating oracle constructions. 
+%
+%Since any bitstring may be prefixed by at most one entry of $\pfvec$, the inverse of $\FixedprefixqueryRO{\pfvec}$ is injective on its support. For any  $(i,x) \in [1..n]\times\bits^*$, it is clear that $\FixedprefixqueryRO{\pfvec}^{-1}\circ\FixedprefixqueryRO (i,x)=(i,x)$. Then $\FixedprefixqueryRO{\pfvec}^{-1}$ is the inverse of $\FixedprefixqueryRO{\pfvec}$. By its definition, $\AnT(x,y) = y$ for any $(x,y) \in \GenroSpDom{\functionOutSet}\times\GenroSpRng{\functionInSet}$. Setting $\workDom= [1..n]\times \bits^*$.
+%
+%Because there is at most one $i$ for any string $x$ such that $(i,S)\in \workDom$, it is clear that $\LengthqueryRO[\workDom(U)]^{-1}\circ \LengthqueryRO[\workDom(U)]$ is the identity function on $\workDom$. Since the entire input to $\LengthqueryRO[\workDom(U)]^{-1}$ is included in its output, it is clearly injective on its support.  Therefore $\LengthqueryRO[\workDom(U)]^{-1}$ is the inverse of $\LengthqueryRO[\workDom(U)]$, and the theorem follows from Corollary~\ref{th-cc-indiff-qt-only}. Note that the function $\LengthqueryRO^{-1}[\workDom]$, and therefore the simulator, requires checking membership in $\workDom$. 

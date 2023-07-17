@@ -1,0 +1,746 @@
+\iffull
+\else
+	\section{Proof of Theorem~\ref{thm:full-psk-ecdhe-ke}}
+	\label{app:full-psk-ecdhe-ke-proof}
+\fi
+	To prove our bound, we make an incremental series of changes to the key exchange security game $G_{{\TLSPSKECDHE},\advA}$.
+	We divide the proof into three phases reflecting the three ways of the adversary to win the security game.
+\begin{enumerate}
+\item We establish that the adversary cannot violate the predicate $\Sound$.
+\item We establish the same for the predicate $\ExplicitAuth$.
+\item Finally, we ensure that all $\Test$ queries return uniformly random keys independent of the challenge bit $b$ if predicate $\Fresh$ is not violated.
+\end{enumerate}
+We can then conclude that the adversary cannot do better than random guessing to win the game, i.e., its advantage is $0$.
+
+	% Game 0 -- Initial game 
+	\gamehop[Initial game]{game:init}%
+	The initial game $\refGameMath{game:init}$ is the key exchange security game $G_{{\TLSPSKECDHE},\advA}$ played for the TLS~1.3 PSK-(EC)DHE handshake (with optional 0-RTT) as specified in Figure~\ref{fig:tls-handshake} (right), but without handshake encryption.
+	Note that the functions $\abstractHash$ and $\TLSKDF_x$ for $x \in \{\binder, \dotsc, \rms\}$ are modeled as $12$ independent random oracles $\mathlist{\RO_\Thash,\RO_{\binder},\dotsc, \RO_{\rms}}$.
+	We implement random oracle~$\RO_x$ by a look-up table $\roTable_x$ assigning inputs to outputs. We assume that every look-up table implementing a random oracle is stored in a data structure that enables constant time access when indexed either by random oracle inputs or by random oracle outputs, using two hash tables, for instance.
+	%
+	By definition, we have
+	\[
+		\Pr [ \refGameMath{game:init} \outputs 1 ] = \genAdv{\KESEC}{\TLSPSKECDHE}{\advA}.
+	\]
+	
+	\subsection*{Phase~1: Ensuring Predicate~$\Sound$ cannot be violated}
+	
+	% Game 4 -- Abort if there is a collision in the Hello message 
+	\gamehop[Exclude collisions of nonces and group elements]{game:hello-coll}%
+	In \thisGameMath, we eliminate collisions among nonces and group elements computed by honest sessions via two new flags:
+	\begin{itemize}
+		\item $\bad_C$ is set when two honest sessions choose the same nonce and group element, and
+		\item $\bad_O$ is set when an honest responder samples some nonce and group element that have already been received by another session. 
+		We view this nonce and group element as having been chosen by an adversarial session.
+	\end{itemize}
+	If either $\bad_C$ or $\bad_O$ is set, the game returns $0$ from $\Finalize$.
+	
+	By the well-known identical-until-bad-lemma \cite[Lemma 2]{EPRINT:BelRog04}, we get
+	\begin{align}\label{eq:game:hello-coll-raw}\nonumber
+		\Pr[ \prevGameMath \outputs 1 ] &\leq \Pr[ \thisGameMath \outputs 1 ] + \Pr[ \thisGameMath \text{ sets } \bad_C ] \\ 
+		&\qquad+ \Pr[ \thisGameMath \text{ sets } \bad_O ] .
+	\end{align}
+	Let us separately analyze the probabilities that $\thisGameMath$ sets the flags~$\bad_C$ and~$\bad_O$.
+	Each $\Send$ query causes at most one session to uniformly and independently sample a nonce $r \sample \bits^{\nl}$ and a group element $g \sample \G$. 
+	If the $\bad_C$ flag is set, we have that there exists some $\Send$ query that creates a session $\pi_u^i$ using $\KEActivate$.
+	This new session samples nonce and group element$(r, g)$ which were previously sampled by another session $\pi_{u'}^{i'}$.
+	That is, the probability for $\bad_C$ to be set is the probability of a collision among the (up to) $\qSend$ pairs of uniformly and independently sampled nonces and group elements; we can use the birthday bound to bound the probability of setting $\bad_C$ by
+	\begin{equation}\label{eq:badC}
+		\Pr[ \thisGameMath \text{ sets } \bad_C ]  \leq \frac{\qSend^2}{2^{\nl} \cdot p}.
+	\end{equation}
+	where $\qSend$ is the number of $\Send$ queries.
+
+	Next, if the game sets $\bad_O$, we have that there is a $\Send$ query which creates a new session $\pi_v^j$. 
+	This session samples a nonce $r_S \sample \bits^{\nl}$ and a group element $Y \sample \G$, which were already received by another session $\pi_u^i$.
+	There are at most $\qSend$ sessions, so there are no more than $\qSend$ received pairs which which $(r_S, Y)$ can collide.
+	Since $\pi_v^j$ samples its nonce and group element uniformly and independently at random from $\bits^{\nl} \times \G$, we get by the union bound that the probability that $\pi_v^j$ samples one of the already received pairs is bounded from above by $\qSend / (2^{nl} \cdot p)$.
+	Overall, we again get by the union bound that there is such a collision for any $\pi_v^j$ with probability
+	\begin{equation}\label{eq:badO}
+		\Pr[ \thisGameMath \text{ sets } \bad_O ]  \leq \qSend \cdot \frac{\qSend}{2^{\nl} \cdot p} = \frac{\qSend^2}{2^{\nl} \cdot p}.
+	\end{equation}
+	
+	\noindent
+	Combining Equations (\ref{eq:game:hello-coll-raw})--(\ref{eq:badO}), we get
+	\begin{equation}\label{eq:game:hello-coll}
+		\Pr[ \prevGameMath[\advA^*] \outputs 1 ] \leq \Pr[ \thisGameMath[\advA^*] \outputs 1 ] + \frac{2\qSend^2}{2^{\nl} \cdot p} .
+	\end{equation}
+
+	% Exclude binder collisions
+	\gamehop[Exclude binder collisions]{game:binder-coll}
+	In game $\thisGameMath$, we let the adversary lose if there is a collision among the binder values computed by any honest session.
+	Whenever two distinct queries to $\RObinder$ return the same value, we set a flag $\bad_\binder$ and return $0$ from $\Finalize$.
+	
+	To implement this, we add a table~$\collTracker_\binder$ to the random oracle~$\RObinder$ (this table is currently redundant to the table implementing $\RObinder$, but will be useful in later game hops, where we will introduce changes such that it is not guaranteed anymore that all $\binder$ values will be contained in the $\RObinder$ table).
+	Whenever $\RObinder$ computes a binder value $b = \RO_\binder(\mathlist{\psk, \mathit{ctxt}})$, we log $\collTracker_\binder[b] \assign (\mathlist{\psk, \mathit{ctxt}})$.
+	Now, whenever $\RObinder$ computes some binder~$b$ for some tuple~$s$ and~$\collTracker_\binder[b]$ is not empty, there has to be a tuple $s' = (\psk, \mathit{ctxt})$ with $\RObinder(\mathlist{psk, \mathit{ctxt}}) = b$ queried before and we have found a collision if $s \neq s'$.
+	In this case we set $\bad_\binder$.
+
+	Again by the identical-until-bad-lemma,
+	\[
+	\Pr[ \prevGameMath \outputs 1 ] \leq \Pr[ \thisGameMath \outputs 1 ] + \Pr[\thisGameMath \text{ sets }\bad_\binder] .	
+	\]
+	To bound the probability that the game sets flag $\bad_\binder$, we construct a reduction~$\advB_1$ to the collision-resistance of $\RObinder$.
+	The reduction~$\advB_1$ simulates \thisGame for adversary $\advA$.
+	It implements all oracles itself except for $\RObinder$.
+	$\advB_1$ will need to query its own oracle $\RObinder$ at most once per $\RO$ query and once per $\Send$ query, so it makes $\qRO + \qSend$ queries in total.
+	If the flag~$\bad_\binder$ would be set in \thisGame, which can be checked efficiently using $\collTracker_\binder$ as described before, then the reduction has found a collision $(s,s')$ with $s \neq s'$ such that $\RObinder(s) = \RObinder(s')$.
+	Reduction~$\advB_1$ then outputs $(s,s')$ and wins the collision-resistance game.
+	
+	Therefore, we have that
+	\begin{equation}\label{eq:game:binder-coll}
+		\Pr[ \prevGameMath \outputs 1 ] \leq \Pr[ \thisGameMath \outputs 1 ] + \genAdv{\CollRes}{\RObinder}{\qRO+\qSend} .
+	\end{equation}
+	
+	% Game -- exclude psk colls
+	\gamehop[Exclude collisions of pre-shared keys]{game:psk-coll}
+	In game $\thisGameMath$, we set a flag $\bad_{PC}$ and return $0$ from $\Finalize$ whenever the $\NewSecret$ oracle samples a previously sampled pre-shared key (again).
+	Formally, we set $\bad_{PC}$ if there exist two distinct tuples $(u, v,\pskid)$ and $(u', v',\pskid')$ with $\pskeys[(u, v, \pskid)] = \pskeys[(u',v',\pskid')]$. 
+	By the identical-until-bad-lemma,
+	\[
+	\Pr[ \prevGameMath \outputs 1 ] \leq \Pr[ \thisGameMath \outputs 1 ] + \Pr[\thisGameMath \text{ sets }\bad_{PC}] .	
+	\]
+	Since the pre-shared keys are uniformly distributed%
+	\footnote{As mentioned in Remark~\ref{rem:psk-distribution}, this term has to be adapted for a different distribution on $\bits^\hashlen$, i.e., for any distribution $\mathcal D$ on $\bits^\hashlen$, the denominator would change to $2^{\alpha}$, where $\alpha$ is the min-entropy of $\mathcal D$.}
+	on $\bits^\psklen$, by the birthday bound
+	\[
+		\Pr[\thisGameMath \text{ sets } \bad_{PC} ] \leq \frac{\qNewSecret^2}{2^\psklen}. 
+	\]
+	
+	\paragraph{Conclusion of Phase~1.}
+	At this point, we argue that in \thisGame and any subsequent games, adversary~$\advA$ cannot violate the $\Sound$ predicate without also causing $\Finalize$ to return~$0$.
+	If any $\Sound$ check fails, one of the checks we have added to the $\Finalize$ oracle will also fail.
+	According to the definition of the MSKE game, there are six events that cause the predicate $\Sound$ to be violated (see Figure~\ref{fig:MSKE-preds}).
+	In the following, we argue why each of these events cannot occur in \thisGame and thus $\Sound = \true$ needs to hold from \thisGame on.
+	%
+	\begin{enumerate}
+		\item \textit{There are three honest sessions that have the same session identifier at any non-replayable stage.}
+		
+		Since the only replayable stages are stages~$1$ ($\ets$) and~$2$ ($\eems$), consider any later stage $s \geq 3$.
+		Recall that session identifiers $\sid$ for all stages $s\geq 3$ contain a $\ClientHello$ message containing the initiator session's nonce and group element and a $\ServerHello$ message containing the responder session's nonce and group element (see Section~\ref{sec:tls-formal-def}).
+		Every session's $\sid$ therefore contains its own randomly sampled nonce-group element pair.
+		For three sessions to accept the same $\sid[s]$ for $s \geq 3$, there must be two honest sessions who have sampled the same nonce and group element.
+		Due to \refGameText{game:hello-coll}, this would trigger the $\bad_C$ flag, leading $\Finalize$ to return $0$.
+		
+		\item \textit{There are two sessions with the same session identifier in some non-replayable stage that have the same role.}
+		
+		Session identifiers $\sid[s]$ for $s \geq 3$ as defined by TLS~1.3 (see Section~\ref{sec:tls-formal-def}) contain only one pair of nonce and group element per initiator and responder.
+		If two honest sessions share a $\sid$ and a role, they must also share a nonce and group element.
+		This case would also trigger the $\bad_C$ flag. 
+		
+		\item \textit{There are two sessions with the same session identifier in some stage that do not share the same contributive identifier in that stage.}
+		
+		Once a session holds both a contributive identifier and a session identifier for the same stage, both are equal by our definition (see Section~\ref{sec:tls-formal-def}) of the session and contributive identifiers for TLS~1.3.
+		This case will therefore never occur.
+		
+		\item \textit{There are two sessions that hold the same session identifier for different stages.}
+		
+		This is impossible as the session identifier of stage~$s$ begins with the unique label $\mathit{label}_s$ for stage~$s$.
+		
+		\item \textit{There are two honest sessions with the same session identifier in some stage that disagree on the identity of their peer or their $\pskid$.}
+		
+		Two sessions which hold the same session identifier must necessarily agree on the value of the $\binder$, which is part of the $\ClientHello$ message.
+		In \refGameText{game:binder-coll}, we required that $\Finalize$ returns $0$ if two queries to the oracle $\RObinder$ collide. 
+		The two sessions must therefore also agree on the pre-shared key, which they obtained from the list $\pskeys$.
+		From \refGameText{game:psk-coll}, we have that $\Finalize$ returns $0$ if any two distinct entries in $\pskeys$ contain the same value.
+		Therefore two sessions can obtain the same pre-shared key from $\pskeys$ only if they hold the same tuple $(u, v, \pskid)$, meaning they agree on both the peer identities and the pre-shared key identity.
+		\item \textit{Sessions with the same session identifier in some stage do not hold the same key in that stage.}
+		
+		We have just established that two sessions with the same session identifier must agree on the peer identities and $\pskid$ (contained in $\CPSKtls$ and $\SPSKtls$), meaning they also share the same $\psk$. 
+		Session identifiers for stages whose keys are derived from a Diffie--Hellman secret $\dhe$ must include both Diffie--Hellman shares~$\X$ and~$\Y$ (contained in $\CKS$ and $\SKS$). 
+		These shares uniquely determine $\dhe$. 
+		Besides that the session identifier also contains the context required to derive the respective stage keys, which then uniquely determines the stage key.
+		Therefore, agreement on a session identifier implies agreement on a stage key.
+	\end{enumerate}
+
+	\subsection*{Phase~2: Ensuring Predicate~$\ExplicitAuth$ cannot be violated}
+	
+	\newcommand{\pskTable}{\mathsf{PSKList}}
+	
+		% Game -- Exclude hash colls
+	\gamehop[Exclude transcript hash collisions]{game:hash-coll}
+	In \thisGameMath, we let the adversary lose if two distinct queries to $\ROthash$ lead to colliding outputs.
+	This ensures that each transcript has a unique hash.
+	When such a collision occurs, we set a new flag $\bad_\hash$ and let the game return $0$ from $\Finalize$.
+	
+	As in \refGameText{game:binder-coll}, we introduce a table~$\collTracker_\Thash$ to random oracle~$\ROthash$.
+	Whenever it computes a hash $d = \ROthash(s)$ for some string s, we log $\collTracker_\Thash[d] \assign s$.
+	This table then is used to set $\bad_\Thash$ as in \refGameText{game:binder-coll}.
+	
+	Analogously to \refGameText{game:binder-coll}, we can construct a reduction $\advB_2$ to the collision-resistance of $\ROthash$.
+	As it simulates \thisGame, the adversary $\advB_2$ will need to make one query to its $\ROthash$ oracle for each $\ROthash$ query of $\advA$ and up to~$6$ $\ROthash$ queries for the up to 6 \emph{distinct} transcript hash values computed in a protocol step per $\Send$ query of~$\advA$; in total $\qRO+6\qSend$ queries.
+	
+	Therefore, we have that
+	\[
+	\Pr[\thisGameMath \text{sets }\bad_\hash] \leq \genAdv{\CollRes}{\ROthash}{\qRO+6\qSend}
+	\]
+	and it follows that
+	\[ 
+	\Pr[ \prevGameMath \outputs 1 ] \leq \Pr[ \thisGameMath \outputs 1 ] + \genAdv{\CollRes}{\ROthash}{\qRO+6\qSend}.
+	\]
+	
+	
+	% Game  -- Abort if the adversary guesses a PSK
+	\gamehop[Abort if adversary guess a uncorrupted $\psk$]{game:abort-psk}%
+	In \thisGameMath, we make the adversary lose when it queries any random oracle on a pre-shared key $\psk$ \emph{before} that key has been corrupted via $\RevLongTermKey$.
+	
+	We introduce some bookkeeping in order to implement this change.
+	First, we add a reverse look-up table~$\pskTable$ that is maintained by the $\NewSecret$ oracle.
+	When $\NewSecret(u,v,\pskid)$ samples a fresh pre-shared key $\psk$, we log the tuple under index $\psk$ as $\pskTable[\psk] \assign (u,v,\pskid)$.
+	Note that the pre-shared keys might repeat, so we may have multiple entries in $\pskTable$ indexed by a single $\psk$.
+	Second, we add a time log $\ROtimelog$ to the $12$ random oracles $\RO_x$.
+	Each random oracle query containing a pre-shared key~$\psk$ now creates an entry $\ROtimelog[\psk] \gets \time$, where $\time$ is the counter maintained by the key exchange experiment, unless $\ROtimelog[\psk]$ already exists.
+	
+	The actual check whether the adversary queries any random oracle with a $\psk$ before it was corrupted is performed by the $\Finalize$ oracle.
+	We set a flag $\bad_\psk$ if $\ROtimelog(\psk) \leq \revpsk_{(u,v,\pskid)}$ for any $\psk \in \ROtimelog$ and $(u,v,\pskid) \in P[\psk]$.
+	If the $\bad_\psk$ flag was set during this process, the $\Finalize$ oracle returns $0$.
+	
+	Next, let us analyze the probability that the game is lost due to flag $\bad_\psk$ being set.
+	Each random oracle query could hit one out of $\qNewSecret$ many pre-shared keys.
+	Before a given pre-shared key is corrupted or queried to a random oracle, the adversary knows nothing about its value. 
+	Since we assume that pre-shared keys are sampled uniformly at random from $\bits^\psklen$, the probability to hit a specific one is at most $2^{-\psklen}$.%
+	\footnote{Note that at this point, we use that the pre-shared key distribution is uniform. As already mentioned before, for any distribution $\mathcal D$ on $\bits^\hashlen$, the probability would be $2^{-\alpha}$, where $\alpha$ is the min-entropy of $\mathcal D$.}
+	By the union bound, we obtain that the probability that the adversary hits any of the pre-shared keys in a single random oracle query is upper-bounded by $\qNewSecret \cdot 2^{-\psklen}$. 	
+	Thus, the probability that $\bad_\psk$ is set in response to any of the $\qRO$ many random oracle queries overall is limited by $\qRO \cdot \qNewSecret \cdot 2^{-\psklen}$. 
+	This follows again by applying the union bound.
+	
+	Hence, we get by the identical-until-bad lemma, 
+	\begin{align*}
+		\Pr[ \prevGameMath \outputs 1 ] &\leq \Pr[ \thisGameMath \outputs 1 ] + \Pr[ \thisGameMath \text{ sets }\bad_\psk ] \\
+		&\leq \Pr[ \thisGameMath \outputs 1 ] + \frac{\qRO \cdot \qNewSecret}{2^\psklen} .
+	\end{align*}
+	
+	
+	In the next two games, we change the way that partnered sessions compute their session keys, $\binder$ values, and $\Finished$ MAC tags. 
+	Since we have established in Phase~1 that partnered sessions will always share the same key, we can compute these keys only once and let partnered sessions copy the results. 
+	This will make it easier to maintain consistency between partners as we change the way we compute keys and tags.
+	This approach follows the tight key exchange security proof techniques of Cohn-Gordon et al.~\cite{C:CCGJJ19}.
+
+	% Game -- Log session keys
+	\gamehop[Log session keys and MAC tags]{game:log-keys}
+	First, we will store all session keys in a look-up table $\skeyTable$ under their session identifiers.
+	Sessions will be able to use this table to easily check if they share a session identifier with another honest session and thus share a key with a partner.
+	
+	Honest sessions $\pi_u^i$ in the initiator role will derive the keys $\ets$, $\eems$, and $\rms$ before their partners. 
+	In \thisGame, when an initiator session accepts in stage~$1$ ($\ets$), $2$ ($\eems$), or~$8$ ($\rms$) it creates a new entry in $\skeyTable$, i.e.,
+	\[
+	\skeyTable[\pi_u^i.\sid[s]] \assign \pi_u^i.\skey[s]
+	\]
+	for $s \in \{1,2,8\}$.
+	Honest responder sessions $\pi_v^j$ will derive the keys $\shtk$, $\chtk$, 
+	$\cats$, $\sats,$ and $\ems$ before their partners. 
+	These sessions also log their keys in $S$ under the appropriate session identifier:  
+	\[
+	\skeyTable[\pi_v^j.\sid[s]] \assign \pi_v^j.\skey[s]
+	\]
+	for $s \in \{3,\dotsc,7\}$.
+	
+	Note that no two sessions will ever log keys in table $\skeyTable$ under the same $\sid$.
+	From $\Sound$, we know that only one initiator and one responder session may have the same session identifier $\sid[s]$ in any stage~$s$.
+	Note that for the replayable stages~1 and~2 ($\ets$ and $\eems$) we only log once because the messages will only be logged by the initiator that output the replayed messages and not by the receivers that are receiving them.
+	
+	We also store $\binder$, $\cfin$ and~$\sfin$ MAC tags.
+	When any honest session queries $\RO_x$ with $x \in \{\binder, \cfin, \sfin\}$, it logs the response in a second look-up table, $\macTable$, indexed by $x$ and the inputs to $\RO_x$.
+	That is, for a query $(\psk, \dhe, d_1, d_2)$ to $\RO_{\sfin}$, we log
+	\[
+	\macTable[ \sfin, \psk, \dhe, d_1, d_2 ] \assign \RO_{\sfin}(\psk, \dhe, d_1, d_2).
+	\]
+	
+	\noindent
+	Since \thisGame only introduces book-keeping steps, we have that
+	\[
+	\Pr[ \prevGameMath \outputs 1 ] = \Pr[ \thisGameMath \outputs 1 ].
+	\]
+	
+	\gamehop[Copy session keys and MAC tags from partnered session]{game:copy-keys}
+	In this game, we change the way the sessions compute their keys and MAC tags.
+	Namely, if a session has an honest partner in stage~$s$, instead of computing a key itself, it copies the stage-$s$ key already computed by the partner via the table $\skeyTable$ introduced in \prevGameText.
+	Concretely, the sessions compute their keys depending on their role as follows.
+	
+	\paragraph{Honest server sessions.}
+	An honest server session~$\pi_v^j$, upon receiving $(\mathlist{\CH, \CKS,\CPSKtls})$, sets its session identifier for stages~$1$ ($\ets$) and~$2$ ($\eems$).
+	It then checks whether keys have been logged in $\skeyTable$ under $\pi_v^j.\sid[1]$ and $\pi_v^j.\sid[2]$.
+	If such log entries exist, then $\pi_v^j$ has an honest partner in stages~$1$ and~$2$, and copies the keys $\ets$ and $\eems$ from~$\skeyTable$ when they would instead be computed directly.
+	
+	Analogously, upon receiving $\CF$, $\pi_v^j$ uses $\skeyTable$ to check whether there is an honest client session that shares the same stage-$8$ ($\rms$) session identifier $\pi_v^j.\sid[8]$, and it copies the $\rms$ key if this is the case.
+	If there are no entries in $\skeyTable$ under the appropriate session identifiers, $\pi_v^j$ proceeds as in \prevGameText and computes its keys using the random oracles.
+	
+	\paragraph{Honest client sessions.}
+	An honest client session $\pi_u^i$, upon receiving $(\mathlist{\SH, \SKS, \SPSKtls})$, sets its session identifiers for stages $3$--$7$, which identify the keys $\shtk$, $\chtk$, $\cats$, $\sats$ and $\ems$. 
+	It then searches for entries in $\skeyTable$ indexed by $\pi_u^i.\sid[s]$ for $s \in \{3,\dotsc,7\}$. 
+	If these entries are present for stage~$s$, then $\pi_v^i$ copies the stage-$s$ keys from $\skeyTable$ instead of computing them itself.
+	Otherwise, $\pi_u^i$ proceeds as in \prevGameText and computes the keys using the random oracle in each case.
+	%
+	
+	\paragraph{Computation of MAC tags.}
+	Finally, all honest sessions (both client and server) which would query $\RO_x$ to compute $x \in \{\binder, \cfin, \sfin\}$ in \prevGameText first check the look-up table $\macTable$ to see if their query has already been logged.
+	If so, they copy the response from $\macTable$ instead of making the query to $\RO_x$.
+	
+	It remains to argue that the procedure of copying the keys in partnered sessions described in this game is consistent with computing the keys in \prevGameText.
+	Recall that sessions which are partnered in stage~$s$ must agree on the stage-$s$ key, since the $\Sound$ predicate (Property~6) cannot be violated.	
+	Consider a session~$\pi_u^i$ which accepts the stage-$s$ key $\pi_u^i.\skey[s]$. 
+	By $\Sound$, any other session~$\pi_v^j$ in \prevGameText which accepts in stage~$s$ with $\pi_v^j.\sid[s] = \pi_u^i.\sid[s]$ must set its stage-$s$ key equal to $\pi_u^i.\skey[s]$.
+	Although in \thisGame the session $\pi_v^j$ may copy $\pi_u^i.\skey[s]$ from table~$\skeyTable$ instead of deriving it directly, the value of $\pi_v^j.\skey[s]$ does not change between the two games.
+	
+	Sessions may also copy queries from look-up table~$\macTable$ instead of making the appropriate random oracle query themselves.
+	However, table~$\macTable$ simply caches the response to random oracle queries and does not change them.  
+	Hence, the view of the adversary is identical.
+	This implies that
+	\[ 
+		\Pr[ \prevGameMath \outputs 1 ] = \Pr[ \thisGameMath \outputs 1 ]. 
+	\]
+	
+	With the next two games, we finalize Phase~2.
+	First, we postpone the sampling of the pre-shared key to the $\RevLongTermKey$ oracle such that only corrupted sessions hold pre-shared keys.
+	As a consequence of this change, we can no longer compute session keys and MAC tags using the random oracles.
+	We will instead sample these uniformly at random from their respective range and only program the random oracles upon corruption of the corresponding pre-shared key.
+	After this change, we can show that in order to break explicit authentication, the adversary must predict a uniformly random $\Finished$ MAC tag, which is unlikely.
+	
+	% postpone PSK sampling until after corruption
+	\gamehop[Postpone PSK sampling until after corruption]{game:mac-forgery-prep}
+	In this game, we postpone the sampling of pre-shared keys from the $\NewSecret$ oracle to the $\RevLongTermKey$ oracle (if the pre-shared key gets corrupted) or the $\Finalize$ oracle (if the key remains uncorrupted).
+	
+	Since we now do not have a $\psk$ anymore for uncorrupted sessions, we cannot use the random oracle to compute keys or MAC tags in those sessions, but instead sample them uniformly at random.
+	If the corresponding pre-shared key is corrupted later and a $\psk$ is chosen (in $\RevLongTermKey$), we will retroactively program the affected random oracles to ensure consistency.
+	
+	Concretely, we change the implementation of the game as follows.
+	When $\NewSecret$ receives a query $(u,v,\pskid)$, we set $\pskeys[ (u,v,\pskid) ]$ to a special symbol $\star$ instead of a randomly chosen pre-shared key.
+	The $\star$ serves as a placeholder and signalizes that the $\NewSecret$ oracle already received a query $(u,v,\pskid)$, but no $\psk$ has been chosen yet.
+	We add $(u,v,\pskid)$ to the set~$\pskTable[\star]$ to keep track of all tuples with an undefined $\psk$.
+	
+	We let honest sessions whose pre-shared key has not been sampled (yet) but equals $\star$ sample their session keys as well as $\binder$ and $\Finished$ MAC tags uniformly at random.
+	Due to the changes introduced in \refGameText{game:copy-keys} we do not need to ensure consistency when sampling, as we sample each value once and partnered sessions copy the suitable value from the tables~$\skeyTable$ and~$\macTable$.
+	(When sessions would log $\MAC$ tags in $\macTable$ under their pre-shared keys in \prevGameText, those with no pre-shared key instead use the tuple $(u, v, \pskid)$ in this game.)
+	We further log the respective random oracle query that sessions would normally have used for the computation in a look-up table $\programmingTable_x$ for later programming of the respective random oracle $\RO_x$.
+	Sessions which would log their $\RO$-derived values in tables~$\skeyTable$ and~$\macTable$ now log their randomly chosen values instead. 
+	That is, if a session in \prevGameText would issue a query $(\star, \dhe, \mathit{ctxt})$ (where $\dhe$ might be $\bot$) to random oracle $\RO_x$ to compute a value $k$, in \thisGame it chooses $k$ uniformly at random from $\RO_x$'s range and logs 
+	\[
+		\programmingTable_x[ (u,v, \pskid) , \dhe , \mathit{ctxt} ] \assign k
+	\]
+	in the look-up table $\programmingTable_x$, where $(u,v, \pskid)$ uniquely identifies the used $\psk$.
+	Note that the table $\programmingTable_x$ is closely related to the random oracle table $\roTable_x$ for $\RO_x$.
+	Table $\programmingTable_x$ is always used when there is no $\psk$ defined for a session, i.e., it has not (yet) been corrupted.
+	Therefore, we need to make sure that if the $\psk$ (identified by $(u,v,\pskid)$) gets corrupted we are able to reprogram $\RO_x$.
+	Using $\programmingTable_x$ we can upon corruption of the pre-shared key associated with $(u,v,\pskid)$ efficiently look-up the entries we need to program from $\programmingTable_x$ and transfer them to the random oracle table~$\roTable_x$ after $\psk$ has been set.
+	We will discuss the precise process below when we describe how to adapt the $\RevLongTermKey$ oracle.
+	
+	We must be particularly careful when $x = \binder$, because we still wish to set the $\bad_{\binder}$ flag when two randomly chosen binder values collide.
+	Therefore, honest sessions still record the sampled binder values in list~$\collTracker_\binder$, so that the $\bad_{\binder}$ flag is set as before.
+	This ensures that the probability of setting the flag does not change.
+	
+	We also need to adapt the corruption oracle $\RevLongTermKey$.
+	Upon a query $(u,v,\pskid)$ for which $\pskeys[ (u,v,\pskid) ] = \star$, we perform the following additional steps:
+	First, we sample a fresh pre-shared key~$\psk \sample \KEpskeyspace$ and update $\pskeys$, i.e., set $\pskeys[ (u,v,\pskid) ] \assign \psk$.
+	Next, we need to reprogram the random oracles using the lists $R_x$ to ensure consistency.
+	Thus, for all $x$ we update the random oracle tables $\roTable_x$ for $\RO_x$ using $\programmingTable_x$.
+	For every entry $\programmingTable_x[((u,v, \pskid) , \dhe , \mathit{ctxt})] = k$, we set 
+	\[
+	\roTable_x[ \psk, \dhe , \mathit{ctxt}  ] \assign k
+	\]
+	where $\roTable_x$ is the random oracle table of $\RO_x$.
+	Lastly, we remove $(u,v,\pskid)$ from the set $\pskTable[\star]$ and add it to $\pskTable[\psk]$.
+	
+	To be able to still set $\bad_\psk$, we also make sure that in the $\Finalize$ procedure every pre-shared key is defined before the check against the random oracle time log $\ROtimelog$ introduced in \refGameText{game:abort-psk}.
+	We sample a pre-shared key for every tuple $(u,v,\pskid) \in P[\star]$, setting $\pskeys[ (u,v,\pskid) ] \sample \KEpskeyspace$, and update the reverse look-up table $\pskTable$ accordingly.
+	As a result, also uncorrupted sessions now have a pre-shared key defined and we can check the condition for $\bad_\psk$ being set as introduced in \refGameText{game:abort-psk}.
+	
+	The changes introduced in \thisGame are unobservable for the adversary as it never queries the random oracle for an uncorrupted pre-shared key, as otherwise the game would be aborted due to $\bad_\psk$ introduced in \refGameText{game:abort-psk}.
+	It hence does not matter whether the pre-shared key is already set before or upon corruption, because from the view of the adversary the keys (and the pre-shared key) are uniformly random bitstrings anyway up to this point.
+	Upon corruption of a pre-shared key, we make sure by reprogramming the random oracle that all session keys and MAC tag computations are consistent with sessions that would have otherwise used this pre-shared key but derived all session keys and MAC tags without it.
+	The change to the $\Finalize$ procedure does not affect the view of the adversary as it only retroactively defines keys on which the adversary cannot get any information about anymore.
+	Consequently,
+	\[
+	\Pr[ \prevGameMath \outputs 1 ] = \Pr[ \thisGameMath \outputs 1 ].
+	\]
+	
+	% Game -- exclude mac forgeries
+	\gamehop[Exclude that honest sessions accept without a partner]{game:honest-mac-forgery}
+	In this game, we set a flag~$\bad_{\mathrm{MAC}}$ and return $0$ from $\Finalize$ if any session with an uncorrupted pre-shared key accepts stage~$5$ ($\chtk$) as initiator, or stage~$8$ ($\rms$) as responder, without having a partnered session.
+	Formally, we set $\bad_{\mathrm{MAC}}$ if there is a session $\pi_u^i$ such that $\pi_u^i.\taccepted[s] < \revpsk_{(u,v,\pi_u^i.\pskid)}$ with $v = \pi_u^i.\peerid$ and 
+	\[
+	s = \begin{cases}
+		5 & \mbox{if } \pi_u^i.\role = \initiator \\
+		8 & \mbox{if } \pi_u^i.\role = \responder
+	\end{cases}
+	\]
+	and there is no session $\pi_v^j$ with $\pi_u^i.\sid[s] = \pi_v^j.\sid[s]$ when $\pi_u^i$ accepts stage~$s$.
+	
+	Let us analyze the probability $\Pr[ \thisGameMath \text{ sets } \bad_\mathrm{MAC}]$.
+	Consider a session~$\pi_u^i$ which triggers the $\bad_{\mathrm{MAC}}$ flag. 
+	In the following analysis, let $\pi_u^i$ be an initiator.
+	For responder sessions the arguments are analogous.
+	The pre-shared key of session~$\pi_u^i$ is uncorrupted, which means that by the changes of \refGameText{game:mac-forgery-prep} it has not been sampled. 
+	Therefore $\pi_u^i$ either samples the $\ServerFinished$ MAC tag uniformly at random or copies it from table~$\macTable$ (in which case the MAC tag was uniformly sampled and logged by another honest session).
+	
+	First observe that session~$\pi_u^i$ will not copy the $\ServerFinished$ MAC tag from table~$\macTable$ as this would imply that $\pi_u^i$ is partnered when it accepts in stage~$5$. 
+	This in turn contradicts that $\pi_u^i$ has triggered flag~$\bad_{\mathrm{MAC}}$. 
+	Namely, if $\pi_u^i$ would be able to copy the $\ServerFinished$ MAC tag from table~$\macTable$ there must have been another honest session that computed the same $\ServerFinished$ MAC, i.e., using the same tuple $(u,v,\pskid)$, DHE secret, and transcript hash. 
+	Recall that the session identifier of stage~$5$ contains both the $\ServerFinished$ message and the transcript hashed to computed the $\ServerFinished$ MAC tag. 
+	Further, we have that transcript hashes are unique due to \refGameText{game:hash-coll}. 
+	This implies that the session that logged the $\ServerFinished$ MAC tag in $\macTable$ needs to have the same stage-$5$ session identifier than $\pi_u^i$ meaning $\pi_u^i$ would be partnered in stage~$5$.
+
+	Thus, if $\pi_u^i$ triggers $\bad_{\mathrm{MAC}}$, it must have sampled its $\ServerFinished$ MAC tag at random and the received $\ServerFinished$ message will match this tag with probability no more than~$2^{-\hashlen}$.
+
+	Thus the probability that $\pi_u^i$ triggers the flag $\bad_{\mathrm{MAC}}$ is bounded by $2^{-\hashlen}$.
+	A union bound over all sessions gives 
+	\[
+	\Pr[ \thisGameMath \text{ sets } \bad_\mathrm{MAC}] \leq \frac{\qSend}{2^{\hashlen}} .
+	\]
+%	\fg{Why is there a factor~$2$? My guess is because of initiator + responder, but $q_\Send$ already accounts for all of them.}
+%	\dd{My line of thought was either a intiator or a responder triggers $\bad_{\mathrm{MAC}}$ each Pr can be analysed as above, so a factor of $2$ then. But I guess dropping it is fine, if we say wlog. we consider intiators.}
+	
+	Overall, we get by the identical-until-bad-lemma
+	\begin{align*}
+		\Pr[ \prevGameMath \outputs 1 ] &\leq \Pr[ \thisGameMath \outputs 1 ] + \Pr[ \thisGameMath \text{ sets } \bad_\mathrm{MAC}] \\ &\leq \Pr[ \thisGameMath \outputs 1 ] + \frac{\qSend}{2^{\hashlen}}.
+	\end{align*}
+
+	\paragraph{Conclusion of Phase~2.}
+	At this point, we argue that in \thisGame and any subsequent games, adversary $\advA$ cannot violate the $\ExplicitAuth$ predicate without also causing $\Finalize$ to return $0$. 
+	To this end, we argue that $\ExplicitAuth = \true$ holds with certainty from \thisGame on.
+	
+	The predicate $\ExplicitAuth$ is set to $\false$ if there is a session~$\pi_u^i$ accepting an explicitly authenticated stage~$s$, whose pre-shared key was not corrupted before accepting the stage $s' \geq s$ in which it received (perhaps retroactively) explicit authentication, and (1)~there is no honest session~$\pi_v^j$ partnered to $\pi_u^i$ in stage~$s'$, or (2)~there is an honest partner session~$\pi_v^j$ for $\pi_u^i$ in stage~$s'$ but it accepts with a peer identity $w \neq u$, with a different pre-shared key identity than $\pi_u^i$, i.e. $\pi_v^j.\pskid \neq \pi_u^i.pskid$, or with a different stage-$s$ session identifier, i.e. $\pi_v^j.\sid[s] \neq \pi_u^i.\sid[s]$.
+	
+	Recall that initiator (resp.\ responder) sessions receive explicit authentication with acceptance of stage~$5$ (resp.\ stage~$8$) meaning that all previous stages~$1$--$4$ (resp.\ stages~$1$--$7$) receive explicit authentication retroactively and all future stages~$6$--$8$ upon their acceptance.
+	From \thisGame, we have that any initiator session $\pi_u^i$ accepting stage~$5$ (resp.\ any responder session accepting stage $8$)  with uncorrupted $\psk$ must have a partnered session in that stage.
+	Consequently, case (1) is impossible to achieve.
+	
+
+	We next address the possibility of case (2).
+	To achieve explicit authentication for stage $s \leq 8$, a responder session must have accepted stage~$8$.
+	From \thisGame on, we know that $\pi_u^i$  must have a partner with the same stage~$8$ session identifier.
+	Observe that the transcripts contained in $\pi_u^i$'s session identifiers for all stages are ``sub-transcripts'' of the transcript contained in the session identifier of stage~$8$.
+	Therefore the partner must also have the same stage~$s$ session identifier.
+	Property~5 of the $ \Sound $ predicate then ensures that all partnered sessions agree on the peer identity and the pre-shared key identity, so $\ExplicitAuth$ is not violated by session $\pi_u^i$.
+	The same property holds for initiator sessions accepting stages $s \leq 5$.
+	So $\ExplicitAuth$ can only be violated if an initiator session's stage-$5$ partner accepts in stage $s > 5$ with a different peer identity, pre-shared key identifier, or session ID. 
+	Since peer and pre-shared key identifiers do not change after they are set, only the session identifiers may not match in stage~$s$.
+	The ``sub-transcripts'' of stage~$6$ ($\cats$) and~$7$ ($\sats$) session identifiers are identical to those of stage~$5$, so a partner in stage $5$ will also be a partner in stages~$6$ and~$7$.
+	Then the only way to violate predicate $\ExplicitAuth$ is to convince the stage-$5$ partner, a responder session, to accept a forged $\ClientFinished$ message and accept stage~$8$.
+	This is impossible because the partner will verify the received $\ClientFinished$ message against the message sent by $\pi_u^i$, which it copies from table~$\macTable$.
+	It follows that no session, responder or initiator, can violate the $\ExplicitAuth$ predicate.
+	
+	\subsection*{Phase~3: Ensuring that the Challenge Bit is Idependently Random}
+	
+	\gamehop{game:abort-dhe}
+	In this game, we rule out that the adversary manages to guess the DHE secret of two honestly partnered session to learn about the keys they are computing. Here, we only look at those session that have a corrupted pre-shared key, because we already ruled out in \refGameText{game:abort-psk} that the adversary learns something about the keys computed by these sessions. To that end, we add another flag~$\bad_\dhe$ to the game and return $0$ from $\Finalize$ when it is set.
+	Flag $\bad_\dhe$ is set if the adversary ever queries a random oracle
+	\[
+	\RO_x(\psk, \dhe, \ROthash(\sid[s]))
+	\]
+	for $(x,s) \in \{\mathlist{(\chtk,3), (\shtk,4), (\sfin, 5) (\cats,5), (\sats,6), (\ems,7), (\cfin, 8), (\rms,8)}\}$ such that
+	\begin{itemize}
+		\item $\psk$ is corrupted, i.e., the adversary made a prior query~$\RevLongTermKey(\mathlist{u,v,\pskid})$ with $\pskeys[(\mathlist{u,v,\pskid})] = \psk$,
+		\item there are honest sessions $\pi_u^i$ and $\pi_v^j$ that are contributively partnered in stage~$s$ with $\pi_v^j.\rolecid[\pi_u^i.\role][s] = \pi_u^i.\rolecid[\pi_u^i.\role][s] = (\mathlist{\CH, \CKS, \CPSKtls, \SH, \SKS, \SPSKtls,\dotsc})$, and
+		\item $\dhe = g^{xy}$ such that $\CKS = g^x$ and $\SKS = g^y$.\footnote{Note that the game knows the exponents $x$ and $y$ used by the sessions, but the reduction constructed in the remainder will not.}
+	\end{itemize}
+	
+	We bound the probability of flag $\bad_\dhe$ being set via a reduction $\advB_\dhe$ to the strong Diffie--Hellman assumption in group~$\G$.
+	Reduction~$\advB_\dhe$ simulates \thisGame for $\advA$, and it wins the strong Diffie--Hellman whenever the simulated game would set the $\bad_{\dhe}$ flag.
+
+
+\begin{definition}
+  \label{def:stDH}
+Let $\G$ be a group of order $p$ generated by $g$. We define
+\[
+\genAdv{\stDH}{\G}{t_{\advB_\dhe}, 2 \qRO} := \Pr\left[  g^{ab} \getsr \advB_\dhe^{\stDH_a(\cdot, \cdot)}(g^{a}, g^{b}) : a,b \getsr \Z_{p} \right]
+\]
+where $\stDH_a$ is a special ``fixed-exponent DDH oracle'' that on input $(B,C)$ returns $1$ if and only if $C = B^a$.
+\end{definition}
+
+ %        Recall that in the strong Diffie--Hellman problem in a group we consider an adversary $\advB_\dhe$ that receives as input $A=g^a$ and~$B = g^b$, where $a,b \rand \Z_{p}$. We defined
+ % the challenge is to compute $C = g^{ab}$, however it additionally is provided with a  .
+
+
+	
+	\paragraph{Construction of reduction $\advB_\dhe$.}
+	The reduction~$\advB_\dhe$ gets as input a strong DH challenge $(A = g^a, B = g^b)$ as well as access to the oracle $\stDH_a$ for the Decisional Diffie--Hellman problem with the first argument fixed. 
+	%	Given inputs $C:=g^c$ and $W$ for any $c \in \Z_p$, $\stDH_a(C, W)$ returns $\true$ if and only if $W = g^{ac} = C^a$.
+	Adversary $\advB_\dhe$ then honestly executes the $\Initialize$, $\RevSessionKey$, $\Test$, and $\NewSecret$ oracles as \thisGame would, managing all game variables itself.
+	We explain in more detail how $\advB_\dhe$ answers $\Send$, $\RevLongTermKey$, and random oracle queries. 
+	
+	When $\advA$ makes a query to the $\Send$ oracle, $\advB_\dhe$ delivers the message to a protocol session in the same way as \thisGame.
+	However, the sessions themselves handle messages quite differently.
+	At a high level, $\advB_\dhe$ embeds its strong DH challenges into the key shares of every initiator session and every partnered responder session.
+	When $\bad_{\dhe}$ is triggered, $\advB_\dhe$ learns the Diffie--Hellman secret $\dhe$ associated with two of these embedded key shares, and it can extract a solution to the strong DH challenge using some basic algebra.
+	However, $\advB_\dhe$ must take care to appropriately program random oracles queries after corruptions, since it cannot compute Diffie--Hellman secrets for embedded key shares as it does not know the corresponding exponents.
+Next, we describe how client and server sessions are implemented in \thisGame.
+	
+		But first we explain the (constant-time accessible) look-up tables that are used (or defined) by reduction~$\advB_\dhe$ to ensure an efficient implementation:
+		\begin{itemize}
+			\item The look-up table~$\ksRandomizer$ is maintained for all sessions. It holds the random exponent $\tau$ used by the honest sessions to randomize their key share $G$, indexed by the session's nonce and key share $(r,G)$ (see the implementation of the session for further details). To identify a session uniquely we use its nonce $r$ and key share $G$ as the index.
+			\item Each random oracle $\RO_x$ maintains a look-up table~$\dheTable_x$. For each query $RO_x(\psk, Z, d)$, the table stores the group element $Z$ indexed by $\psk$ and $d$.
+			\item Each random oracle $\RO_x$ maintains a look-up table~$\rndTable_x$. It holds a tuple $(\tau,\tau',\mathit{ctxt},\mathit{key})$ 
+%\old{of a randomizer for each of the initiator and the responder, a transcript $\mathit{ctxt}$ and a key $\mathit{key}$}
+ indexed by the pair $(\psk, d)$.
+% \old{of pre-shared key and hash}
+			The table holds all necessary information that is required to reprogram of the random oracle $\RO_x$.
+			The fields $\psk$ and $\mathit{key}$ can hold special values.
+			If a $\psk$ is uncorrupted, we cannot log the information under it because it is not defined.
+			Therefore, we can use the tuple $(u,v,\pskid)$ uniquely identifying $\psk$ instead.
+			Moreover, $\mathit{key}$ can sometimes be an empty field, because reprogramming of that value will never occur. When this field is empty, it will not be accessed as we instead use the remaining information of $\rndTable_x$ to solve the stDH challenge. 
+			See the remainder of the proof for details.
+		\end{itemize}
+
+	
+	\paragraph{Implementation of honest server sessions.}
+	Consider any server session $\pi_v^j$.
+	
+	\begin{enumerate}
+		\item Upon receiving $(\CH, \CKS, \\CPSKtls)$, the reduction~$\advB_\dhe$ first checks whether $\pi_v^j$ has an honest partner in stages~$1$ ($\ets$) and~$2$ ($\eems$) by checking for entries indexed by $\pi_v^j.\sid[1]$ and $\pi_v^j.\sid[2]$ in the look-up table $\skeyTable$ introduced in \refGameText{game:log-keys}.
+		If no such entries exist, then $\advB_\dhe$ answers this and all future $\Send$ queries just as specified in \thisGame.
+		For the rest of the discussion, we assume the entries do exist.
+		
+		Session~$\pi_v^j$ generates its key share $\SKS$ by randomizing the challenge key share~$B$. 
+		Namely, it chooses  a randomizer~$\tau_v^j \sample \Z_p$ uniformly at random and sets $Y \assign B \cdot g^{\tau_v^j}$.
+		Then, it logs $\tau_v^j$ under index $(r_S, Y)$ in the look-up table~$\ksRandomizer$.
+		%		
+		\item Before $\pi_v^j$ outputs $(\SH,\SKS, \SPSKtls)$, it computes the keys $\chtk$ and $\shtk$.
+		By \refGameText{game:mac-forgery-prep}, these keys are sampled randomly when $\psk$ is uncorrupted and computed using $\RO_{\chtk}$, resp.\ $\RO_{\shtk}$ otherwise.
+		In both cases, $\advB_\dhe$ needs to know the Diffie--Hellman secret $\dhe$ to log in table~$\programmingTable_x$ or to query~$\RO_x$ for $x \in \{\chtk, \shtk\}$.
+		However, $\advB_\dhe$ cannot compute $\dhe$ because it does not know the discrete logarithms of either $\CKS$ or $\SKS$.
+		
+		Therefore, $\advB_\dhe$ needs to compute the keys without knowing the $\dhe$ key using the control over the random oracles.
+		%		We use $\chtk$ as an example of how the session can do this; it will follow the same process for all of the values $\chtk$, $\shtk$, $\sfin$, $\cats$, $\sats$, $\ems$, $\cfin$, and $\rms$ computed by $\pi_v^j$.
+		
+		%		First, $\advB_\dhe$ checks whether the $\bad_{\dhe}$ flag will be set by session $\pi_v^j$. 
+		If the pre-shared key has been corrupted, the adversary could potentially have already queried the random oracle $\RO_{\chtk}$ with the query $\pi_v^j$ should make. 
+		To that end, $\advB_\dhe$ first checks whether the corresponding query for~$\chtk$ was already made to~$\RO_{\chtk}$.
+		Concretely, $\advB_\dhe$ computes the context hash~$d = \RO_\Thash(\CH \concat \dotsb \concat \SPSKtls)$ and checks for a suitable $\RO_{\chtk}$ query using the look-up table $\dheTable_{\chtk}[\psk, d]$ maintained in $\RO_{\chtk}$ (see above for the definition).
+		Reduction~$\advB_\dhe$ queries $\stDH_a(Y, Z \cdot Y^{-\tau_u^i})$ for all $Z \in \dheTable_{\chtk}[\psk, d]$, where $\tau_u^i$ is the randomizer used by the honest partner of $\pi_v^j$, which can be looked up from $\ksRandomizer[r_C,X]$ using $\pi_u^i$'s nonce and key share.
+		(Although this may cause several $\stDH_a$ queries in response to a single $\Send$ query, $\advB_\dhe$ is still efficient because it only checks random oracle queries whose context is $d$, and due to the lack of both nonce/group element and hash collisions $d$ is unique to session~$\pi_u^i$ and its partner. Therefore each entry in $\dheTable_{\chtk}[\psk, d]$ will be checked at most twice over the course of the entire reduction.)
+		
+		If any one of these queries is answered positively, we have by the definition of $\stDH_a$ that $Z \cdot Y^{-\tau_u^i} = Y^a$, which implies that $Z = Y^{a + \tau_u^i} = X^{b + \tau_v^j}$ by definition of $Y$ and $X$, which was computed by the honest partner $\pi_u^i$ that has output the $\CH$ message received by $\pi_v^j$.
+		This exactly is the $\dhe$ value that $\pi_v^j$ would have computed if we would have known the discrete logarithm of $B$.
+		Hence, we have found the right $Z$ value and only need to derandomize it to win the challenge.
+		Therefore, we let $\advB_\dhe$ submit the value
+		\[
+		Z \cdot Y^{-\tau_u^i} \cdot A^{-\tau_v^j} = Y^a \cdot A^{-\tau_v^j} = (g^a)^{b + \tau_v^j} \cdot (g^a)^{-\tau_v^j} = g^{ab}
+		\]
+	 to the $\Finalize$ oracle as a solution to the strong Diffie--Hellman problem.
+		
+		Observe that if $\bad_\dhe$ is set due to a query to $\ROchtk$ in \thisGame, there is a random oracle query such that one of the above $\stDH_a$ queries will be answered positively. Thus, $\advB_\dhe$ will win if $\bad_{\dhe}$ is set.
+		We do the same for $\shtk$ with $\RO_{\shtk}$.
+		
+		If in the above process no query is answered positively, i.e., $\bad_{\dhe}$ will also not be set, then $\pi_v^j$ samples the key $\chtk \sample \KEkeyspace[3]$ itself and logs the following information so that future $\RO$ queries can be answered appropriately:
+		\[
+		\rndTable_{\chtk}(\psk, d = \hash(\CH \concat \dotsb \concat \SPSKtls) ) \assign \left(  \tau_u^i, \tau_v^j, (\CH \concat \dotsb \concat \SPSKtls), \bot \right).
+		\]
+		Again, we do the same for $\shtk$.
+		
+		If $\psk$ is not corrupted, then $\bad_{\dhe}$ cannot possibly have been set and we do not need to worry about consistency with earlier random oracle queries.
+		Therefore, we do not need to do the process described above and immediately sample $\chtk$ and $\shtk$ randomly as in \thisGame.
+		It logs the keys in table~$\skeyTable$ under their respective session identifiers, which do not contain $\dhe$ or any unknown values.
+		In \thisGame, we added entries to $\programmingTable_{\chtk}$ and $\programmingTable_{\shtk}$ in order to program future random oracle queries upon corruption.
+		The reduction cannot do this here as it does not know $\dhe$; instead, it logs
+		\[
+		\rndTable_x[((u, v, \pskid), d = \hash(\CH \concat \dotsb \concat \SPSKtls) )] \assign \left(  \tau_u^i, \tau_v^j, (\CH \concat \dotsb \concat \SPSKtls), \bot \right).
+		\]
+		for $x \in \{\chtk, \shtk\}$.
+		This will allow $\advB_\dhe$ to win if a later $\RevLongTermKey$ or random oracle query triggers $\bad_{\dhe}$.
+		%		
+		\item To compute the $\ServerFinished$ message $\advB_\dhe$ proceeds exactly as in Step~2 except that it uses the random oracle $\RO_{\sfin}$ and context $\CH \concat \dotsb \concat \EE$ through the $\EncryptedExtensions$. 
+		Also, the $\ServerFinished$ message is computed first by the server, so $\advB_\dhe$ does not check table $\skeyTable$ or $\macTable$ for any entries.
+		Reduction~$\advB_\dhe$ also cannot log the inputs to random oracle query $\RO_{\sfin}$ in table $\macTable$ (as done since game \refGameText{game:log-keys}) because it does not know $\dhe$.
+		Instead, it logs the derived value of $\sfin$ in table~$\macTable$ and replaces $\dhe$ in the index of $\macTable$ by $\left(  \tau_u^i, \tau_v^j, (\CH \concat \dotsb \concat \EE) \right)$.
+		That is, if it computes $\sfin$ for inputs $\psk$, $d_1$, and $d_2$, it logs
+			\[
+			\macTable[ \sfin, \psk, (\tau_u^i, \tau_v^j, (\CH \concat \dotsb \concat \EE)), d_1, d_2 ] \assign \sfin.
+			\]
+			That way, it is possible to identify $\dhe$ without knowing it.
+		For $\sfin$, we keep the same notation for the sets $\dheTable_x$, $\rndTable_x$ and $\roTable_x$ numbered as the corresponding random oracle $\RO_x$.
+		%		
+		\item Reduction $\advB_\dhe$ proceeds exactly as for $\sfin$ above,
+		except that we again use different random oracles and the context $\cid_\cats = \CH \concat \dotsb \concat \SF = \cid_\sats = \cid_\ems$, where $\cid_x$ denotes transcript contained in the contributive identifier which is prefixed by ``$x$'', and thus the hash $d = \RO_\Thash(\CH \concat \dotsb \concat \SF)$.
+		With respect to random oracles, we have $\RO_{\cats}$ for $\cats$, $\RO_{\sats}$ for $\sats$ and $\RO_{\ems}$ for $\ems$, respectively.
+		Reduction~$\advB_\dhe$ logs the keys in table~$\skeyTable$ under their respective session identifiers, which do not contain $\dhe$ or any unknown values.
+		
+		After this is done, $\pi_v^j$ outputs $(\EE, \SF)$.
+		%		
+		\item Upon receiving $\CF$, $\advB_\dhe$ looks for a suitable entry for $\cfin$ in $\macTable$.
+		If there is a value $\cfin$ consistent with $\pi_v^j$'s view, $\advB_\dhe$ terminates the session as specified if $\CF$ does not match the looked-up value of $\cfin$.
+		Otherwise, $\advB_\dhe$ continues to compute $\rms$.
+		To this end, $\advB_\dhe$ checks whether there is an entry in $\skeyTable$ that matches the stage-$8$ session identifier of $\pi_v^j$, if yes $\pi_v^j$ simply copies that entry.
+		If not, first observe that if there is no entry in $\skeyTable$ there is no honest stage-$8$ partner, which implies that $\psk$ needs to be corrupted as otherwise the game would have been aborted due to $\bad_{\mathrm{MAC}}$ introduced in \refGameText{game:honest-mac-forgery}.
+		Therefore, the adversary also would be allowed to query $\RO_\rms$ to compute $\rms$.
+		Thus, $\advB_\dhe$ needs to check whether the value for $\rms$ is already set.
+		Here, we need to distinguish two cases.
+		Namely, whether there is an honest contributive stage-$3$ partner or not.
+		
+		First note that as described in Step~$1$, $\advB_\dhe$ does not embed its challenge in $\SKS$ if there is no honest session output the $\ClientHello$ received, i.e., there is no honest contributive stage-$3$ partner.
+		Therefore, here $\advB_\dhe$ can simply implement $\pi_v^j$ as specified in \thisGame.
+		
+		In case there is an honest contributive stage-$3$ partner, then $\advB_\dhe$ proceeds as described in Step~2 for oracle $\RO_\rms$ and context hash $d = \RO_\Thash(\cid_\rms) = \RO_\Thash(\CH \concat \dotsb \concat \CF)$ to check whether the adversary already solved the stDH challenge for $\advB_\dhe$.
+		Note that the stage-$3$ session identifier uniquely defines the $\dhe$ key, thus if there is an honest partner and there is a respective $\RO_\rms$ query, the adversary has to break stDH to submit the query.
+	\end{enumerate}
+	
+	\paragraph{Implementation of honest client sessions.}
+	Consider any client session $\pi_u^i$.
+	
+	\begin{enumerate}
+		\item The reduction~$\advB_4$ proceeds exactly as in \thisGame until the session chooses its key share.
+		Instead of choosing a fresh exponent as specified in \autoref{fig:tls-handshake}, it chooses a value $\tau_u^i \sample \Z_p$ uniformly at random and sets $X \assign A \cdot g^{\tau_u^i}$ as its key share in the $\ClientKeyShare$ message.
+		Further, it logs $\tau_u^i$ in $\ksRandomizer$ indexed with $(r_C, X)$.
+		The rest is exactly as specified in \thisGame. 
+		That is, it computes $\ets$ and $\eems$ and outputs $(\CH, \CKS, \\CPSKtls)$.
+		%		
+		\item 	Upon receiving $(\SH,\SKS, \SPSKtls)$, $\pi_u^i$ checks whether there is an entry 
+		\[
+		\skeyTable[("\chtk",\CH, \dotsc, \SPSKtls)] \neq \bot.
+		\]
+		If this is the case, $\pi_u^i$ knows that there is an honest stage-$3$ partner, and it copies all the keys stored under $\pi_u^i$'s session identifier as defined in \thisGame.
+		If there is no suitable entry, $\advB_\dhe$ faces the problem that it already ``committed'' to not knowing the discrete logarithm of $\pi_u^i$'s key share $X$ by embedding $A$ into it and thus we are not able to compute the DHE value.
+		Since there is no entry in $\skeyTable$ for $\chtk$, we know that there is no honest stage-$3$ partner session by definition of $\skeyTable$.
+		That is, no honest server session computed $\SKS$ and thus it must have been chosen by the adversary.
+		If the pre-shared key is corrupted, $\advB_\dhe$ needs to use the $\stDH_a$ oracle to check whether there already was a query issued to $\RO_x$ for $x \in \{\chtk, \shtk\}$.
+		If this is not the case, $\pi_u^i$ freshly samples random keys and remembers them for possible retroactive reprogramming of the random oracle.
+		Concretely, we do the following for each random oracle $\RO_{x}$ for $x \in \{\chtk, \shtk\}$:
+		
+		First compute $d = \RO_\Thash(\CH \concat \dotsc \concat \SPSKtls)$ and then query the $\stDH_a$ oracle for all $Z \in \dheTable_x[\psk, d]$, where $\psk$ is the pre-shared key used by $\pi_u^i$, as
+		\[
+		\stDH_a(Y, Z \cdot Y^{-\tau_u^i}) = 1 \iff Z = Y^a,
+		\]
+		where $Y$ is the DH key share contained in $\SPSKtls$.
+		See the server session implementation above for further explanation.
+		If there is any of these queries is answered positively, let the respective key be $\RO_{x}(\psk, Z, d)$.
+		If there is no $Z$ that results in a positive query, let $\mathit{key} \sample \KEkeyspace[x]$ be sampled at random, and $\advB_\dhe$ logs the value for possible later reprogramming of the random oracle $\RO_{x}$, i.e.,
+		\[
+		\rndTable_x[(\psk, d = \RO_\Thash(\CH \concat \dotsb \concat \SPSKtls) )] \assign \left(  \tau_u^i, \bot, (\CH \concat \dotsb \concat \SPSKtls), \mathit{key} \right).
+		\]
+		
+		After that $\pi_v^i$ either has copied the keys or chose them itself and will accept all of the stage keys among these keys.
+		
+		If the $\psk$ of $\pi_u^i$ has not been corrupted, then no ``right'' query can have been made and the keys be sampled randomly. 
+		However, we still need to program future ``right'' $\RO$ queries after a corruption.
+		Therefore set
+		\[
+		\rndTable_x[(\psk, d = \RO_\Thash(\CH \concat \dotsb \concat \SPSKtls) )] \assign \left(  \tau_u^i, \bot, (\CH \concat \dotsb \concat \SPSKtls), \mathit{key} \right).
+		\]
+		$\programmingTable_{x}$ is not updated as in \thisGame, because $\dhe$ is unknown.
+		%		
+		\item 	Upon receiving $(\EE, \SF)$, similar to the previous step, $\pi_v^j$ checks whether there is an entry in $\skeyTable$ and $\macTable$ (to verify $\SF$) corresponding to its stage-$5$ session identifier.
+		If this is the case, it copies the keys from that list.
+		In case there is none, we have that there is no honest stage-$5$ partner.
+		Here, we need to distinguish the case whether there was an honest stage-$3$ partner before or not.
+		
+		Namely, the adversary could corrupt the $\psk$, then change the $\EE$ output by an honest session and then compute a new $\SF$ message for the changed transcript.
+		Hence, there is an honest stage-$3$ partner, but no stage-$5$ partner.
+		In this case, $\advB_\dhe$ again applies the approach from above (see implementation of server session, Step 2) for the random oracles $\RO_{x}$ for $x \in \{\cats, \sats, \ems\}$ and the context $d = \RO_\Thash(\CH \concat \dotsb \concat \SF)$ checking whether the random oracles received already a correct query which set the keys $\cats$, $\sats$ and $\ems$.
+		If this is the case and since there was a stage-$3$ partner, $\advB_\dhe$ has embedded the DH challenge in both the client and the server, this solves the strong Diffie--Hellman problem.
+		When there is no such query the keys are chosen at random and all necessary information for possible retroactive programming of the random oracles $\RO_{x}$ is logged in the table $\rndTable_{x}$.
+		Please see above for details.
+		
+		However, if there is no honest stage-$3$ partner, $\SKS$ was chosen by the adversary.
+		Hence, $\advB_\dhe$ needs to apply the procedure described in the previous step (Step 2) and use the oracle $\stDH_a$ to check the random oracles $\RO_{x}$ for $x \in \{\cats, \sats, \ems\}$ whether they already set the keys.
+		The important difference here is that a positive answer of the $\stDH_a$ oracle does not solve stDH,
+		as $\SKS$ was chosen by the adversary.
+		Note that $\advB_\dhe$ again needs to make sure that it gathers all the information needed to make retroactive programming of the random oracles possible by logging information in $\rndTable_{x}$ as before.
+		%		
+		\item $\pi_u^i$ computes $\cfin$ using the same process as above: if $\psk$ is corrupted, it checks for $\RO$ queries in $\dheTable_{\cfin}[\psk, d]$ that could set $\bad_{\dhe}$ when $\pi_u^i$ has an honest partner in stage $8$ or fix the value of $\cfin$ when no honest partner exists.
+		It then calls $\Finalize$ or sets $\cfin$ accordingly.
+		If no earlier $\RO$ query matches $\cfin$, then we sample $\cfin$ randomly and log $\tau_u^i$, $\cfin$, and the transcript in table $\rndTable_{\cfin}$ under $\psk$ and the transcript hash $d$.
+		If $\psk$ is uncorrupted, $\pi_u^i$ immediately samples $\cfin$ randomly and logs $\tau_u^i$, $\cfin$, and the transcript in $\rndTable_{\cfin}$ under index $((u,v,\pskid), d)$.
+		
+		Next we compute $\rms$.
+		As $\pi_u^i$ is not able to compute $\dhe$ independent of there being a honest stage-$3$ partner or not, $\advB_\dhe$ need to apply the same procedure that was described before in Step 3, when there was no stage-$5$ partner for random oracle $\RO_\rms$ and context $d = \RO_\Thash(\CH \concat \dotsb \concat \CF)$.
+		The only difference is that in case there was a stage-$3$ partner, $\Finalize$ is queried when the $\stDH$ oracle returns $\true$, and if there is no stage-$3$ partner, $\rms$ is only programmed.
+		%
+		Then, $\pi_u^i$ outputs $\CF$.
+	\end{enumerate}
+	
+	Besides changing the implementation of the session oracles, we also need to adapt the random oracles $\RO_x$ for $x \in \{\chtk, \dotsc,\rms\}$ to make sure
+	(1)~$\advB_\dhe§$ programs the random oracle retroactively if the random oracle receives the right query and
+	(2)~to check whether the adversary computed $\dhe$ for $\advB_\dhe$ for honestly partnered sessions.
+	
+	\paragraph{Implementation of random oracle $\RO_x$.}
+	If $\RO_x$ receives a query that was already answered, it answers consistently.
+	However, if there is a new query of the form $(\psk, Z, d)$, it appends $Z$ to the set $\dheTable_k[\psk, d]$.
+	If $\rndTable_k[\psk, d] \neq \bot$, then there already was a session using $\psk$ and context hash $d$ trying to compute a key without knowing the correct $\dhe$ secret.
+	Therefore, $\advB_\dhe$ uses the $\stDH_a$ oracle to check whether $Z$ is that secret.
+	Let $(\tau_u^i, \tau_v^j, \mathit{ctxt}, \mathit{key})$ be the entry of $\rndTable_k[\psk, d]$, where $\tau_u^i$ and $\tau_v^j$ denote the randomness used by the client and the server to randomize the stDH challenge, respectively, $\mathit{ctxt} = \CH \concat \CKS \concat \\CPSKtls \concat \SH \concat \SKS \concat \SPSKtls \concat \dotsb$ denotes the context such that $d = \RO_\Thash(\mathit{ctxt})$ and $\mathit{key}$ denotes the key chosen by the session since there was no random oracle fixing it.
+	Using this information, it fetches $\SKS = Y$ and queries $\stDH_a(Y, Z \cdot Y^{-\tau_u^i})$.
+	If this query is answered positively, $\advB_\dhe$ knows that the right DH value $Z$ was queried.
+	If $\tau_u^j = \bot$, i.e., the log in $\rndTable_k$ was set by a client without an honestly partnered server, $\advB_\dhe$ needs to program the random oracle to be consistent.
+	That is, $\roTable_k[\psk, Z, d] \assign \mathit{key}$.
+	Otherwise, $\advB_\dhe$ knows that the $\programmingTable_x$ entry was set by an honestly partnered session, and thus $Z$ is a randomized solution to the stDH challenge.
+	Thus, $\advB_\dhe$ submits the solution $Z \cdot Y^{-\tau_u^i} \cdot A^{-\tau_v^j}$ to its stDH $\Finalize$ oracle.
+	
+	Unless $\advB_\dhe$ solved the stDH challenge, the oracle outputs $\roTable_x[\psk, Z, d]$.
+	
+	\paragraph{Implementation of corruption oracle $\RevLongTermKey$.} Finally, $\advB_\dhe$ needs to handle corruptions via the $\RevLongTermKey$ oracle.
+	Since \refGameText{game:mac-forgery-prep}, the $\RevLongTermKey$ oracle upon input $(u, v, \pskid)$ samples a fresh $\psk$.
+	It then uses lists $\programmingTable_x$ to program all the random oracles $\RO_{x}$ for consistency with any sessions whose pre-shared key is now $\psk$. 
+	Reduction~$\advB_\dhe$ still does this, but in our reduction, the lists $\programmingTable_x$ are no longer comprehensive. 
+	Some sessions fix the outputs of $\RO_{x}$ on some query without knowing the $\dhe$ input to that query. 
+	These sessions create log entries in $\rndTable_x$, not $\programmingTable_x$, and the entries have indices of the form $((u,v,\pskid), d)$. 
+	$\advB_\dhe$ cannot use these entries to program past $\RO_x$ queries, but this is not necessary since any past $\RO_x$ query containing $\psk$ would set the $\bad_{\psk}$ flag and cause the game to abort.
+	$\advB_\dhe$ also cannot program future queries because we still do not know $\dhe$. 
+	Instead, $\advB_\dhe$ just updates each matching entry in $\programmingTable_x$ so that its index is $(\psk, d)$ instead of $((u, v, \pskid), d)$. 
+	Future $\RO_x$ queries containing $\psk$ will then handle strong DH checking and programming for $\advB_\dhe$.
+	
+	By the considerations above, we have that if $\bad_\dhe$ is set the $\advB_\dhe$ wins the strong DH challenge.
+	The identical-until-bad-lemma gives us that
+	\begin{align} \nonumber
+		\Pr[ \prevGameMath \outputs 1 ] &\leq \Pr[ \thisGameMath \outputs 1 ] + \Pr[ \bad_\dhe ] \\
+		&\leq \Pr[ \thisGameMath \outputs 1 ] + \genAdv{\stDH}{\G}{t_{\advB_\dhe}, 2 \qRO},
+	\end{align}
+	where the number of $\stDH_a$ oracle queries is no greater than $2 \qRO$, since $\advB_\dhe$ will query the oracle at most twice (once for each partner) for every random oracle query issued by the adversary, and $t_{\advB_{\dhe}}$ with $t_{\advB_{\dhe}} \approx t + 4 \log(p) \cdot \qRO$ is the running time of $\advB_{\dhe}$.
+	Note that for every $\stDH_a$ query, $\advB_{\dhe}$ needs to perform one group operation and one exponentiation in $\G$, the latter can be done in $2 \log(p)$ many group operations using, e.g., the square-and-multiply algorithm.
+	Thus, the time to answer a single $\stDH_a$ query take approximately time $2 \log(p)$ and taking this together with the bound on the number of $\stDH_a$ yields the approximate runtime $t_{\advB_{\dhe}}$.
+	
+	\paragraph{Conclusion of Phase~3.}
+	We finally argue that the adversary's probability in determining the challenge bit~$b$ in \thisGame is at most $\tfrac{1}{2}$ if the $\Fresh$ predicate is true.
+	First, recall that $\Fresh = \true$ implies no session can be tested and revealed in the same stage, and a tested session's partner may also be neither tested nor revealed in that stage.
+	In the following, we refer to a session being ``fresh'' in a stage if this session does not violate the conditions defined in the predicate~$\Fresh$ in that stage.
+	The $\Fresh$ predicate depends on the level of forward secrecy reached at the time of each $\Test$ query.
+	First, if a session is tested in a non-forward secret stage, it remains only fresh if the $\psk$ was never corrupted.
+	Second, if a session is tested in a weak forward secret 2 stage $s$, it remains fresh if the $\psk$ was never corrupted or if there is a contributive partner in stage $s$.
+	Lastly, if a session is tested on a forward secret stage $s$, it remains fresh the $\psk$ was corrupted after forward secrecy was established for that stage (perhaps retroactively) or if there is a contributive partner.
+	
+	Next, we argue for each level of forward secrecy that all tested keys in \thisGame which do not violate $\Fresh$ are uniformly and independently distributed from the view of the adversary.
+	For the non-forward secret stages~$1$ ($\ets$) and~$2$ ($\eems$), the adversary cannot corrupt the $\psk$ of all sessions that it queried $\Test$ on stage~$1$ or~$2$. 
+	Since \refGameText{game:mac-forgery-prep}, we sample all session keys derived from uncorrupted pre-shared keys uniformly at random, or copy uniformly random keys from $\skeyTable$. 
+	That is, the key returned by the $\Test$ query is a uniformly random key independent of the challenge bit $b$.
+	Therefore, it cannot learn anything about either $\ets$ nor $\eems$ of any session with an uncorrupted key, and thus the response of a $\Test$ query will be a uniformly random string independent of the challenge bit $b$ from the view of the adversary.
+	
+	All other stages, i.e., stages~$3$--$8$, are weak forward secret 2 upon acceptance and become forward secret as soon as the session achieves explicit authentication.
+	If the pre-shared key is never corrupted, we have by the same arguments given for the non-forward secret stages that the adversary receives a uniformly random key in response to the $\Test$ query independent of the challenge bit.
+	
+	It remains to argue that the same is true if there is a contributive partner and the $\psk$ is corrupted. 
+	In this case, the adversary would need to make a random oracle query that triggers $\bad_\dhe$ introduced in \refGameText{game:abort-dhe} and would cause $\Finalize$ to return $0$.
+	Without such a query the respective key is just a uniformly and independently distributed bitstring from the adversary's view.
+	Hence, without losing the game, the adversary cannot learn anything about a weak forward secret 2 key, and thus it does not learn anything from the response of the $\Test$ query.
+	
+	Since forward secret stages are weak forward secret 2 until explicit authentication is established, we only consider the case that a session that is tested on a weak forward secret 2 stage was corrupted after forward secrecy has been (retroactively) established.
+	As we only establish forward secrecy after explicit authentication has been achieved, we can be sure due to $\ExplicitAuth$ never beeing violated that there is a partnered session for that stage.
+	Hence, there also is a contributive partner and by the same arguments as given before the adversary would trigger $\bad_\dhe$ and lose the game before it can learn something about the session.
+	
+	Overall, we have that the adversary in \thisGame cannot gain any information on the challenge bit $b$ without violating any of the predicates $\Sound$, $\ExplicitAuth$, or $\Fresh$. Thus, the probability that $\Finalize$ and thus \thisGame returns $1$ is no greater than $1/2$. Formally,
+	\[
+		\Pr[ \thisGameMath \outputs 1 ] \leq \frac 12.
+	\]
+	
+	Collecting all the terms, we get the final bound
+	\begin{align*}
+		&\genAdv{\KESEC}{\TLSPSKECDHE}{t, \qNewSecret, \qSend, \qRevSessionKey, \qRevLongTermKey, \qTest, \qRO} \\
+		&\qquad\leq \frac{2\qSend^2}{2^{\nl} \cdot p} + \genAdv{\CollRes}{\RObinder}{\qRO + \qSend} + \frac{\qNewSecret^2}{2^{\hashlen}} + \genAdv{\CollRes}{\ROthash}{\qRO + 6\qSend} \\
+		&\qquad\qquad + \frac{\qRO \cdot \qNewSecret}{2^{\hashlen}} + \frac{\qSend}{2^{\hashlen}} + \genAdv{\stDH}{\G}{t_{\advB_\dhe}, 2 \qRO}
+	\end{align*}
+	Applying the result of Appendix~\ref{app:coll-res-ro}, we can make the collision resistance terms explicit
+	\begin{align*}
+		&\genAdv{\KESEC}{\TLSPSKECDHE}{t, \qNewSecret, \qSend, \qRevSessionKey, \qRevLongTermKey, \qTest, \qRO} \\
+		&\qquad\leq \frac{2\qSend^2}{2^{\nl} \cdot p} + \frac{(\qRO+\qSend)^2}{2^{\hashlen}} + \frac{\qNewSecret^2}{2^{\hashlen}} + \frac{(\qRO+6\qSend)^2}{2^{\hashlen}} + \frac{\qRO \cdot \qNewSecret}{2^{\hashlen}} + \frac{\qSend}{2^{\hashlen}} \\
+		&\qquad\qquad +  \genAdv{\stDH}{\G}{t_{\advB_\dhe}, 2 \qRO}
+	\end{align*}
+	Further, applying the GGM bound for the strong Diffie--Hellman problem proven by Davis and Günther in \cite{ACNS:DavGun21}, we get the final result
+	\begin{align*}
+		&\genAdv{\KESEC}{\TLSPSKECDHE}{t, \qNewSecret, \qSend, \qRevSessionKey, \qRevLongTermKey, \qTest, \qRO} \\
+		&\qquad\leq \frac{2\qSend^2}{2^{\nl} \cdot p} + \frac{(\qRO+\qSend)^2}{2^{\hashlen}} + \frac{\qNewSecret^2}{2^{\hashlen}} + \frac{(\qRO+6\qSend)^2}{2^{\hashlen}} + \frac{\qRO \cdot \qNewSecret}{2^{\hashlen}} + \frac{\qSend}{2^{\hashlen}} \\
+		&\qquad\qquad +  \frac{4(t + 4 \log(p) \cdot \qRO)^2}{p} \\
+		&\qquad= \frac{2\qSend^2}{2^{\nl} \cdot p} + \frac{(\qRO+\qSend)^2 + \qNewSecret^2 + (\qRO+6\qSend)^2 + \qRO \cdot \qNewSecret + \qSend}{2^{\hashlen}} \\
+		&\qquad\qquad +  \frac{4(t + 4 \log(p) \cdot \qRO)^2}{p}
+	\end{align*}
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

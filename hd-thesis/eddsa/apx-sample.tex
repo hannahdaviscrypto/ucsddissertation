@@ -1,0 +1,17 @@
+\section{Proof of Lemma~\ref{th-distribution-bias}: Statistical distance of sampling over $Z_{\Prime}$} \label{apx:sample}
+
+\begin{proof}
+	Define variables $q := \lfloor 2^{k}/\Prime \rfloor$ and $r := 2^{k} \mod \Prime$, so that $2^{k} = q\cdot \Prime + r$.
+	The statistical difference between $U_{Z_{\Prime}}$ and $\distrib_{\Prime,k}$ is defined to be 
+	\[\Delta(U_{Z_{\Prime}}, \distrib_{\Prime,k}) =\sum_{x \in \Z_{\Prime}} \left|\Pr[y = x | y \getsr \Z_{\Prime}] - \Pr[y = x | y \getsr \distrib_{\Prime,k}]\right|.\]
+	Every element of $\Z_{\Prime}$ appears with probability $\frac{1}{\Prime}$ in the uniform distribution. In $\distrib$, the probability of sampling $x$ depends on whether $x < r$:
+	\[\Pr[y = x | y \getsr \distrib_{\Prime,k}] =  
+	\begin{cases}
+	\frac{q+1}{2^{k}} & \text{if } x< r \\
+	\frac{q}{2^{k}} & \text{otherwise.} \\
+	\end{cases}
+	\]
+	We substitute this into the above summation to obtain the desired bound
+	\[\Delta(U_{Z_{\Prime}}, \distrib_{\Prime,k}) =\frac{1}{2}\sum_{x= 0}^{r-1}  \left|\frac{q+1}{2^{k}} - \frac{1}{\Prime}\right| + \frac{1}{2}\sum_{x=r}^{\Prime - 1} \left|\frac{1}{\Prime} - \frac{q}{2^{k}}\right| = \frac{r(\Prime-r)}{2^{k}\Prime} \leq \frac{\Prime}{2^{k+2}}.\] \qed
+	
+\end{proof}

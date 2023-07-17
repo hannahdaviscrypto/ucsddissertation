@@ -1,0 +1,72 @@
+\section{Public indifferentiability}\label{sec-pub} 
+In an earlier work, Dodis et al. showed that the Merkle-Damgard construction is indifferentiable from a ``public random oracle.'' That is, a RO that reveals all queried messages to adversary.
+In our framework, we will rely on a weaker version of public indifferentiability whose game is shown in Figure~\ref{fig-gm-indiff}. In weaker public indifferentiability, we restricts RO to not reveal simulator's queried messages to adversary, but simulator can still get all queried messages. Then the original bound for public indifferentiability still applies for weaker public indifferentiability since the advantage of adversary doesn't depend on whether adversary has all queries or not.
+%\begin{figure}[t]
+%	\oneCol{0.8}{
+%		\ExperimentHeader{Game $\Gpindiff_{\construct{MD},  \simulator}$}
+		
+%		\begin{algorithm-initial}{$\Initialize()$}
+%			\item $b \getsr \bits$
+%			\item $\simstate \getsr \simulator.\Sg$
+%			\item $\hh \getsr \FuncSp{SS}$
+%			; $\HH_0 \getsr \FuncSp{ES}$ ; $\HH_1 \gets \construct{MD}[\hh]$ 
+%		\end{algorithm-initial}
+%		\ExptSepSpace	
+%		\begin{algorithm-subsequent}{$\PrivO(X)$}
+%			\item $Y \gets \HH_b(X)$ 
+%			\item $\simstate\gets\simstate \concat (X,Y)$
+%			\item Return $Y$
+%		\end{algorithm-subsequent}	
+%		\ExptSepSpace
+%		\begin{algorithm-subsequent}{$\PubO(\X)$}
+%			\item If $b=1$ then $Z\gets \hh(\X)$; $Q \gets Q\concat(\X,Z)$
+%			\item Else $(\simstate,Z, Q) \gets \simulator.\Eval[\HH_0] (\simstate,\X)$
+%			\item return $(Z, Q)$
+%		\end{algorithm-subsequent}
+%		\ExptSepSpace
+%		\begin{algorithm-subsequent}{$\Finalize(b')$}
+%			\item return $[[b = b']]$
+%		\end{algorithm-subsequent}
+%	}
+%	\vspace{-5pt}
+%	\caption{Public indifferentiability game $\Gpindiff_{\construct{MD},  \simulator}$
+%	}
+%	\label{fig-p-indiff}
+%	\hrulefill
+%\end{figure}
+
+Fix $\ell$ be the number of blocks of $2k$-bits. Let $\FuncSp{SS}$ be the random oracle space $\AllFuncs(\bits^{4k}, \bits^{2k})$, and let $\FuncSp{ES}$ be the random oracle space $\AllFuncs(\bits^{*}, \bits^{2k})$. Let $\construct{MD}$ be the functor defined in Section~\ref{sec-fi}.
+The weaker public indifferentiability result states that for any distinguisher $\advD$ making $q_{\PubO}$ queries to $\PubO$, and $q_{\PrivO}$ queries to $\PrivO$ of length at most $2k \cdot \ell$ bits, there exists a simulator $\simulator$ such that
+\begin{align*}
+	\genAdv{\wpindiff}{\construct{MD},\simulator}{\advD} &\leq \frac{(\ell q_{\PrivO} + q_{\PubO})^2}{2^{2k}}\\
+	&+ \frac{q_{\PubO}(\ell q_{\PrivO} + q_{\PubO})}{2^{2k}}.
+\end{align*} The running time of $\simulator$ is that of $\advD$ plus $\bigO(q_{\PrivO}\ell q_{\PubO})$ and $\simulator$ makes $q_{\PrivO}\ell+q_{\PubO}$ queries.
+%The simulator $S$ is shown in figure~\ref{pub-filter}. The simulation fails when two outputs of $MD[\h]$ collide or when the distinguisher queries an unseen $v$ the first time, but later gets $v$ from the output of $MD[\h]$. 
+
+%\begin{figure}[t]
+%	\oneCol{0.8}{
+%		\begin{algorithm-initial}{Simulator $\simulator[MD[\h]](ss, (v,x))$} 
+%			\item $(x^1,v^1), \cdots, (x^p, v^p) \gets ss$
+%			\item For $i=p_{last} + 1$ to $p$ do 
+%			\item \quad $x^i_1, \cdots, x^i_m\gets x^i$ 
+%			\item \quad $v^i_0 \gets IV$; $V[IV] \gets \emptystring$
+%			\item \quad For $j=1$ to $m$ do 
+%			\item \quad \quad $v^i_j \gets F[x^i_1||\cdots ||x^i_j]$
+%			\item \quad \quad If $v^i_j = \bot$ then
+%			\item \quad \quad\quad $v^i_j \gets MD[\h](x^i_1||\cdots ||x^i_j)$
+%			\item \quad \quad\quad $V[v^i_j] \gets  x^i_1||\cdots ||x^i_j$
+%			\item \quad \quad\quad $ss \gets ss || (v^i_{j-1}||x^i_j, v^i_j)$
+%			\item \quad \quad $F[x^i_1||\cdots ||x^i_j] \gets v^i_j$
+%			\item $p_{last} \gets p$
+%			\item If $V[v] \neq \bot$ then 
+%			\item \quad return $(ss, MD[\h](V[v]||x)$
+%			\item $w \getsr \{0,1\}^{2k}$
+%			\item $ss \gets ss||((v||x),w)$
+%			\item return $(ss, w)$
+%		\end{algorithm-initial}
+%	}
+%	\vspace{-8pt}
+%	\label{pub-filter}
+%	\hrulefill
+%	\vspace{-10pt}
+%\end{figure}

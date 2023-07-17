@@ -1,0 +1,109 @@
+In the random oracle model, we treat hash functions like $\SHA{256}$ as uniformly sampled random functions. 
+Honest parties and adversaries alike access these functions via additional oracles in the security game. 
+These are the \emph{random oracles}. 
+These random functions will be sampled from a set called a \emph{function space} at the start of a security game.
+Alternatively, the random oracle can \emph{lazily sample} responses to each query as they are needed. 
+While we typically use the latter (lazily-sampled) model in key exchange security proofs, we will focus on the former conceptual view here. 
+
+Let us give an example. 
+When we model the TLS~1.3 protocol in the ROM, we will equip our protocol definition with a function space parameter $\FSp$. 
+We set this parameter according to the portion of the protocol we wish to model as a random oracle. 
+If we wish to replace the hash function $\hash$ with a random oracle $\ROhash$, then we would set $\FSp$ to be the set of all functions the set of all functions with domain $\bits^*$ and range $\bits^{\hashlen}$. 
+The $\KE$ security game would sample $\ROhash$ from $\FSp$ in its $\Initialize$ routine, then provide oracle access to $\ROhash$ to all parties. 
+This notation also captures protocols which use multiple random oracles.
+If we wish to use two independent random oracles, say $\RO_1$ and $\RO_2$, then we would define an \emph{arity-$2$} function space $\FSp$, which is a set of tuples each containing two functions. 
+Let $\FSp_1$, resp. $\FSp_2$ be the set from which $\RO_1$, $\RO_2$ should be drawn. 
+Then we set $\FSp = \{(F_1, F_2): F_1 \in \FSp_1 \text{ and } F_2 \in \FSp_2\}$.
+We call $\FSp_1$ and $\FSp_2$ the subspaces of $\FSp$. 
+A security game provides access to $F_1$ and $F_2$ through a single oracle $\RO$ that takes two arguments; the first is the index of the function to be queried and the second is the contents of the query. 
+So $\RO(i, \X)$ will return $F_i(\X)$.
+We can also cast an arity-$1$ function space in this notation by identifying each function $F$ with the tuple $(F)$, but we will typically omit the parentheses and index argument when only one random oracle is used.
+
+
+Indifferentiability was originally developed by Maurer, Renner, and Holenstein~\cite{TCC:MauRenHol04}, and it has been used to prove security for hash functions built from public compression functions.
+More generally, it gives a framework to show the security of a transition between any two function spaces.
+We'll call these spaces $\SSp$ (for ``starting space'') and $\ESp$ (for ``ending space'').
+A \textit{construction} of $\ESp$ from $\SSp$ is an algorithm $\construct{C}$ that outputs elements of $\ESp$ given an oracle $\RO_{\SSp} \in \SSp$. 
+We may use the notation $\construct{C}:\SSp \to \ESp$.
+We then say that $\construct{C}$ is ``indifferentiable'' if for any function $\RO_{\SSp}$ sampled from $\SSp$, $\construct{C}[\RO]$ behaves indistinguishably from a function $\RO_{\ESp}$ sampled from $\ESp$.
+Indifferentiability requires this behavior to hold even when the adversary can access \emph{both $\construct{C}[\RO_{\SSp}]$ and $\RO_{\SSp}$} without any restriction. 
+%
+Once we have an indifferentiable construction between two function spaces, we can use the indifferentiability ``composition theorem'' to prove that (almost) any protocol is as secure when it uses $\construct{C}[\RO_{\SSp}]$ as its random oracle as when it uses $\RO_{\ESp}$.%
+\footnote{As Ristenpart, Shacham, and Shrimpton~\cite{EC:RisShaShr11} showed, indifferentiability composition does not cover what they call ``multi-stage games,'' meaning games in which the adversary is split into distinct algorithms with restricted communication. Our multi-stage AKE security game is actually a ``single-stage'' game in the RSS terminology; indifferentiability composition does apply to our results without issue.}
+
+How do we check whether a construction $\construct{C}$ is indifferentiable?
+From the earlier intuition, we set up a security game with two worlds.
+In one world, often called the ``real world'', the adversary has oracle access to $\RO_{\SSp}$ (drawn from $\SSp$) and $\construct{C}[\RO_{\SSp}]$.
+In the other, the ``ideal world'', it has oracle access to $\RO_{\ESp}$, a random oracle sampled from $\ESp$.
+The adversary's task is then to return a bit indicating which world it is in.
+
+This intuition is obviously incomplete:
+the adversary can distinguish between worlds just by counting its oracles.
+We need a second oracle in the ideal world.
+This second oracle, $\PubO$, must behave indistinguishably from $\RO_{\SSp}$, but its responses must also be consistent with the view of $\RO_{\ESp}$ (accessed via the first oracle, $\PrivO$) as a construction of $\PubO$.
+The algorithm that does this is called a ``simulator''.
+Every construction requires a different simulator $\simulator$, so we make it a parameter of the definition.
+We can now give pseudocode for the full indifferentiability security game, shown in Figure~\ref{fig:game-indiff}.
+
+\begin{figure}[tp]
+	\centering
+	\begin{minipage}[t]{0.3\textwidth}
+		\NewExperiment[Game $\Gindiff_{\construct{C}, \simulator,\SSp, \ESp}$]
+		
+		\begin{oracle}{$\Initialize()$}
+			\item $b \getsr \bits$
+			\item $\RO_{\SSp} \getsr \SSp$
+			\item $\RO_{\ESp} \getsr \ESp$
+			\item $\state \getsr \emptystring$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(b')$}
+			\item return \smash{$b'$}
+		\end{oracle}
+	\end{minipage}
+	\begin{minipage}[t]{0.49\textwidth}
+		\vphantom{\underline{Game $\Gindiff_{\construct{C}, \simulator,\SSp, \ESp}$}}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\PubO(i,\Y)$}
+			\item if $b = 0$ then
+			\item \quad  $(z,\state) \gets \simulator[\PrivO](i,\Y,\state)$
+			\item \quad return $z$
+			\item else return $\RO_{\SSp}(i,\Y)$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\PrivO(i,\X)$}
+			\item if $b = 0$ then return $\RO_{\SSp}(i,\X)$
+			\item else return $\construct{C}[\RO_{\ESp}](i, \X)$
+		\end{oracle}
+	\end{minipage}
+	\vspace{5pt}
+	\caption{The game  $\Gindiff_{\construct{C}, \simulator, \SSp, \ESp}$ measuring indifferentiability of a construct $\construct{C}$ that transforms function space $\SSp$ into $\ESp$. The game is parameterized by a simulator $\simulator$.}
+	\label{fig:game-indiff}
+\end{figure}
+
+
+%We can now give a formal security definition for indifferentiability.
+\begin{definition}[Indifferentiability]
+	Let $\SSp$ and $\ESp$ be function spaces, and let $\construct{C}$ be a construction of $\ESp$ from $\SSp$. Then for any simulator $\simulator$ and any adversary $\advD$ which makes $\qPriv$ queries to the $\PrivO$ oracle and $\qPub$ queries to the $\PubO$ oracle, the indifferentiability advantage of $\advD$ is
+	\[\genAdv{\indiff}{\construct{C},\simulator, \qPriv, \qPub}{\advD} := \Pr[\Gindiff_{\construct{C}, \simulator}(\advD) \Rightarrow 1 | b = 1] -\Pr[\Gindiff_{\construct{C}, \simulator}(\advD) \Rightarrow 1 | b = 0].\]
+\end{definition}
+
+
+%\subsection{Indifferentiability composition}
+Indifferentiability is useful because of the following theorem of Maurer et al.~\cite{TCC:MauRenHol04}. In our presentation, we consider only the authenticated key exchange game, although the theorem applies equally well to any single-stage game~\cite{EC:RisShaShr11}. 
+
+\begin{theorem} 
+	\label{thm:indiff-comp}
+	Let $\KE$ be a key exchange protocol using function space $\ESp$. Let $\construct{C}$ be an indifferentiable construct of $\ESp$ from $\SSp$ with respect to simulator $\simulator$, and let $t'$ be the runtime of $\simulator$ on a single query. We define $\KE'$ to be the following key exchange protocol with function space $\SSp$: $\KE'$ runs $\KE$, but wherever $\KE$ would call its random oracle, $\KE'$ instead computes $\construct{C}$ using its own random oracle. For any adversary $\advA$ against the $\KESEC$ security of $\KE'$ with runtime $t_\advA$ and making $q$ random oracle queries, there exists an adversary $\advB$ and a distinguisher $\advD$ with runtime approximately $t_\advA + q \cdot t$ such that
+	\[ \genAdv{\KESEC}{\KE'}{\advA} \leq \genAdv{\KESEC}{\KE}{\advB} + \genAdv{\indiff}{\construct{C},\simulator}{\advD}. \]
+\end{theorem}
+
+\begin{proof}
+	Adversary $\advB$ is a wrapper for $\advA$ whenever $\advA$ makes a query to its random oracle $\RO$, $\advB$ responds by running the simulator with its own random oracle. The distinguisher $\advD$ simulates the $\KE-Sec$ game of $\KE$ for $\advA$, with two differences: instead of an RO, it gives $\advA$ oracle access to $\PubO$, and where $\KE$ would query its own RO, it instead queries $\PrivO$. 
+	We claim that when $b=1$ in the indifferentiability game (the real world), $\advD$ perfectly simulates the $\KESEC$ game of $\KE'$ for $\advA$. This works because the $\PrivO$ oracle computes $\construct{C}$ for $\KE'$, and the $\PubO$ oracle is indeed an RO as $\advA$ expects. When $b=0$, $\advD$ perfectly simulates $\KESEC$ of $\KE$ for $\advB$. The $\PubO$ oracle answers all of $\advA$'s queries using the simulator, so it properly executes the wrapper code that makes up $\advB$. The rest of the simulation is honest, down to the random oracle accessed via $\PrivO$. 
+\end{proof}

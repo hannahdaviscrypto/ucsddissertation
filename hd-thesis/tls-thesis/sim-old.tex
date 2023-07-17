@@ -1,0 +1,80 @@
+	
+%	\begin{figure}[tp]
+%		\begin{minipage}[t]{0.48\textwidth}
+%		\NewExperiment[$\Sim(\ell, X)$]
+%		
+%		\begin{oracle}{Label translator $\mathcal{L}(\ell, d)$}
+%			\item if $\ell = \labelETS$ return $\ets$
+%			\item if $\ell = \labelEEMS$ return $\eems$
+%			\item if $\ell = \labelClientATS$ return $\cats$
+%			\item if $\ell = \labelServerATS$ return $\sats$
+%			\item if $\ell = \labelEMS$ return $\ems$
+%			\item if $\ell = \labelRMS$ return $\rms$
+%			\item if $\ell = \labelClientHTS$ and $d = \emptymessage$ return $\cfk$
+%			\item if $\ell = \labelServerHTS$ and $d = \emptymessage$ return $\sfk$
+%			\item if $\ell = \labelClientHTS$ and $d =\texttt{"key"} \concat \hash(\emptymessage)$
+%			\item \quad then return $\chtk$
+%			\item if $\ell = \labelClientHTS$ and $d =\texttt{"iv"} \concat \hash(\emptymessage)$ 
+%			\item \quad then return $\chtiv$
+%			\item if $\ell = \labelServerHTS$ and $d =\texttt{"key"} \concat \hash(\emptymessage)$ 
+%			\item \quad then return $\shtk$
+%			\item if $\ell = \labelServerHTS$ and $d =\texttt{"iv"} \concat \hash(\emptymessage)$ 
+%			\item \quad then return $\shtiv$
+%			\item return $\bot$
+%		\end{oracle}
+%		\ExptSepSpace
+%			
+%		\begin{oracle}{$\Sim(\HKDFExtr, X)$}
+%			\item if $M_{\HKDFExtr}[X] \neq \bot$
+%			\item \quad then return $M[X]$
+%			\item $y \getsr \KEkeyspace$
+%			\item $M_{\HKDFExtr}[X] \gets y$
+%			\item $(i, d) \gets X$
+%			\item if $i = 0$ then 
+%			\item \quad $T_{0}[y] \gets d$
+%			\item else if $d = 0$ then 
+%			\item \quad $T_{1}[y] \gets i$
+%			\item $T_{2}[y] \gets (i,d)$
+%			\item return $y$
+%				\end{oracle}
+%	\end{minipage}
+%\begin{minipage}[t]{0.49\textwidth}
+%		\ExptSepSpace
+%		\begin{oracle}{$\Sim[\RO](\HKDFExpnd, X)$}
+%			\item if $M_{\HKDFExpnd}[X] \neq \bot$
+%			\item \quad then return $M[X]$
+%			\item $y \getsr \KEkeyspace$
+%			\item $(i, d, \ell) \gets X$
+%			\item if $\ell \in \{\labelExtBinder, \labelDerived\}$ and $d = \hash(\emptymessage)$
+%			\item \quad then $T_{3}[(\ell,y)] \gets i$
+%			\item if $\ell \in \{\labelClientHTS, \labelServerHTS\}$
+%			\item \quad then $T_{4}[y] \gets (\ell, i, d)$
+%			\item	
+%			\item if $\ell \in \{\labelETS, \labelEEMS\}$ and $T_{0}[i] \neq \bot$
+%			\item \quad then $y \gets \RO_{\mathcal{L}(\ell,\emptystring)}(T_{0}[i], d)$
+%			\item
+%			\item if $\ell \in \{ \labelClientATS, \labelServerATS,\labelEMS, \labelRMS \}$
+%			\item \quad $(\dhe, \des) \gets T_2[T_3[(\labelDerived, T_1[i])]]$
+%			\item \quad $\psk \gets T_0[T_3[(\labelExtBinder, \des)]]$
+%			\item \quad if $\psk\neq \bot$
+%			\item \quad \quad then $y \gets \RO_{\mathcal{L} (\ell,\emptystring)}(\psk, \dhe, d)$ 
+%			\item
+%			\item if $\ell = \labelFinished$ and $d = \emptymessage$ 
+%			\item \quad $\psk \gets T_0[T_3[(\labelExtBinder), i]]\neq \bot$
+%			\item \quad if $\psk \neq \bot$ 
+%			\item \quad \quad then $y \gets \RO_{\bk}(\psk)$
+%			\item 
+%			\item if $\ell \in \{\labelFinished, \labelk, \labeliv \}$
+%			\item \quad $(\ell', \hs, \hash_2) \gets T_4[i]$
+%			\item \quad $(\des, \dhe) \gets T_2[\hs]$
+%			\item \quad $\psk \gets T_0[T_3[(\labelDerived, \des)]]$
+%			\item \quad if $\psk \neq \bot$ and $\mathcal{L}(\ell', d) \neq \bot$ then
+%			\item \quad \quad $y \gets \RO_{\mathcal{L} (\ell', d)}(\psk, \dhe,\hash_2)$
+%			\item $M_{\HKDFExpnd}[X] \gets y$
+%			\item return $y$
+%		\end{oracle}
+%\end{minipage}
+%		\label{fig-sim-ks-indiff}
+%		\caption{Simulator $\Sim$ used in the proof of Lemma~\ref{th-ks-indiff}.}
+%	\end{figure}
+%

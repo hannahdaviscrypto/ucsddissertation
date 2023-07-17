@@ -1,0 +1,143 @@
+\begin{figure}[tp]
+	\twoCols{0.44}{0.46}{
+		\ExperimentHeader{Games $\Gm_0, \Gm_1$} 
+				
+		\begin{oracle}{$\Initialize$}
+			\item $\aFunc{\functionIn}\getsr\GenroSp{\functionInSet}$ ; $\functionOut \gets \construct{F}[\functionIn]$ \Comment{Game $\Gm_0$}
+			\item $\commoncoins \getsr \SimgenCC()$ ; $\functionOut \getsr \kemRoSp$ \Comment{Game $\Gm_1$}
+			\item $b\getsr\bits$
+				\item $(\pk,\dk)\getsr\kemKg[\functionOut]$ 
+			\item $(C^*,K^*_1)\getsr\kemEnc[\functionOut](\pk)$ 
+						\item $K^*_0\getsr\bits^{\kemKl}$
+			\item return $\pk,C^*,K^*_b$
+		\end{oracle}
+		
+		\ExptSepSpace
+		\begin{oracle}{$\DecO(C)$}%{Game $\ngameINDCCA{\kemScheme,\roSp}$}
+			\item If ($C=C^*$) then return $\bot$
+			\item $K \gets \kemDec[\functionOut](\dk,C)$ 			\item return $K$
+		\end{oracle}	
+		\ExptSepSpace	
+		
+		\begin{oracle}{$\RO(U)$} 
+			\item return $\functionIn(U)$ \Comment{Game $\Gm_0$}
+			\item return $\Simeval[\functionOut](\commoncoins, U)$ \Comment{Game $\Gm_1$}
+		\end{oracle}
+\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(b')$}
+			\item return $(b=b')$ \vspace{4pt}
+		\end{oracle}
+		\ExptSepSpace
+		
+	}{
+		\ExperimentHeader{Games $\Gm_2$, $\Gm_3$} 
+		
+			\begin{oracle}{$\Initialize$}
+			\item $\aFunc{\functionIn} \getsr \GenroSp{\functionInSet}$ ; $\functionOut_1
+			 \gets \construct{F}[\aFunc{\functionIn}]$ 
+			 \item $\commoncoins \getsr \SimgenCC()$ ; $\functionOut_0 \getsr \kemRoSp$ 
+			\item $c \getsr \bits$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+			\begin{oracle}{$\priv(W)$}
+			\item If $W \not\in\workDom$ then
+			\item \hindent $\bad\gets\true$ 
+			\item \hindent return $\bot$ \Comment{Game $\Gm_3$} 
+			\item return $\aFunc{\functionOut}_c(W)$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\pub(U)$}
+			\item if $(c=1)$ then return $\aFunc{\functionIn}(U)$
+			\item else return $\Simeval[\functionOut_0](\commoncoins, U)$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(c')$}
+			\item return $(c = c')$
+		\end{oracle}
+	
+		
+
+
+}
+\caption{Games for the proof of Theorem~\ref{th-kem}.}
+\label{fig-kem-games}
+\hrulefill
+\end{figure}
+
+
+\begin{figure}[tp]
+	\twoCols{0.44}{0.42}{
+		\begin{algorithm-initial}{Adversary $\advD$} 
+		\item $\advA^{\Initialize', \DecO', \RO', \Finalize'}()$
+		\end{algorithm-initial}
+
+		\ExptSepSpace	
+		
+		\begin{algorithm-subsequent}{$\Initialize'$}
+			\item $b\getsr\bits$
+			\item $(\pk,\dk)\getsr\kemKg[\priv]$
+			\item $(C^*,K^*_1)\getsr\kemEnc[\priv](\pk)$
+			\item $K^*_0\getsr\bits^{\kemKl}$
+			\item return $\pk,C^*,K^*_b$
+		\end{algorithm-subsequent}
+		
+		\ExptSepSpace
+		
+		\begin{algorithm-subsequent}{$\DecO'(C)$}
+			\item If ($C=C^*$) then return $\bot$
+			\item $K \gets \kemDec[\priv](\dk,C)$
+			\item return $K$
+		\end{algorithm-subsequent}	
+		
+		\ExptSepSpace	
+		
+		\begin{algorithm-subsequent}{$\RO'(U)$}
+			\item return $\pub(U)$
+		\end{algorithm-subsequent}
+		
+		\ExptSepSpace
+		
+		\begin{algorithm-subsequent}{$\Finalize'(b')$}
+			\item if $(b = b')$ then $\Finalize(1)$
+			\item else $\Finalize(0)$\vspace{4pt}
+		\end{algorithm-subsequent}
+	}{		
+		\begin{algorithm-initial}{Adversary $\advB$}
+			\item $\commoncoins \getsr \SimgenCC()$
+			\item $\advA^{\Initialize', \DecO', \RO', \Finalize'}()$
+		\end{algorithm-initial}
+	\ExptSepSpace
+	
+	\begin{algorithm-subsequent}{$\Initialize'$}
+		\item $(\pk,C^*,K^*_b) \gets \Initialize()$
+		\item return $\pk,C^*,K^*_b$
+	\end{algorithm-subsequent}
+	\ExptSepSpace
+	
+	\begin{algorithm-subsequent}{$\DecO'(C)$}%{Game 
+		\item return $\DecO(C)$
+	\end{algorithm-subsequent}	
+	
+	\ExptSepSpace	
+	
+	\begin{algorithm-subsequent}{$\RO'(W)$}
+		\item return $\Simeval[\RO](\commoncoins,W)$
+	\end{algorithm-subsequent}
+	
+	\ExptSepSpace
+	
+	\begin{algorithm-subsequent}{$\Finalize'(b')$}
+		\item $\Finalize(b')$\vspace{4pt}
+	\end{algorithm-subsequent}
+
+	}
+	\caption{Adversaries for the proof of Theorem~\ref{th-kem}.}
+	\label{fig-kem-advs}
+	\hrulefill
+\end{figure}

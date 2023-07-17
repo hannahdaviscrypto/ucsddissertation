@@ -1,0 +1,511 @@
+\section{Indifferentiability of the shrink-MD class of functors}
+\label{sec-chop}
+\headingu{Indifferentiability}
+We want the tuple of functions returned by a functor $\construct{F}: \FuncSp{SS} \to \FuncSp{ES}$ to be able to ``replace" a tuple drawn directly from $\FuncSp{ES}$. 
+Indifferentiability is a way of defining what this means.  
+We adapt the original MRH definition of indifferentiability~\cite{TCC:MauRenHol04} to our game-based model in Figure~\ref{fig-gm-indiff}.
+In this game, $\simulator$ is a simulator algorithm. 
+The advantage of an adversary $\advA$ against the indifferentiability of functor $\construct{F}$ with respect to simulator $\simulator$ is defined to be 
+\[\genAdv{\indiff}{\construct{F},\simulator}{\advA} := 2\Pr[\Gindiff_{\construct{F},\simulator}(\advA) \Rightarrow 1] - 1.\]
+
+\begin{figure}
+	
+	\twoCols{0.45}{0.45}{
+		\ExperimentHeader{Game $\Gindiff_{\construct{F}, \simulator}$}
+		
+		\begin{algorithm}{$\Initialize()$}
+			\item $c \getsr \bits$
+			\item $\hh \getsr \FuncSp{SS}$
+			\item $\HH \getsr \FuncSp{ES}$
+		\end{algorithm}
+		\ExptSepSpace
+			\begin{algorithm}{$\PubO(i,\YEDSA)$}
+			\item if $c = 0$ then
+			\item \quad return $\simulator[\HH](i, \YEDSA)$
+			\item else return $\hh(i,\YEDSA)$
+		\end{algorithm}
+	
+	}
+	{	\ExptSepSpace
+		\begin{algorithm}{$\PrivO(i,\XEDSA)$}
+			\item if $c = 0$ then return $\HH(i, \XEDSA)$
+			\item else return $\construct{F}[\hh](i, \XEDSA)$
+		\end{algorithm}	
+		\ExptSepSpace
+		\begin{algorithm}{$\Finalize(c')$}
+			\item return $[[c = c']]$
+		\end{algorithm}
+	}
+	\vspace{5pt}
+	\caption{The game  $\Gindiff_{\construct{F}, \simulator}$ measuring indifferentiability of a functor $\construct{F}$ with respect to simulator $\simulator$.}
+	\label{fig-gm-indiff}
+\end{figure}
+
+
+
+\headingu{Modifying the Merkle-Damg{\aa}rd Transform}
+Coron et al. showed that the Merkle-Damg{\aa}rd transform is not indifferentiable with respect to
+any efficient simulator due to its susceptibility to length-extension attacks~\cite{C:CDMP05}.
+In the same work, they analysed the indifferentiability of several closely related indifferentiable constructions, including the ``chop-MD'' construction.
+Chop-MD is a functor with the same domain as the MD transform; it simply truncates a specified number of bits from the output of MD.
+The $\ourF_3$ functor of Figure~\ref{fig-our-functor} operates similarly to the chop-MD functor, except that $\ourF_3$ reduces the output modulo a prime $\Prime$ instead of truncating.
+This small change introduces some bias into the resulting construction that affects its indifferentiability due to the fact that the outputs of the MD transform, which are $2k$-bit strings, are not distributed uniformly over $\Z_{\Prime}$.
+
+In this section, we establish indifferentiability for a general class of functors that includes both chop-MD and $\ourF_3$.
+We rely on the indifferentiability of $\ourF_3$ in Section~\ref{sec-schemes} as a stepping-stone to the unforgeability of $\EdDSA$;
+however, we think our proof for chop-MD is of independent interest and improves upon prior work.
+
+The original analysis of the chop-MD construction~\cite{C:CDMP05} was set in the ideal cipher model and
+accounted for some of the structure of the underlying compression function. A later proof by Fischlin and 
+Mittelbach~\cite{hfrobook} adapts the proof strategy to the simpler construction we address here and works in the random
+oracle model as we do. Both proofs, however, contain a subtle gap in the way they use their simulators.
+
+At a high level, both proofs define stateful simulators $\simulator$ which simulate a random compression function by
+sampling uniform answers to some queries and programming others with the help of their random oracles.
+These simulators are not perfect, and fail with some probability that the proofs bound.
+In the ideal indifferentiability game, the $\PubO$ oracle answers queries using the simulator and the $\PrivO$ oracle
+answers queries using a random oracle.
+Both proofs at some point replace the random oracle $\HH$ in $\PrivO$ with $\ChopMD[\simulator]$ and claim that
+because $\ChopMD[\simulator[\HH]](X)$ will always return $\HH(X)$ if the simulator does not fail, the adversary cannot detect the change.
+This argument is not quite true, because the additional queries to $\simulator$ made by the $\PrivO$ oracle can affect its
+internal state and prevent the simulator from failing when it would have in the previous game.
+In our proof, we avoid this issue with a novel simulator with \textit{two internal states} to enforce separation between
+$\PrivO$ and $\PubO$ queries that both run the simulator.
+
+Our result establishes indifferentiability for all members of the $\ShrinkMD$ class of functors, which
+includes any functor built by composing of the MD transform with a function $\Out: \bits^{2k} \to \S$ that satisfies three conditions, namely that for some $\gamma, \epsilon \geq 0$,
+\begin{enumerate}
+	\item For all $y \in \S$, we can efficiently sample from the uniform distribution on the preimage set $\{\Out^{-1}(y)\}$. We permit the sampling algorithm to fail with probability at most $\epsilon$, but require that upon failure the algorithm outputs a (not necessarily random) element of $\{\Out^{-1}(y)\}$.
+	\item For all $y \in \S$, it holds that $\gamma \leq |\{\Out^{-1}(y)\}|$.
+	\item The statistical distance $\delta(D)$ between the distribution
+	\[D:= z \getsr \Out^{-1}(y) \colon y \getsr \S\] 
+	and the uniform distribution on $\bits^{2k}$ is bounded above by $\epsilon$.
+\end{enumerate}
+In principle, we wish $\gamma$ to be large and $\epsilon$ to be small; if this is so,
+then the set $\S$ will be substantially smaller than $\bits^{2k}$ and the function $\Out$
+``shrinks'' its domain by mapping it onto a smaller set.
+
+Both chop-MD and mod-MD are members of the $\ShrinkMD$ class of functors;
+we briefly show the functions that perform bit truncation and modular reduction by a prime satisfy
+our three conditions.
+Truncation by any number of bits trivially satisfies condition (1) with $\epsilon = 0$.
+
+Reduction modulo $\Prime$ also satisfies condition (1) because the following algorithm samples from the equivalence class of $x$ modulo $\Prime$ with failure probability at most $\frac{\Prime}{2^{2k}}$.
+Let $\ell$ be the smallest integer
+such that $\ell > \frac{2^{2k}}{\Prime}$. Sample $w \getsr [0 \ldots \ell-1]$ and output $w \cdot \Prime + x$, or $x$ if $w  \cdot \Prime + x> 2^{2k}$.
+We say this algorithm ``fails'' in the latter case, which occurs with probability at most $\frac{1}{\ell} < \frac{\Prime}{2^{2k}}$.
+In the event the algorithm does not fail, it outputs a uniform element of the equivalence class of $x$.
+
+Bellare~et al. showed that the truncation of $n$ trailing bits satisfies condition (2) for $\gamma = 2^{2k-n}$ and reduction modulo prime $\Prime$ satisfies (2) for 
+$\gamma = \lfloor {2^{2k}}/\Prime \rfloor$ .
+It is clear that sampling from the preimages of a random $2k-n$-bit string under $n$-bit truncation produces a uniform $2k$-bit string, so truncation satisfies condition (3) with $\epsilon = 0$.
+Also from Bellare~et al.~\cite{EC:BelBerTes16}, we have that the statistical distance between a uniform element of $\Z_{\Prime}$ and the modular reduction of a uniform $2k$-bit string is $\epsilon = \frac{\Prime}{2^{2k}}$.
+The statistical distance of our distribution $z \getsr \Out^{-1}(Y)$ for uniform $Y$ over $\S$ from the uniform distribution over $\bits^{2k}$ is bounded above by the same $\epsilon$; hence condition (3) holds.
+
+Given a set $\S$ and a function $\Out: \bits^{2k} \to \S$, we define the functor $\construct{F}_{\S, \Out}$ as
+the composition of $\Out$ with $\construct{MD}$. In other words, for any $x \in \bits^*$ and
+$\hh \in \AllFuncs(\bits^{b+2k}, \bits^{2k})$, let $\construct{F}_{\S, \Out}[\hh](x) := \Out(\construct{MD}[\hh](x))$.
+
+\begin{theorem}
+	\label{th-md-indiff}
+	Let $k$ be an integer and $\S$ a set of bitstrings. Let $\Out:\bits^{2k} \to S$ be a function satisfying conditions (1), (2), and (3) above with respect to $\gamma, \epsilon > 0$. Let $\construct{MD}$ be the Merkle-Damg{\aa}rd functor(c.f. Section~\ref{sec-prelims}) $\construct{F}_{\S, \Out}:= \Out \circ \construct{MD}$ be the functor described in the prior paragraph.
+	Let $\padF$ be the padding function used by $\construct{MD}$, and let $\UnPadF$ be the function that removes padding from its input (i.e., for all $\XEDSA \in \bits^*$, it holds that $\UnPadF(\XEDSA \concat \padF(|\XEDSA|)) = \XEDSA$). Assume that $\UnPadF$ returns $\bot$
+	if its input is incorrectly padded and that $\UnPadF$ is injective on its support.
+	Then there exists a simulator $\simulator$ such that for any adversary $\advA$ making $\PrivO$ queries of maximum length $b \cdot (\ell-1)$ bits then
+	\[\genAdv{\indiff}{\construct{F},\simulator}{\advA} \leq 
+	 2(\Queries{\PubO}{\advA}+ \ell \Queries{\PrivO}{\advA}) \epsilon
+	 + \frac{(\Queries{\PubO}{\advA} + \ell \Queries{\PrivO}{\advA})^2}{2^{2k}} 
+	 + \frac{ \Queries{\PubO}{\advA} \cdot \ell \Queries{\PrivO}{\advA}}{\gamma}.\]
+\end{theorem}
+\begin{proof}[Theorem~\ref{th-md-indiff}]
+We first give a brief overview of our proof strategy
+and its differences from previous indifferentiability proofs for the chop-MD construction~\cite{C:CDMP05,hfrobook}.
+
+Our simulator, $\simulator$, is defined in Figure~\ref{fig-chop-sim}. 
+It is inspired by, but distinct from, that of Mittelbach and Fischlin's simulator for the chop-MD construction (~\cite{hfrobook} Figure 17.4.),
+	which in turn adapts the simulator of Coron et al~\cite{C:CDMP05} from the ideal cipher model to the random oracle model.
+	These simulators all present the interface of a random compression function $\hh$ and internally maintain a graph
+	in which each edge represents an input-output pair under the simulated compression function.
+	The intention is that each path through this graph will represent a possible evaluation of $\construct{F}_{\S, \Out}[\hh]$.
+	The fundamental difference between our simulator and previous ones is that we maintain two internal graphs instead of one: one graph for all queries,
+	and one graph for public interface queries only.
+	This novel method of using two graphs avoids the gap in prior proofs described above by tracking precisely which
+	parts of the simulator's state are influenced by private and public interface queries respectively.
+
+% In our proof, we transform the ideal indifferentiability game by evaluating our functor $\construct{F}$ in each
+% 	query to the $\PrivO$ oracle.
+% 	Initially, we discard the output of this evaluation and use a separate graph in our simulator so that
+% 	these additional queries do not influence the $\PubO$ oracle.
+% 	In later games, we bound the probability that the private queries influence the public graph in a way
+% 	that is detectable by the adversary (such as creating collisions, cycles, or duplicate edges in the public
+% 	simulator's graph), and begin using the same graph for both types of query.
+% 	We also claim that if the graph is free of collisions, cycles, and duplicate edges, then we
+% 	can respond to $\PrivO$ queries with the evaluation of $\construct{F}$ without detection.
+% 	We then use the statistical closeness of sampling a random preimage of a random element (property (3) of $\Out$)
+% 	to argue that our simulator is honestly behaving as a random oracle except with some small probability.
+% 	The resulting game is then equivalent to the real indifferentiability game, and the theorem follows by collecting
+% 	the bounded differences between each pair of adjacent games.
+
+\begin{figure}
+		
+	\twoCols{0.44}{0.44}{
+	\ExperimentHeader{Simulator $\simulator[\HH](\YEDSA, \graph)$}
+	\begin{algorithm}{}
+		\item $(y, m) \gets \YEDSA$
+		\item if $\exists z$ such that $(y, z, m) \in \graph.\edges$
+		\item \quad return $z$
+		\item $\msg \gets \graph.\ppathO(\IV, y)$
+		\item if $\msg \neq \bot$ and $\UnPadF(\msg \concat m) \neq \bot$ then 
+		\item \quad if $\Thh[\YEDSA, \msg] \neq \bot$ then $z \gets \Thh[\YEDSA, \msg]$
+		\item \quad else  $z \getsr  \Out^{-1}(\HH(\UnPadF(\msg \concat m)))$
+		\item \qquad $\Thh[\YEDSA, \msg] \gets z$
+		\item else if $\Thh[\YEDSA] \neq \bot$ then $z \gets \Thh[\YEDSA]$
+		\item else $z \getsr \bits^{2k}$; $\Thh[\YEDSA] \gets z$
+		\item add $(y, z, m)$ to $\graph.\edges$
+		\item add $(y, z, m)$ to $\graph_{\all}.\edges$
+		\item return $z$
+	\end{algorithm}
+}
+{
+		\ExperimentHeader{Game $\Gm_0:=\Gindiff_{\construct{F}, \simulator} | b = 0$}
+
+		\begin{algorithm}{$\Initialize()$}
+			\item $\HH \getsr \AllFuncs{\bits^*, \S}$
+			\item $\graph_{\all}, \graph_{\public} \gets (\IV)$
+		\end{algorithm}
+		\ExptSepSpace
+		\begin{algorithm}{$\PrivO(\XEDSA)$}
+			\item return $\HH(\XEDSA)$
+		\end{algorithm}	
+			\ExptSepSpace
+		\begin{algorithm}{$\PubO(\YEDSA)$}
+			\item $z \gets \simulator[\HH](\YEDSA, \graph_{\public})$
+			\item return $z$
+		\end{algorithm}
+		\ExptSepSpace
+		\begin{algorithm}{$\Finalize(c')$}
+			\item return $c'$
+		\end{algorithm}
+	}
+	\vspace{5pt}
+	\caption{Left: Indifferentiability simulator for the proof of Theorem~\ref{th-md-indiff}. Right: The ideal game  $\Gindiff_{\construct{F}, \simulator}$ measuring indifferentiability of a functor $\construct{F}$ with respect to simulator $\simulator$}
+	\label{fig-chop-gm0}
+	\label{fig-chop-sim}
+\end{figure}
+
+In the ``ideal'' indifferentiability game, $\PrivO$ queries are answered by random oracle $\HH\getsr \AllFuncs{\bits^*,\S}$.
+$\PubO$ queries are answered by the simulator $\simulator$, which maintains the two graphs $\graph_{\public}$ and $\graph_{\all}$.
+We present pseudocode for this game ($\Gm_0$) in Figure~\ref{fig-chop-gm0}.
+In each graph, the nodes and edges are labeled with $2k$-bit strings.
+An edge from node $y$ to node $z$ with label $m$ is denoted $(y, z, m)$, and represents a single value of the simulated compression function; namely, on $6k$-bit input $y \concat m$, the simulated compression function should output $z$.
+Queries made in the process of evaluating $\construct{MD}[\S]$ will form a path that begins at the node labeled with the initialization vector $\IV$; the path's edges will be labeled with the $4k$-bit blocks of $\padF(\msg)$.
+ 
+Whenever the simulator receives a fresh query $(y, m)$, it uses a pathfinding algorithm $\ppathO$ to check whether the query extends an existing path from $\IV$ and thus continues an
+existing evaluation of the MD transform.
+If so, it reads the message from the path's edge labels then appends the new block $m$ to the end.
+If the result is a properly padded message, the simulator removes the padding and uses its oracle $\HH$ to compute the output of functor $\construct{F}$ on the original message.
+This output $w$ is an element of $\S$, and it should be consistent with $\Out$ when applied to the $2k$-bit simulator output.
+The simulator therefore samples its response from the preimages of $w$ under $\Out$.
+If any of these steps fail, then the query does not need to be programmed, so the simulator samples a uniformly random response $z$ and updates its graph with the new edge from $y$.
+Because we are attempting to simulate a random function, the simulator must cache its responses to maintain consistency between repeated queries.
+It does this in two ways: via the graphs and via table $\Thh$. We require two forms of caching because the simulator may use two graphs and thus responses may not be cached consistently
+between private and public queries in the graphs alone.
+
+Our $\Gm_0$ differs from this ideal indifferentiability game only in the $\Finalize$ oracle, which returns the adversary's challenge guess $c'$. 
+Thus the probability that game $\Gm_0$ returns $1$ exactly equals $1 - \Pr[\Gindiff_{\construct{F}, \simulator}(\advA) | c = 0]$.
+
+We move to $\Gm_1$, where the $\PrivO$ oracle uses $\simulator$ to calculate the output
+of functor $\construct{F}$, then discards the result.
+We wish for the adversary's view of games $\Gm_0$ and $\Gm_1$ to be identical, so
+we must ensure that the additional queries to $\simulator$ do not influence its state
+or its responses to $\PubO$ queries.
+We therefore call the simulator with different graphs in the two oracles.
+It responds to public queries based only on the public graph, and queries made by $\PrivO$ are private and do not update the public graph.
+We do use shared table $\Thh$ to cache outputs across all queries; in this sense a 
+private query can affect a public query; however, we cache responses separately for each branch of
+the simulator, so our caching does not alter the simulator's branching behavior and the distribution of public queries' responses does not change.
+The adversary cannot detect at what time a response $z$ is first sampled, so its
+view does not change, and
+\[\Pr[\Gm_0] = \Pr[\Gm_1].\]
+\begin{figure}
+	
+	\twoCols{0.44}{0.47}{
+		\ExperimentHeader{Game $\Gm_1$}
+		
+		\begin{algorithm}{$\Initialize()$}
+			\item $\HH \getsr \AllFuncs{\bits^*, \S}$
+			\item $\graph_{\all}, \graph_{\public} \gets (\IV)$
+		\end{algorithm}
+		\ExptSepSpace
+		\begin{algorithm}{$\PubO(\YEDSA)$}
+			\item $z \gets \simulator[\HH](\YEDSA, \graph_{\public})$
+			\item return $z$
+		\end{algorithm}
+	}{
+		\ExptSepSpace
+		\begin{algorithm}{$\PrivO(\XEDSA)$}
+			\item\gamechange{$w \gets \construct{F}[\simulator[\HH](\cdot, \graph_{\all})](\XEDSA)$}
+			\item return $\HH(\XEDSA)$
+		\end{algorithm}	
+		\begin{algorithm}{$\Finalize(c')$}
+			\item return $c'$
+		\end{algorithm}	
+	}
+	\vspace{5pt}
+	\caption{Game $\Gm_1$ in the proof of Theorem~\ref{th-md-indiff}.  Highlighted code is changed from the previous game, and algorithms not shown are unchanged from the previous game.}
+	\label{fig-chop-gm1}
+\end{figure}
+In game $\Gm_2$, we set a $\bad$ flag if the simulator if $\graph_{\all}$ contains
+any collisions, cycles, or ``duplicate'' edges: edges with the same starting node and label but different ending nodes.
+
+Collisions and cycles are formed only when a new edge is created whose ending node is already present in the graph;
+we set $\bad$ in this case.
+The caching in line $2$ prevents duplicate edges except when the $\PrivO$ and $\PubO$ oracles query the simulator on the same input $(y, m)$, in that order.
+Even in this case, caching in table $\Thh$ prevents duplicate edges unless one query detects a path that the other did not, or the two queries detect different paths.
+
+If the $\PubO$ query detects a path to node $y$ that did not exist during the previous $\PrivO$ query, or there are two distinct paths to $y$ in $\graph_{\all}$, then $\graph_{\all}$ must contain a collision or a cycle, and the $\bad$ flag will be set when that is detected.
+Furthermore, $\graph_{\public}$ is a subgraph of $\graph_{\all}$, so it cannot contain a path to $y$ that $\graph_{\all}$ does not.
+To catch the formation of duplicate edges, it is therefore sufficient to set $\bad$ if $\graph_{\all}$ contains a path from $\IV$ to $y$ that is not detected by the subsequent $\PubO$ query.
+
+The $\bad$ flag is internal and does not affect the view of the game, so
+\[\Pr[\Gm_2] = \Pr[\Gm_1] \]
+
+In $\Gm_3$, we force the adversary to lose when the $\bad$ flag is set.
+This strictly decreases their advantage, so
+\[ \Pr[\Gm_3] \leq \Pr[\Gm_2]. \]
+
+\begin{figure}
+	\twoCols{0.34}{0.46}{
+		\ExperimentHeader{Game $\Gm_2$, \fbox{$\Gm_3$}}
+
+		\ExptSepSpace
+		\begin{algorithm}{$\Finalize(c')$}
+			\item \gamechange{\fbox{if $\bad$ then return $0$}}
+			\item return $c'$
+		\end{algorithm}	
+		
+		\hrulefill
+
+		\ExptSepSpace
+			\ExperimentHeader{Game $\Gm_4$}
+
+			\ExptSepSpace
+			\begin{algorithm}{$\PrivO(\XEDSA)$}
+				\item$w \gets \construct{F}[\simulator[\HH](\cdot, \graph_{\all})](\XEDSA)$
+				\item \gamechange{ return $w$}
+			\end{algorithm}	
+		}{
+		\begin{algorithm}{$\simulator[\HH](\YEDSA, \graph)$}
+			\item $(y, m) \gets \YEDSA$
+			\item if $\exists z$ such that $(y, z, m) \in \graph.\edges$
+			\item \quad return $z$
+			\item $\msg \gets \graph.\ppathO(\IV, y)$
+			\item \gamechange{$\msg_{\all} \gets \graph_{\all}.\ppathO(\IV, y)$}
+			\item if $\msg \neq \bot$ and $\UnPadF(\msg \concat m) \neq \bot$ then 
+			\item \quad if $\Thh[\YEDSA, \msg] \neq \bot$ then $z \gets \Thh[\YEDSA, \msg]$
+			\item \quad else  $z \getsr  \Out^{-1}(\HH(\UnPadF(\msg \concat m)))$
+			\item \qquad $\Thh[\YEDSA, \msg] \gets z$
+			\item else if $\Thh[\YEDSA] \neq \bot$ then $z \gets \Thh[\YEDSA]$
+			\item else $z \getsr \bits^{2k}$; $\Thh[\YEDSA] \gets z$
+			\item \gamechange{if ($z \in \graph_{\all}.\nodes$ and $(y, z, m) \not\in \graph_{\all}.\edges$)}
+			\item \quad \gamechange{ or $\msg \neq \msg_{\all}$}
+			\item \qquad \gamechange{$\bad \gets \true$}
+			\item add $(y, z, m)$ to $\graph.\edges$
+			\item add $(y, z, m)$ to $\graph_{\all}.\edges$
+			\item return $z$
+		\end{algorithm}
+	}
+	\vspace{5pt}
+	\caption{Games $\Gm_2$, $\Gm_3$, and $\Gm_4$ in the proof of Theorem~\ref{th-md-indiff}. Highlighted code is changed from the previous game, and boxed code is present only in $\Gm_3$ (and subsequent games). Algorithms not shown are unchanged from the previous game.}
+	\label{fig-chop-gm2}
+	\label{fig-chop-gm3}
+	\label{fig-chop-gm4}
+\end{figure}
+In our next game, we stop querying $\HH$ directly in the $\PrivO$ oracle and instead return
+$w$, the result of our functor on the query.
+We claim that in $\Gm_3$, either $w = \HH(\XEDSA)$ or $\bad = \true$; thus if the adversary wins $\Gm_3$, then in all $\PrivO$ queries we have $w = \HH(\XEDSA)$. 
+From this claim, we can see that the change does not affect the view of the adversary and 
+\[\Pr[\Gm_4] = \Pr[\Gm_3].\]
+
+To prove the claim, consider a query $\PrivO(\XEDSA)$. Let $(\XEDSA_1, \ldots, \XEDSA_n)$ be the $b$-bit blocks of $\XEDSA \concat \padF(|\XEDSA|)$.
+By the definition of the MD transform, $\PrivO$ makes $n$ queries to $\simulator$ of the form $(y_i, \XEDSA_i), \graph_{\all}$, where $y_1 = \IV$ and $y_i = \simulator((y_{i-1}, \XEDSA_{i-1}), \graph_{\all})$ for all $i > 1$.
+These may not be fresh queries, but they must be made in order or $\bad$ will be set:
+if query $\simulator((y_i, \XEDSA_i))$ outputs $y_{i+1}$ and this has already been the input of a prior query, then $y_{i+1}$ is a node in $\graph_{\all}$; a collision has occurred and the query will set $\bad$.
+Unless $\bad$ is set, there exists exactly one path in $\graph_{\all}$ from $\IV$ to $y_i$, and the labels on this path are $(\XEDSA_1, \ldots, \XEDSA_{i-1})$.
+This is trivially true for $i = 1$; the path is the empty path.
+The query $\simulator((y_{i-1}, \XEDSA_{i-1}), \graph_{\all})$ creates the edge $(y_{i-1}, y_i, \XEDSA_{i-1})$ in $\graph_{\all}$.
+By induction on $i$, there is always a path from $\IV$ to $y_i$ with labels $(\XEDSA_1, \ldots, \XEDSA_{i-1})$.
+If there exists more than one path from $\IV$ to $y_i$, then $\graph_{\all}$ must contain either a cycle or two edges with the same ending node; in either case the $\bad$ flag will be set.
+
+Therefore, when $\PrivO$ first makes the query $\simulator((y_{n-1}, \XEDSA_n), \graph_{all})$, it will detect the path, compute $\UnPadF(\msg \concat \XEDSA_n) = \XEDSA$ and output an element $z \in \Out^{-1}(\HH(\XEDSA))$. By the definition of $\Out^{-1}$, we have $w = \Out(z) = \HH(\XEDSA)$, so the claim holds.
+
+At this point, the adversary can no longer directly query random oracle $\HH$, so
+we allow the simulator to lazily sample the function.
+Also in this game, the simulator queries $\HH$ on the path from $\IV$ to $y$ in $\graph_{\all}$ for all queries, not just private queries.  
+If the path in $\graph$ is different from the path in $\graph_{\public}$, then the $\bad$ flag
+will be set and the adversary will lose anyway.
+Therefore the view in any winning game is unchanged, and
+\[ \Pr[\Gm_{4}] = \Pr[\Gm_5]. \]
+
+\begin{figure}
+	
+	\twoCols{0.46}{0.45}{
+\ExperimentHeader{Game $\Gm_5$}
+
+\ExptSepSpace
+	\begin{algorithm}{$\simulator(\YEDSA, \graph)$}
+			\item $(y, m) \gets \YEDSA$
+			\item if $\exists z$ such that $(y, z, m) \in \graph.\edges$
+			\item \quad return $z$
+			\item $\msg \gets \graph.\ppathO(\IV, y)$
+			\item $\msg_{\all} \gets \graph_{\all}.\ppathO(\IV, y)$
+			\item \gamechange{if $\msg_{\all} \neq \bot$}
+			\item[] \qquad \gamechange{ and $\UnPadF(\msg_{\all} \concat m) \neq \bot$ then} 
+			\item \quad \gamechange{if $\Thh[\YEDSA, \msg_{\all}] \neq \bot$ then}
+			\item \qquad \gamechange{ $z \gets \Thh[\YEDSA, \msg_{\all}]$}
+			\item \quad else
+			\item \qquad \gamechange{if $\THH[\UnPadF(\msg_{\all} \concat m)] \neq \bot$}
+			\item \quad \qquad \gamechange{$y \gets \THH[\UnPadF(\msg_{\all} \concat m)]$}
+			\item \qquad \gamechange{$\THH[\UnPadF(\msg_{\all} \concat m)] \gets y$}
+			\item \qquad \gamechange{$z \getsr  \Out^{-1}(y)$; $\Thh[\YEDSA, \msg_{\all}] \gets z$}
+			\item else if $\Thh[\YEDSA] \neq \bot$ then $z \gets \Thh[\YEDSA]$
+			\item else $z \getsr \bits^{2k}$; $\Thh[\YEDSA] \gets z$
+			\item if ($z \in \graph_{\all}.\nodes$ and $(y, z, m) \not\in \graph_{\all}.\edges$)
+			\item \quad or $\msg \neq \msg_{\all}$
+			\item \qquad $\bad \gets \true$
+			\item add $(y, z, m)$ to $\graph.\edges$
+			\item add $(y, z, m)$ to $\graph_{\all}.\edges$
+			\item return $z$
+		\end{algorithm}
+	}{
+	\ExperimentHeader{Game $\Gm_6$}
+	\ExptSepSpace
+	
+		\begin{algorithm}{$\simulator(\YEDSA, \graph)$}
+			\item $(y, m) \gets \YEDSA$
+			\item if $\exists z$ such that $(y, z, m) \in \graph.\edges$
+			\item \quad return $z$
+			\item $\msg \gets \graph.\ppathO(\IV, y)$
+			\item $\msg_{\all} \gets \graph_{\all}.\ppathO(\IV, y)$
+			\item if $\msg_{\all} \neq \bot$ and $\UnPadF(\msg_{\all} \concat m) \neq \bot$ then
+			\item \quad \gamechange{$z \getsr \bits^{2k}$}
+			\item \quad \gamechange{if $\THH[\UnPadF(\msg_{\all} \concat m)] \neq \bot$}
+			\item \qquad \gamechange{$z \gets \THH[\UnPadF(\msg_{\all} \concat m)]$}
+			\item \quad \gamechange{$\THH[\UnPadF(\msg_{\all} \concat m)] \gets z$}
+			\item else if $\Thh[\YEDSA] \neq \bot$ then $z \gets \Thh[\YEDSA]$
+			\item else $z \getsr \bits^{2k}$; $\Thh[\YEDSA] \gets z$
+			\item if ($z \in \graph_{\all}.\nodes$ and $(y, z, m) \not\in \graph_{\all}.\edges$)
+			\item \quad or $\msg \neq \msg_{\all}$
+			\item \qquad $\bad \gets \true$
+			\item add $(y, z, m)$ to $\graph.\edges$
+			\item add $(y, z, m)$ to $\graph_{\all}.\edges$
+			\item return $z$
+\end{algorithm}}
+	\vspace{5pt}
+	\caption{Left: Game $\Gm_5$ in the proof of Theorem~\ref{th-md-indiff}. Right:  Game $\Gm_6$ in the proof of Theorem~\ref{th-md-indiff}. Highlighted code is changed from the previous game, and algorithms not shown are unchanged from the previous game.}
+	\label{fig-chop-gm5}
+	\label{fig-chop-gm6}
+\end{figure} 
+
+In our next game $\Gm_6$, we replace the sampling of $z$ from the preimages of a random point $y$ with sampling a uniformly random $2k$-bit string.
+The sampling will never fail to be uniform, which means the adversary can distinguish the game if it were to fail in $\Gm_5$; from condition (1) we have that the probability of failure was
+at most $\epsilon$ per query.
+Otherwise, we have from condition (3) on $\Out$ that the statistical distance of the distribution $(z \getsr \Out^{-1}(y) \Colon: y \getsr \S)$ from the uniform distribution on $\bits^{2k}$ is at most $\epsilon$.
+By a hybrid argument over the $\Queries{\PubO}{\advA} + \ell \Queries{\PrivO}{\advA}$ queries to the simulator,
+the probability that $\advA$ can distinguish $\Gm_5$ from $\Gm_6$ is bounded above by $2(\Queries{\PubO}{\advA} + \ell \Queries{\PrivO}{\advA}) \epsilon$.
+
+Now that we are caching $z$ in table $\THH$ when the check of line $6$ holdss $\true$,
+it has become redundant to cache it in table $\Thh$, so we stop doing this caching.
+We must be careful since table $\THH$ is indexed by labels of the form $\UnPadF(\msg_{\all} \concat m)$
+where $\Thh$ was indexed by tuples $(\YEDSA, \msg_{\all})$.
+Since $\msg_{\all}$ is a path from $\IV$ to $y$ in a
+graph with no duplicate edges provided $\bad$ is not set, $\msg_{\all}$ uniquely
+determines its ending node $y$ and $\UnPadF(\msg_{\all}\concat m)$ uniquely determines a tuple
+$((y, m), \msg_{\all})$ because $\UnPadF$ is injective.
+Thus the entries of $\THH$ are in one-to-one correlation with the entries of $\Thh$, and we can safely retain only the former, and 
+\[ \Pr[\Gm_6] \leq \Pr[\Gm_5] + 2(\Queries{\PubO}{\advA} + \ell \Queries{\PrivO}{\advA}) \epsilon \]
+
+In $\Gm_7$, all queries are sampled randomly from $\bits^{2k}$ and cached in table $\Thh$ under
+the input $\YEDSA$, instead of some being cached under the message $\UnPadF(\msg_{\all} \concat m)$.
+We claim that in $\Gm_6$ if a query $\simulator(y, m)$ stores $z$ in $\THH[\XEDSA]$, then a later query $\simulator(y', m')$ will return $z$ if and only if $(y, m) = (y', m')$ or $\bad$ is set.
+The forward direction is trivial.
+If $\simulator(y', m')$ returns $\THH[\XEDSA]$, then either we have 
+\[\XEDSA = \UnPadF(\graph_{\all}.\ppathO(\IV, y') \concat m') = \UnPadF(\graph_{\all}.\ppathO(\IV, y) \concat m),\]
+or there was a $\bad$-setting collision between $\THH[\XEDSA]$ and the randomly-sampled response $z$.
+
+In the former case, the function $\UnPadF$ is injective, so we know $m = m'$, and the paths from $\IV$ to $y'$ and $y'$ respectively have the same
+sequence of edge labels.
+Unless $\bad$ is set, there are no duplicate edges, so a starting node and sequence of edge labels uniquely identify the ending node on the path; consequently $y = y'$ and the claim follows.
+
+Queries in $\Gm_7$ therefore hit a cache indexed by $\YEDSA$ if and only if they would hit a cache indexed by $\XEDSA$ in $\Gm_6$.
+We do not need to worry that the new entries in $\Thh$ overlap with those created in line
+$11$; if the check in line $6$ holds true during some query, then it cannot have been false in an earlier query with the same $\YEDSA$
+unless $\bad$ would be set. Thus no queries are answered from table $\Thh$ in $\Gm_7$ that would not have been
+cached in earlier games, and
+\[ \Pr[\Gm_7] = \Pr[\Gm_6]. \]
+
+Notice that both branches of the simulator now identically sample $z \getsr \bits^{2k}$ uniformly, subject to 
+caching in table $\Thh$ under $\YEDSA$; in the next game we will eliminate the redundant check on $\msg_{all}$ in line $6$.
+
+\begin{figure}
+\twoCols{0.44}{0.47}{
+	\ExperimentHeader{Game $\Gm_7$}
+	\ExptSepSpace
+	
+	\begin{algorithm}{$\simulator(\YEDSA, \graph)$}
+		\item $(y, m) \gets \YEDSA$
+		\item if $\exists z$ such that $(y, z, m) \in \graph.\edges$
+		\item \quad return $z$
+		\item $\msg \gets \graph.\ppathO(\IV, y)$
+		\item $\msg_{\all} \gets \graph_{\all}.\ppathO(\IV, y)$
+		\item if $\msg_{\all} \neq \bot$ and $\UnPadF(\msg_{\all} \concat m) \neq \bot$ then 
+		\item \quad \gamechange{$z \getsr \bits^{2k}$}
+		\item \quad \gamechange{if $\Thh[\YEDSA] \neq \bot$ then $z \gets \Thh[\YEDSA]$}
+		\item \quad \gamechange{$\Thh[\YEDSA] \gets z$}
+		\item else if $\Thh[\YEDSA] \neq \bot$ then $z \gets \Thh[\YEDSA]$
+		\item else $z \getsr \bits^{2k}$; $\Thh[\YEDSA] \gets z$
+		\item if $z \in \graph_{\all}.\nodes$ or $\msg \neq \msg_{\all}$
+		\item \quad $\bad \gets \true$
+		\item add $(y, z, m)$ to $\graph.\edges$
+		\item add $(y, z, m)$ to $\graph_{\all}.\edges$
+		\item return $z$
+	\end{algorithm}
+}{
+	\ExperimentHeader{Game $\Gm_8$}
+	\ExptSepSpace
+	
+\begin{algorithm}{$\simulator(\YEDSA)$}
+\item if $\Thh[\YEDSA] \neq \bot$ then $z \gets \Thh[\YEDSA]$
+\item else $z \getsr \bits^{2k}$; $\Thh[\YEDSA] \gets z$
+\item return $z$
+\end{algorithm}
+
+\ExptSepSpace
+\begin{algorithm}{$\Finalize(c')$}
+\item return $c'$
+\end{algorithm}
+}
+\vspace{5pt}
+\caption{Left: Game $\Gm_7$ in the proof of Theorem~\ref{th-md-indiff}. Right: Game $\Gm_8$ in the proof of Theorem~\ref{th-md-indiff}. Highlighted code is changed from the previous game, and algorithms not shown are unchanged from the previous game.}
+\label{fig-chop-gm7}
+\label{fig-chop-gm8}
+\end{figure}
+
+In our final game, $\Gm_8$, we remove the $\bad$ flag and the internal variables used to set it. 
+This increases the adversary's advantage, since it can now win even if the game would set $\bad$.
+The probability of a collision among the $\Queries{\PubO}{\advA} + \ell \Queries{\PrivO}{\advA}$ randomly sampled nodes of
+$\graph_{\all}$ is at most $\frac{(\Queries{\PubO}{\advA} + \ell \Queries{\PrivO}{\advA})^2}{2^{2k}}$ by a birthday bound.
+The probability that $\graph_{\all}$ contains a path to $y$ that $\graph_{\public}$ does not is the probability that the adversary $\advA$ queries $\PubO$ on one of the $\ell q_{\PrivO}$ intermediate nodes on a path in $\graph_{\all}$, before it learns the label of that node from $\PubO$.
+$\advA$ may use $\PrivO$ to learn the output $y$ of $\Out$ an intermediate node, but it does not learn anything about which of the equally likely preimages of $y$ is the label; from condition (2) we have that there are at least $\gamma$ such preimages to guess from.
+Then the probability that $\advA$ sets $\bad$ with a single $\PubO$ query is at most $\frac{\ell \Queries{\PrivO}{\advA}}{\gamma}$; a union bound over all $\PubO$ queries gives
+that a path exists in $\graph_{\all}$ but not $\graph_{\public}$ with probability no greater than $\frac{\Queries{\PubO}{\advA} \cdot \ell \Queries{\PrivO}{\advA}}{\gamma}$.
+
+We also stop maintaining the graphs $\graph_{\public}$ and $\graph_{\all}$, which are now only used to cache queries whose responses are already cached in table $\Thh$.
+This changes nothing about the view of the adversary, so
+\[ \Pr[\Gm_8] \leq \Pr[\Gm_7] + \frac{(\Queries{\PubO}{\advA} + \ell \Queries{\PrivO}{\advA})^2}{2^{2k}} + \frac{\Queries{\PubO}{\advA} \cdot \ell \Queries{\PrivO}{\advA}}{\gamma}. \]
+If we look closely at $\Gm_8$, we can see that the ``simulator'' is actually just a lazily-sampled random function with domain $\bits^{6k}$ and codomain $\bits^{2k}$.
+In fact, $\Gm_8$ is identical to the ``real'' indifferentiability game for functor $\construct{F}$, save for its choice of challenge bit.
+Thus 
+\[\Pr[\Gm_8] =  \Pr[\Gindiff_{\construct{F}, \simulator}(\advA) | c = 1]. \]
+Collecting bounds across all gamehops gives the theorem.\qed
+\end{proof}

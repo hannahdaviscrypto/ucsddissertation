@@ -1,0 +1,348 @@
+%
+% fullversion of this paper
+%
+
+@misc{fullversion,
+  author    = {Hannah Davis and Denis Diemert and Felix G{\"u}nther and Tibor Jager},
+  title     = {{On the Concrete Security of TLS~1.3 PSK Mode}},
+  howpublished = {Cryptology ePrint Archive, Report \TODO{2022/XXX}},
+  year = {2022},
+  note         = {\TODO{}\url{https://ia.cr/2022/XXX}},
+}
+
+@misc{tlsblog,
+author= {Joseph A. Salowey and Sean Turner and Christopher A. Wood},
+title = {{TLS~1.3: One Year Later}},
+institution= {Internet Engineering Task Force},
+year = {2019},
+howpublished = {\url{https://www.ietf.org/blog/tls13-adoption/}}
+}
+
+%
+% RFCs (from http://www.tm.uka.de/~bless/bibrfcindex.html)
+%
+
+@misc{rfc2104,
+  author="H. Krawczyk and M. Bellare and R. Canetti",
+  title="{HMAC: Keyed-Hashing for Message Authentication}",
+  howpublished="RFC 2104 (Informational)",
+  series="Internet Request for Comments",
+  type="RFC",
+  number="2104",
+  year=1997,
+  month=feb,
+  issn="2070-1721",
+  publisher="RFC Editor",
+  institution="RFC Editor",
+  organization="RFC Editor",
+  address="Fremont, CA, USA",
+    note="Updated by RFC 6151",
+url="https://www.rfc-editor.org/rfc/rfc2104.txt",
+  key="RFC 2104",
+  abstract={This document describes HMAC, a mechanism for message authentication using cryptographic hash functions.  HMAC can be used with any iterative cryptographic hash function, e.g., MD5, SHA-1, in combination with a secret shared key.  The cryptographic strength of HMAC depends on the properties of the underlying hash function.  This memo provides information for the Internet community.  This memo does not specify an Internet standard of any kind},
+  keywords="ipsec, Message, Digest, Internet, Protocol, Security, encryption",
+  doi="10.17487/RFC2104",
+  }
+
+@misc{rfc2401,
+  author="S. Kent and R. Atkinson",
+  title="{Security Architecture for the Internet Protocol}",
+  howpublished="RFC 2401 (Proposed Standard)",
+  series="Internet Request for Comments",
+  type="RFC",
+  number="2401",
+  year=1998,
+  month=nov,
+  issn="2070-1721",
+  publisher="RFC Editor",
+  institution="RFC Editor",
+  organization="RFC Editor",
+  address="Fremont, CA, USA",
+    note="Obsoleted by RFC 4301, updated by RFC 3168",
+url="https://www.rfc-editor.org/rfc/rfc2401.txt",
+  key="RFC 2401",
+  abstract={This memo specifies the base architecture for IPsec compliant systems. [STANDARDS-TRACK]},
+  keywords="IPSEC, ipsec, authentication, encapsulation, IP, IPv4, IPv6, IP-layer",
+  doi="10.17487/RFC2401",
+  }
+
+  
+// already appears in crypto.bib!?
+misc{rfc2409,
+  author="D. Harkins and D. Carrel",
+  title="{The Internet Key Exchange (IKE)}",
+  howpublished="RFC 2409 (Proposed Standard)",
+  series="Internet Request for Comments",
+  type="RFC",
+  number="2409",
+  year=1998,
+  month=nov,
+  issn="2070-1721",
+  publisher="RFC Editor",
+  institution="RFC Editor",
+  organization="RFC Editor",
+  address="Fremont, CA, USA",
+    note="Obsoleted by RFC 4306, updated by RFC 4109",
+url="https://www.rfc-editor.org/rfc/rfc2409.txt",
+  key="RFC 2409",
+  abstract={This memo describes a hybrid protocol.  The purpose is to negotiate, and provide authenticated keying material for, security associations in a protected manner. [STANDARDS-TRACK]},
+  keywords="IKE, ipsec, oakley, authentication, isakmp, internet, security, key, management",
+  doi="10.17487/RFC2409",
+  }
+
+@misc{rfc4306,
+  author="C. {Kaufman (Ed.)}",
+  title="{Internet Key Exchange (IKEv2) Protocol}",
+  howpublished="RFC 4306 (Proposed Standard)",
+  series="Internet Request for Comments",
+  type="RFC",
+  number="4306",
+  year=2005,
+  month=dec,
+  issn="2070-1721",
+  publisher="RFC Editor",
+  institution="RFC Editor",
+  organization="RFC Editor",
+  address="Fremont, CA, USA",
+    note="Obsoleted by RFC 5996, updated by RFC 5282",
+url="https://www.rfc-editor.org/rfc/rfc4306.txt",
+  key="RFC 4306",
+  abstract={This document describes version 2 of the Internet Key Exchange (IKE) protocol. IKE is a component of IPsec used for performing mutual authentication and establishing and maintaining security associations (SAs). This version of the IKE specification combines the contents of what were previously separate documents, including Internet Security Association and Key Management Protocol (ISAKMP, RFC 2408), IKE (RFC 2409), the Internet Domain of Interpretation (DOI, RFC 2407), Network Address Translation (NAT) Traversal, Legacy authentication, and remote address acquisition. Version 2 of IKE does not interoperate with version 1, but it has enough of the header format in common that both versions can unambiguously run over the same UDP port. [STANDARDS-TRACK]},
+  keywords="ISAKMPSEC, ipsec, internet, protocol, security, association, key, management, ipsec, cryptography, authentication, IKE, oakley, isakmp",
+  doi="10.17487/RFC4306",
+  }
+
+
+@misc{rfc5246,
+  author="T. Dierks and E. Rescorla",
+  title="{The Transport Layer Security (TLS) Protocol Version 1.2}",
+  howpublished="RFC 5246 (Proposed Standard)",
+  series="Internet Request for Comments",
+  type="RFC",
+  number="5246",
+  year=2008,
+  month=aug,
+  issn="2070-1721",
+  publisher="RFC Editor",
+  institution="RFC Editor",
+  organization="RFC Editor",
+  address="Fremont, CA, USA",
+    note="Obsoleted by RFC 8446, updated by RFCs 5746, 5878, 6176, 7465, 7507, 7568, 7627, 7685, 7905, 7919, 8447",
+url="https://www.rfc-editor.org/rfc/rfc5246.txt",
+  key="RFC 5246",
+  abstract={This document specifies Version 1.2 of the Transport Layer Security (TLS) protocol.  The TLS protocol provides communications security over the Internet.  The protocol allows client/server applications to communicate in a way that is designed to prevent eavesdropping, tampering, or message forgery. [STANDARDS-TRACK]},
+  keywords="idea, international data algorithm, symmetric, transport protocol layer, authentication, privacy",
+  doi="10.17487/RFC5246",
+  }
+
+@misc{rfc7748,
+  author="A. Langley and M. Hamburg and S. Turner",
+  title="{Elliptic Curves for Security}",
+  howpublished="RFC 7748 (Informational)",
+  series="Internet Request for Comments",
+  type="RFC",
+  number="7748",
+  year=2016,
+  month=jan,
+  issn="2070-1721",
+  publisher="RFC Editor",
+  institution="RFC Editor",
+  organization="RFC Editor",
+  address="Fremont, CA, USA",
+  url="https://www.rfc-editor.org/rfc/rfc7748.txt",
+  key="RFC 7748",
+  abstract={This memo specifies two elliptic curves over prime fields that offer a high level of practical security in cryptographic applications, including Transport Layer Security (TLS).  These curves are intended to operate at the ~128-bit and ~224-bit security level, respectively, and are generated deterministically based on a list of required properties.},
+  keywords="elliptic curve, cryptography, ecc",
+  doi="10.17487/RFC7748",
+  }
+
+@misc{rfc5869,
+  author="H. Krawczyk and P. Eronen",
+  title="{HMAC-based Extract-and-Expand Key Derivation Function (HKDF)}",
+  howpublished="RFC 5869 (Informational)",
+  series="Internet Request for Comments",
+  type="RFC",
+  number="5869",
+  year=2010,
+  month=may,
+  issn="2070-1721",
+  publisher="RFC Editor",
+  institution="RFC Editor",
+  organization="RFC Editor",
+  address="Fremont, CA, USA",
+  url="https://www.rfc-editor.org/rfc/rfc5869.txt",
+  key="RFC 5869",
+  abstract={This document specifies a simple Hashed Message Authentication Code (HMAC)-based key derivation function (HKDF), which can be used as a building block in various protocols and applications.  The key derivation function (KDF) is intended to support a wide range of applications and requirements, and is conservative in its use of cryptographic hash functions.  This document is not an Internet Standards Track specification; it is published for informational purposes.},
+  doi="10.17487/RFC5869",
+  }
+
+@misc{rfc8032,
+  author="S. Josefsson and I. Liusvaara",
+  title="{Edwards-Curve Digital Signature Algorithm (EdDSA)}",
+  howpublished="RFC 8032 (Informational)",
+  series="Internet Request for Comments",
+  type="RFC",
+  number="8032",
+  year=2017,
+  month=jan,
+  issn="2070-1721",
+  publisher="RFC Editor",
+  institution="RFC Editor",
+  organization="RFC Editor",
+  address="Fremont, CA, USA",
+  url="https://www.rfc-editor.org/rfc/rfc8032.txt",
+  key="RFC 8032",
+  abstract={This document describes elliptic curve signature scheme Edwards-curve Digital Signature Algorithm (EdDSA).  The algorithm is instantiated with recommended parameters for the edwards25519 and edwards448 curves.  An example implementation and test vectors are provided.},
+  keywords="signature, digital signature, EdDSA",
+  doi="10.17487/RFC8032",
+  }
+
+@misc{rfc8446,
+  author="E. Rescorla",
+  title="{The Transport Layer Security (TLS) Protocol Version 1.3}",
+  howpublished="RFC 8446 (Proposed Standard)",
+  series="Internet Request for Comments",
+  type="RFC",
+  number="8446",
+  pages="1--160",
+  year=2018,
+  month=aug,
+  issn="2070-1721",
+  publisher="RFC Editor",
+  institution="RFC Editor",
+  organization="RFC Editor",
+  address="Fremont, CA, USA",
+  url="https://www.rfc-editor.org/rfc/rfc8446.txt",
+  key="RFC 8446",
+  abstract={This document specifies version 1.3 of the Transport Layer Security (TLS) protocol. TLS allows client/server applications to communicate over the Internet in a way that is designed to prevent eavesdropping, tampering, and message forgery. This document updates RFCs 5705 and 6066, and obsoletes RFCs 5077, 5246, and 6961. This document also specifies new requirements for TLS 1.2 implementations.},
+  keywords="international data algorithm, symmetric, transport protocol layer, authentication, privacy",
+  doi="10.17487/RFC8446",
+  }
+
+
+%
+% Papers _not yet_ in crypto.bib
+%
+
+@inproceedings{ACNS:DavGun21,
+    author = {Hannah Davis and Felix Günther},
+    title = {Tighter Proofs for the {SIGMA} and {TLS} 1.3 Key Exchange Protocols},
+    booktitle = {19th International Conference on Applied Cryptography and Network Security (ACNS 2021)},
+    year = {2021},
+}
+
+@inproceedings{INDOCRYPT:BelDai20,
+    author = {Mihir Bellare and Wei Dai},
+    title = {The Multi-Base Discrete Logarithm Problem: Non-Rewinding Proofs and Improved Reduction Tightness for Identification and Signatures},
+    booktitle = {INDOCRYPT 2020},
+    year = {2020},
+    note = {\url{https://eprint.iacr.org/2020/416}},
+}
+
+@inproceedings{AC:BDdGJM21,
+  author       = {Colin Boyd and Gareth T. Davies and Bor de Kock and Kai Gellert and Tibor Jager and Lise Millerjord},
+  title        = {Symmetric Key Exchange with Full Forward Security and Robust Synchronization},
+  booktitle    = {ASIACRYPT 2021},
+  year         = {2021},
+  note         = {To appear. Available as Cryptology ePrint Archive, Report 2021/702. \url{https://ia.cr/2021/702}},
+}
+
+
+
+%
+% Papers not in crypto.bib
+%
+
+@article{DCC:MenSma04,
+  author = {Alfred Menezes and Nigel Smart},
+  title = {Security of Signature Schemes in a Multi-User Setting},
+  journal = {Designs, Codes and Cryptography},
+  volume = {33},
+  number = {3},
+  year = {2004},
+  pages = {261-274},
+  month = nov,
+  publisher = springer,
+}
+
+@inproceedings{CSF:CohCreGar16,
+  author = {Katriel Cohn-Gordon and Cas Cremers and Luke Garratt},
+  title = {On Post-compromise security},
+  booktitle = {2016 Computer Security Foundations Symposium},
+  publisher = {IEEE},
+  pages = {164--178},
+  year = {2016}
+}
+
+@inproceedings{EuroSP:KraWee16,
+  author =       "Hugo Krawczyk and
+                  Hoeteck Wee",
+  title =        "The {OPTLS} Protocol and {TLS} 1.3",
+  booktitle =    "2016 {IEEE} European Symposium on Security and Privacy",
+  publisher =    "{IEEE}",
+  pages =        {81--96},
+  month =        mar,
+  year =         2016,
+  doi =          "10.1109/EuroSP.2016.18",
+}
+
+@inproceedings{EuroSP:FisGue17,
+  author    = {Marc Fischlin and Felix G{\"u}nther},
+  title     = {Replay Attacks on Zero Round-Trip Time: The Case of the {TLS}~1.3 Handshake Candidates},
+  booktitle = {2017 {IEEE} European Symposium on Security and Privacy, EuroS{\&}P 2017},
+  month     = apr,
+  pages     = {60-75},
+  publisher = {IEEE},
+  year      = {2017},
+}
+
+@inproceedings{EuroSP:CCDGS17,
+	author    = {Katriel Cohn{-}Gordon and Cas J. F. Cremers and Benjamin Dowling and Luke Garratt and Douglas Stebila},
+	title     = {A Formal Security Analysis of the {S}ignal Messaging Protocol},
+	booktitle = {2017 {IEEE} European Symposium on Security and Privacy, EuroS{\&}P 2017},
+	pages     = {451--466},
+	month     = apr,
+	year      = {2017},
+	publisher = {IEEE},
+}
+
+%
+% Others
+%
+
+@phdthesis{thesis:Guenther18,
+  author    = {Felix G{\"u}nther},
+  title     = {{Modeling Advanced Security Aspects of Key Exchange and Secure Channel Protocols}},
+  school    = {Technische Universit{\"a}t Darmstadt},
+  address   = {Darmstadt, Germany},
+  year      = {2018},
+  note      = {\url{http://tuprints.ulb.tu-darmstadt.de/7162/}},
+}
+
+@misc{FIPS:186-4,
+	author = {{National Institute of Standards and Technology}},
+	title = {{FIPS PUB 186-4}: {Digital Signature Standard (DSS)}},
+	year = 2013,
+}
+
+@MISC{NIST:FIPS-180-4,
+	author = {{National Institute of Standards and Technology}},
+    title = {{FIPS PUB 180-4}: {Secure Hash Standard (SHS)}},
+    year = {2012}
+}
+
+
+@misc{rfc7919,
+	series =	{Request for Comments},
+	number =	7919,
+	howpublished =	{RFC 7919},
+	publisher =	{RFC Editor},
+	doi =		{10.17487/RFC7919},
+	url =		{https://rfc-editor.org/rfc/rfc7919.txt},
+        author =	{Daniel Kahn Gillmor},
+	title =		{{Negotiated Finite Field Diffie-Hellman Ephemeral Parameters for Transport Layer Security (TLS)}},
+	pagetotal =	29,
+	year =		2016,
+	month =		aug,
+	abstract =	{Traditional finite-field-based Diffie-Hellman (DH) key exchange during the Transport Layer Security (TLS) handshake suffers from a number of security, interoperability, and efficiency shortcomings. These shortcomings arise from lack of clarity about which DH group parameters TLS servers should offer and clients should accept. This document offers a solution to these shortcomings for compatible peers by using a section of the TLS "Supported Groups Registry" (renamed from "EC Named Curve Registry" by this document) to establish common finite field DH parameters with known structure and a mechanism for peers to negotiate support for these groups. This document updates TLS versions 1.0 (RFC 2246), 1.1 (RFC 4346), and 1.2 (RFC 5246), as well as the TLS Elliptic Curve Cryptography (ECC) extensions (RFC 4492).},
+}

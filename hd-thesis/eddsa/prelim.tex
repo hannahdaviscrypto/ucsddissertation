@@ -1,0 +1,191 @@
+\section{Preliminaries} \label{sec-prelims}
+
+\noskipheadingu{Notation.} If $n$ is a positive integer, then $\Z_n$ denotes the set $\{0, \ldots, n-1\}$ and $[n]$ or $[1..n]$ denote the set $\{1,\ldots,n\}$. 
+If $\vecxx$ is a vector then $|\vecxx|$ is its length (the number of its coordinates), $\vecxx[i]$ is its $i$-th coordinate 
+and $[\vecxx] = \set{\vecxx[i]}{1\leq i\leq |\vecxx|}$ is the set of all its coordinates. 
+A string is identified with a vector over $\bits$, so that if $x$ is a string then $x[i]$ is its $i$-th bit and $|x|$ is its length. We denote $x[i..j]$ the $i$-th bit to the $j$-th bit of string $x$.
+By $\emptystring$ we denote the empty vector or string. The size of a set $S$ is denoted $|S|$. 
+For sets $D,R$ let $\AllFuncs(D,R)$ denote the set of all functions $f\Colon D\to R$. If $f\Colon D\to R$ is a function then $\Img(f) = \set{f(x)}{x\in D}\subseteq R$ is its image. We say that $f$ is \textit{regular} if every $y\in\Img(f)$ has the same number of pre-images under $f$.
+By $\bits^{\leq L}$ we denote the set of all strings of length at most $L$.
+For any variables $a$ and $b$, the expression $[[a = b]]$ denotes the Boolean value $\true$ when $a$ and $b$ contain the same value and $\false$ otherwise.
+
+Let $S$ be a finite set. We let $x \getsr S$ denote sampling an element uniformly at random from $S$ and assigning it to $x$. 
+% We let $x \getsrr S$ be a short-hand for the operation sequence $x \getsr S$ ; $S
+% \gets S \setminus \{x\}$. (Sampling without replacement.)  
+We let $y \gets A[\Oracle_1, \ldots](x_1,\ldots ;
+r)$ denote executing algorithm $A$ on inputs $x_1,\ldots$ and coins $r$ with
+access to oracles $\Oracle_1, \ldots$ and letting $y$ be the result. We let $y
+\getsr A[\Oracle_1, \ldots ](x_1,\ldots)$ be the resulting of picking $r$ at
+random and letting $y \gets A[\Oracle_1, \ldots](x_1,\ldots; r)$ be the equivalent. We let
+$\Outputs(A[\Oracle_1, \ldots ](x_1,\ldots)])$ denote the set of all possible outputs
+of $A$ when invoked with inputs $x_1,\ldots$ and oracles $\Oracle_1, \ldots$.
+% We use $q^{\Oracle_i}_{\advA}$ to denote the number of queries that $\advA$
+% makes to oracle $\Oracle_i$ in the worst case.  
+Algorithms are randomized unless
+otherwise indicated. Running time is worst case.
+%%% COMPLETED
+
+%\mihirnote{For the whole paper, starting with the above, how about we change $A^{\Oracle_1, \ldots }$ to $A[\Oracle_1,\ldots]$? Given the complexity of some of our oracles, not making them superscripts may help. Also let's introduce better notation for what is $[A^{\Oracle_1, \ldots }(x_1,\ldots)]$ above, maybe $\mathrm{Outputs}(A[\Oracle_1, \ldots ](x_1,\ldots))$?}
+%\hd{This is in progress.}
+
+\headingu{Games.} We use the code-based game playing framework of
+\cite{EC:BelRog06}. (See Fig. 1 for an example.) Games have procedures, also called oracles. 
+% Each oracle is designated either ``public'' or ``private.''
+ Among the oracles are $\Initialize$ and a $\Finalize$. In executing an adversary $\advA$ with a game $\Gm$, the adversary may query the oracles at will. We require that the adversary's first oracle query be to $\Initialize$ and its last to $\Finalize$ and it query these oracles at most once. The value return by the $\Finalize$ procedure is taken as the game output. By $\Gm(\advA) \Rightarrow y$ we denote the event that the execution of game $\Gm$ with adversary $\advA$ results in output $y$. We write $\Pr[\Gm(\advA)]$ as shorthand for $\Pr[\Gm(\advA)\Rightarrow \true]$, the probability that the game returns $\true$.
+
+In writing game or adversary pseudocode, it is assumed that Boolean variables are initialized to $\false$, integer variables are initialized to $0$ and set-valued variables are initialized to the empty set $\emptyset$.
+
+%\mihirnote{Above, also define the notation like $[[b=b']]$ that we use in games to indicate the boolean result of some test. Not sure how generally we use it or how best to define it.}
+%\hd{Done.}
+%\mihirnote{Where is it done? I don't see $[[b=b']]$ defined above.}
+%\hd{Last sentence of the first paragraph under Notations. I used a and b instead of b and b', though.}
+%\mihirnote{Change the conventions for games above as follows, which may reflect some prior papers. The adversary simply calls all oracles, beginning with $\Initialize$ and ending with $\Finalize$, so that the adversary has no inputs or outputs. Also say that some oracles can be designated private, meaning the adversary is not allowed to query them.}
+%\hd{Done except for adding citations to prior work.}
+
+We adopt the convention that the running time of an adversary is the time for the execution of the game with the adversary, so that the time for oracles to respond to queries is included. In counting the number of queries to an oracle $\Oracle$, we have two metrics. We let $\Queries{\Oracle}{\advA}$ denote the number of queries made to $\Oracle$ in the execution of the game with $\advA$. (This includes not just queries made directly by $\advA$ but also those made by game oracles, the latter usually arising from game executions of scheme algorithms that use $\Oracle$.) In particular, under this metric, the number of queries to a random oracle $\HASH$ includes those made by scheme algorithms executed by game procedures. 
+% When adversary $\advA$ is executed with game $\Gm$, we consider two running times. The time of the execution, denoted $\Time{\Gm(\advA)}$, includes the time taken by game procedures, while the time of the adversary, denoted $\Time{\advA}$, assumes game procedures take unit time to respond. 
+ With $\QueriesD{\Oracle}{\advA}$ we count only queries made directly by $\advA$ to $\Oracle$, not by other game oracles or scheme algorithms.
+These counts are all worst case.
+
+% We use $t_{\advA}$ to denote the running time of an adversary $\advA$.
+
+\headingu{Groups.} Throughout the paper, we fix integers $k$ and $b$, an odd prime $\Prime$, and a positive integer $\cofactor$ such that $2^\cofactor < \Prime$. 
+We then fix two groups: $\G$, a group of order $\Prime \cdot 2^\cofactor$ whose elements are $k$-bit strings, and its cyclic subgroup $\G_{\Prime}$ of order $\Prime$. 
+We prove in \fullorAppendix{apx:group} that this subgroup is unique, and that it has an efficient membership test. 
+We also assume an efficient membership test for $\G$. 
+We will use additive notation for the group operation, and we let $0_{\G}$ denote the identity element of $\G$. 
+We let $\G_{\Prime}^*=\G\setminus\{0_{\G}\}$ denote the set of non-identity elements of $\G_{\Prime}$, which is its set of generators. 
+We fix a distinguished generator $\generatorEDSA \in \G_{\Prime}^*$. 
+Then for any $X \in \G^{*}$, the discrete logarithm base $\generatorEDSA$ of $X$ is denoted $\DL_{\G, \generatorEDSA}(X)$, and it is in the set $\Z_{|\G|}$.
+The instantiation of $\G$ used in Ed25519 is described in Section \ref{sec-gp-instantiation}.
+
+\section{Functor framework}\label{sec-our-def-framework}
+
+Our treatment relies on the notion of functors~\cite{EC:BelDavGun20}, which are functions that access an idealized primitive. We give relevant definitions, starting with signature schemes whose security is measured relative to a functor. Then we extend the notions of PRGs and PRFs to functors.
+
+\headingu{Function spaces.} In using the random oracle model~\cite{CCS:BelRog93}, works in the literature sometimes omit to say what exactly are the domain and range of the underlying functions, and, when multiple functions are present, whether or not they are independent. (Yet, implicitly their proofs rely on certain choices.) For greater precision, we use the language of function spaces of~\cite{EC:BelDavGun20}, which we now recall. 
+
+A \textit{function space} $\roSp$ is a set of tuples $\HH=(\HH_1,\ldots,\HH_n)$ of functions. The integer $n$ is called the arity of the function space, and can be recovered as $\roSp.\arity$. We view $\HH$ as taking an input $X$ that it parses as $(i,x)$ to return $\HH_i(x)$. 
+
+
+
+\heading{Functors.} Following~\cite{EC:BelDavGun20}, we use the term functor for a transform that constructs one function from another. A functor $\construct{F}\Colon\FuncSp{SS}\to\FuncSp{ES}$ takes as oracle a function $\hh$ from a starting function space $\FuncSp{SS}$ and returns a function $\construct{F}[\hh]$ in the ending function space $\FuncSp{ES}$. (The term is inspired by category theory, where a functor maps from one category into another. In our case, the categories are function spaces.) If $\FuncSp{ES}$ has arity $n$, then we also refer to $n$ as the arity of $\construct{F}$, and write $\construct{F}_i$ for the functor which returns the $i$-th component of $\construct{F}$. That is, $\construct{F}_i[\hh]$ lets $\HH\gets\construct{F}[\hh]$ and returns $\HH_i$.
+
+
+\heading{MD functor.} We are interested in the Merkle-Damg{\aa}rd~\cite{C:Merkle89a,C:Damgaard89b} transform. This transform constructs a hash function with domain $\bits^*$ from a compression function $\hh\Colon\bits^{b+2k}\to\bits^{2k}$ for some integers $b$ and $k$. The compression function takes a $2k$-bit chaining variable $y$ and a $b$-bit block $B$ to return a $2k$ bit output $\hh(y\|B)$. In the case of $\SHA512$, the hash function used in $\EdDSA$, the compression function $\sha{512}$ has $b=1024$ and  $k=256$ (so the chaining variable is 512 bits and a block is 1024 bits), while $b= 512$ and $k=128$ for $\SHA256$. In our language, the Merkle-Damg{\aa}rd transform is a functor $\construct{MD}\Colon \allowbreak \AllFuncs(\bits^{b+2k},\allowbreak \bits^{2k}) \allowbreak  \to \allowbreak  \AllFuncs(\bits^{*}, \allowbreak  \bits^{2k})$. It is parameterized by a padding function $\padF$ that takes the length $\ell$ of an input to the hash function and returns a padding string such that $\ell + |\padF(\ell)|$ is a multiple of $b$.
+Specifically, $\padF(\ell)$ returns $10^*\birep{\ell}$ where $\birep{\ell}$ is a $64$-bit, resp. $128$-bit encoding of $\ell$ for $\SHAtwo$ resp. $\SHAfive$, and $0^*$ indicates the minimum number $p$ of $0$s needed to make $\ell+ 1 + p + 64$, resp. $\ell + 1 + p + 128$ a multiple of $b$. We also fix an ``initialization vector'' $\IV \in \bits^{2k}$. Given oracle $\hh$, the functor defines hash function $\HH = \construct{MD}[\hh]\Colon\bits^{*}\to\bits^{2k}$ as follows:
+\begin{tabbing}
+\underline{Functor $\construct{MD}[\hh](X)$} \\[2pt]
+$y[0] \gets \IV$ \\
+$P\gets \padF(|X|)$ ; $X'[1]\ldots X'[m] \gets X\|P$ \comment{Split $X\|P$ into $b$-bit blocks} \\
+For $i=1,\ldots,m$ do $y[i] \gets \hh(y[i-1]\|X'[i])$ \\
+Return $y[m]$
+\label{MD}
+\end{tabbing}
+Strictly speaking, the domain is only strings of length less than $2^{64}$ resp. $2^{128}$, but since this is huge in practice, we view the domain as $\bits^*$. 
+
+\headingu{Signature scheme syntax.} We give an enhanced, flexible syntax for a signature scheme $\DS$. We want to cover ROM schemes, which means scheme algorithms have oracle access to a function $\HH$, but of what range and domain? Since these can vary from scheme to scheme, we have the scheme begin by naming the function space $\DS.\HASHSET$ from which $\HH$ is drawn. We see the key-generation algorithm $\DS.\Kg$ as first picking a signing key $\sk\getsr\DS.\MakeSK$ via a signing-key generation algorithm $\DS.\MakeSK$, then obtaining the public verification key $\pk \gets \DS.\MakePK[\HH](\sk)$ by applying a deterministic verification-key generation algorithm $\DS.\MakePK$, and finally returning $(\pk,\sk)$. (For simplicity, $\DS.\MakeSK$, unlike other scheme algorithms, does not have access to $\HH$.) We break it up like this because we may need to explicitly refer to the sub-algorithms in constructions. Continuing, via $\sigma\gets \DS.\Sign[\HH](\sk,\pk,\msg;r)$ the signing algorithm takes $\sk,\pk$, a message $\msg \in \bits^*$, and randomness $r$ from the randomness space $\DS.\SigCoins$ of the algorithm, to return a signature $\sigma$. As usual, $\sigma\getsr \DS.\Sign[\HH](\sk,\pk,\msg)$ is shorthand for picking $r\getsr\DS.\SigCoins$ and returning $\sigma\gets \DS.\Sign[\HH](\sk,\pk,\msg;r)$. Via $b\gets \DS.\Vf[\HH](\pk,\msg,\sigma)$, the verification algorithm obtains a boolean decision $b \in \{\true, \false\}$ about the validity of the signature. The correctness requirement is that for all $\HH \in \DS.\HASHSET$, all $(\pk, \sk) \in \Outputs(\DS.\Kg[\HH])$, all $\msg \in \bits^*$ and all $\sigma\in \Outputs(\DS.\Sign[\HH](\sk,\pk,\msg))$ we have $\DS.\Vf[\HH](\pk, \msg, \sigma) = \true$.
+
+
+
+
+
+\begin{figure}[t]
+	\oneCol{0.8}{
+		\ExperimentHeader{Game $\UFCMA_{\DS,\fF}$}
+
+		\begin{oracle}{$\Initialize$}
+			\item
+			$\hh \getsr \startSpace$ ; $\HH \gets \fF[\HASH]$ 
+			; $(\pk, \sk) \getsr \DS.\Kg[\HH]$
+			; Return $\pk$
+		\end{oracle}
+		\ExptSepSpace
+
+		\begin{oracle}{$\SignOO(\msg)$}
+			\item $\sigma \getsr \DS.\Sign[\HH](\sk,\pk,\msg)$
+			; $S \gets S \cup \{\msg\}$
+			; Return $\sigma$
+		\end{oracle}
+		\ExptSepSpace
+
+		\begin{oracle}{$\HASH(X)$}
+			\item Return $\hh(X)$
+		\end{oracle}
+		\ExptSepSpace
+
+		\begin{oracle}{$\Finalize(\chmsg, \chsig)$}
+			\item If ($\chmsg\in S$) then return $\false$
+			\item Return $\DS.\Vf[\HH](\pk, \chmsg, \chsig)$ \vspace{2pt}
+		\end{oracle}
+	} \vspace{-3pt}
+		\twoCols{0.38}{0.53}{
+		\ExperimentHeader{Game $\gamePRG_{\construct{P}}$}
+
+		\begin{oracle}{$\Initialize$}
+			\item
+			$\hh \getsr \startSpace$  
+			; $c \getsr \bits$  
+			\item $s\getsr\bits^k$ ; $y_1\gets \construct{P}[\HASH](s)$ 
+			\item  $y_0\getsr\bits^{\ell}$
+			\item Return $y_c$
+		\end{oracle}
+		\ExptSepSpace
+
+		\begin{oracle}{$\HASH(X)$}
+			\item Return $\hh(X)$
+		\end{oracle}
+		\ExptSepSpace
+
+		\begin{oracle}{$\Finalize(c')$}
+			\item Return ($c=c'$) \vspace{2pt}
+		\end{oracle}
+	}
+	{
+\ExperimentHeader{Game $\gamePRF_{\construct{F}}$}
+
+		\begin{oracle}{$\Initialize$}
+			\item
+			$\hh \getsr \startSpace$  
+			; $c \getsr \bits$ 
+		; $K\getsr\bits^k$  
+		\end{oracle}
+		\ExptSepSpace
+
+		\begin{oracle}{$\FUNCO(X)$}
+			\item If $\YTable[X]\neq\bot$ then
+			\item \hindent If ($c=1$) then $\YTable[X]\gets \construct{F}[\HASH](K,X)$ 
+			\item \hindent Else $\YTable[X] \getsr R$
+			\item Return  $\YTable[X]$
+		\end{oracle}
+		\ExptSepSpace
+		
+		\begin{oracle}{$\HASH(X)$}
+			\item Return $\hh(X)$
+		\end{oracle}
+		\ExptSepSpace
+
+
+		\begin{oracle}{$\Finalize(c')$}
+			\item Return ($c=c'$) \vspace{2pt}
+		\end{oracle}
+}	
+
+		\vspace{-5pt}
+	\caption{Top: Game defining UF security of signature scheme $\DS$ relative to functor $\fF\Colon\startSpace\to\DS.\HASHSET$. Bottom Left: Game defining PRG security of functor $\construct{P}\Colon\startSpace\to\AllFuncs(\bits^k,\bits^{\ell})$. Bottom Right: Game defining PRF security of functor $\construct{F}\Colon\startSpace\to\AllFuncs(\bits^k\cross\bits^*,R)$.}
+	\label{fig:UF}\label{fig:fUF}\label{fig-prf}\label{fig-prg}
+	\hrulefill
+	\vspace{-10pt}
+\end{figure}
+
+\heading{UF security.} We want to discuss security of a signature scheme $\DS$ under different ways in which the functions in $\DS.\HASHSET$ are chosen or built. Game $\UFCMA_{\DS,\fF}$ in Fig.~\ref{fig:UF} is thus parameterized by a functor $\fF\Colon\startSpace\to\DS.\HASHSET$. At line~1, a starting function $\hh$ is chosen from the starting space of the functor, and then the function $\HH \in \DS.\HASHSET$ that the scheme algorithms (key-generation, signing and verification) get as oracle is determined as $\HH \gets \fF[\hh]$. The adversary, however, via oracle $\HASH$, gets access to $\hh$, which here is the random oracle. The rest is as per the usual unforgeability definition. (Given in the standard model in~\cite{GolMicRiv88} and extended to the ROM in~\cite{CCS:BelRog93}.) We define the UF advantage of adversary $\advA$ as $\ufAdv{\DS,\fF}{\advA} = \Pr[\UFCMA_{\DS,\fF}(\advA)]$.
+
+
+\heading{PRGs and PRFs.} The usual definition  of a PRGs is for a function; we define it instead for a functor $\construct{P}$. The game $\gamePRG_{\construct{P}}$ is in Figure~\ref{fig-prg}. It picks a function $\hh$ from the starting space $\startSpace$ of the functor. The functor now determines a function $\construct{P}[\hh]\Colon\bits^k\to\bits^{\ell}$. The game then follows the usual PRG one for this function, additionally giving the adversary oracle access to $\hh$ via oracle $\HASH$. We let $\prgAdv{\construct{P}}{\advA} = 2\Pr[\gamePRG_{\construct{P}}(\advA)]-1$.
+
+Similarly we extend the usual definition of PRG security to a functor $\construct{F}$, via game $\gamePRF_{\construct{F}}$ of Figure~\ref{fig-prf}. Here, for $\hh$ in the starting space $\startSpace$ of the functor, the defined function maps as $\construct{F}[\hh]\Colon\bits^k\cross\bits^*\to R$ for some $k$ and range set $R$. We let $\prfAdv{\construct{F}}{\advA} = 2\Pr[\gamePRF_{\construct{F}}(\advA)]-1$.
+
+
+
+
+

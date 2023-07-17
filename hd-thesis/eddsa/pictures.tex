@@ -1,0 +1,225 @@
+\tikzstyle{game} = [rectangle, rounded corners, text centered, draw=white, outer sep = 1mm]
+\tikzstyle{box} = [rectangle, text centered, draw=black, outer sep = 1mm]
+\tikzstyle{dashbox} = [rectangle, very thick, text centered, draw=red, dashed, outer sep = 1mm]
+\tikzstyle{arrow} = [very thick,->, color=blue]
+\tikzstyle{arrow2} = [very thick,->, color=blue]
+\tikzstyle{privarrow} = [very thick,->,color = red]
+\tikzstyle{lightarrow} = [thick,<-,color=gray]
+\tikzstyle{pubarrow} = [very thick,->,color = green]
+\begin{figure}[t]
+\twoCols{0.42}{0.5}{
+	\centering
+\begin{tikzpicture}
+   \node at (-.5,2) [game](ds){\Large$\UFCMA_{\DS}$};
+   \node at (2, 2) [game](md){\Large$\construct{MD}$};
+   \node at (-.5,0) [game] (adv){\Large$\advA$};
+   \node at (2,0) [game](hh) {\Large$\hh$};
+   \draw[arrow] (ds.east) -- (md.west) node[midway, below, color=black] {\small $\iHASH$};
+   \draw[arrow](adv.north) -- (ds.south);
+   \draw[arrow] (adv.east) -- (hh.west) node[midway, above, color=black] {\small $\eHASH$};
+   \draw[arrow] (md.south) -- (hh.north);
+ %  \draw[->,rounded corners] (ds) |- node[pos=0.75,fill=white,inner sep=2pt]{a} ++(1,1) |- (adv);
+\end{tikzpicture}
+}{
+\centering
+\begin{tikzpicture}
+\node at (0, 2) [game](ds){\large$\FUFCMA_{\fDS}$};
+\node  at (2, 2) [box](flt) {\Large$\Filter$};
+\node  at (4,2) [game](md){\Large$\construct{MD}$};
+\node at (0, 0)[game] (adv){\Large$\advA$};
+\node at (4,0) [game](hh) {\Large$\hh$};
+\coordinate[above=2.5mm of flt.west] (c1);
+\coordinate[above=-2.5mm of flt.west] (c2);
+\coordinate[above=2.5mm of md.west] (c3);
+\coordinate[above=-2.5mm of md.west] (c4);
+\coordinate[above left=2.5mm and 6.88mm of hh.west] (pqo3);
+\coordinate[below left=2.5mm and 3.5mm of md.west] (pqo);
+\coordinate[above=2.5mm of adv.east] (pqo2);
+\draw[privarrow] (ds.east)+(0,.25cm) -- (c1) ;
+\draw[pubarrow] (ds.east)+(0,-.25cm) -- (c2);
+\draw[privarrow] (ds.east) -- (flt.west);
+\draw[privarrow] (flt.east)+(0,.25cm) --(c3);
+\draw[pubarrow] (flt.east)+(0,-.25cm) --(c4);
+\draw[privarrow] (flt.east) -- (md.west);
+\draw[arrow] (adv.north) -- (ds.south);
+\draw[lightarrow] (pqo) -- (pqo3) -- (pqo2) node[midway, above, color=black] {\small $\pHASH$};
+\draw[arrow] (adv.east) -- (hh.west);
+\draw[arrow] (md.south) -- (hh.north);
+%%  \draw[->,rounded corners] (ds) |- node[pos=0.75,fill=white,inner sep=2pt]{a} ++(1,1) |- (adv);
+\end{tikzpicture}
+}
+\vspace{-5pt}
+\caption{Left: A visualization of game $\UFCMA_{\DS, \roSp}(\advA)$. Right: A visualization of game $\FUFCMA_{\fDS,\Filter,\roSp}(\advA)$. Green arrows represent access to public ports of the filter, while red arrows represent private ports.
+\label{pic-real-ufcma}}
+\end{figure}
+
+We start the proof in the scenario on the left-hand side of Figure~\ref{pic-real-ufcma}.
+Let us explain how to read this figure.
+In the top left corner, we have the UF game of Figure~\ref{fig:UF}, and in the lower right corner, we have the adversary $\advA$ which interacts with the game, as indicated by the upward arrow.
+Throughout these diagrams, an arrow from $\X$ to $\Y$ indicates that $\X$ has oracle access to $\Y$.
+We regard the two functions $\hh$ and $\MD[\hh]$ as distinct from the UF game; the scheme algorithms and adversary may access them through oracles $\iHASH$ and $\eHASH$ respectively, as shown by the top and bottom arrows.
+In other words, the left side of Figure~\ref{pic-real-ufcma} shows the target security notion: the game capturing the UF security of $\DS$ in the $(\construct{MD}[\hh], \hh)$ model.
+
+The next figure on the right of Figure~\ref{pic-real-ufcma} shows how we abstract restrictions on the game's access to $\construct{MD}$ into an external object, the filter $\Filter$.
+To do this, we must recast $\DS$ as a new signature scheme $\fDS$.
+This new scheme accesses $\construct{MD}[\hh]$ through a filter $\Filter$.
+Access to $\Filter$ via the $\PrivO$ oracle is separated into multiple ports, which may be private (red arrows) or public (green arrows).
+Adversary $\advA$ now has access to the $\pHASH$ oracle, which reveals the transcript of all public-port queries to $\PrivO$.
+We bound the difference between the left- and right-hand scenarios by Lemma~\ref{lm-fUF-eq-UF}, and show that this recasting doesn't change the advantage of the adversary.
+Again, the $\construct{MD}$ functor and the adversary $\advA$ have access to $\hh$.
+
+\begin{figure}[t]
+	\twoCols{0.46}{0.46}
+	{
+		\ExptSepSpace
+		\centering
+		\begin{tikzpicture}
+		\node at (0, 2) [game](ds){\large$\FUFCMA_{\fDS}$};
+		\node  at (2, 2) [box](flt) {\Large$\Filter$};
+		\node  at (4,2) [game](md){\Large$\construct{MD}$};
+		\node at (0, 0)[game] (adv){\Large$\advA$};
+		\node at (4,0) [game](hh) {\Large$\hh$};
+		\node at (0,1) [dashbox, label=below:{\Large$\advD$}, minimum width = 1cm, minimum height = 3cm] (distinguisher) {};
+		\coordinate[above=2.5mm of flt.west] (c1);
+		\coordinate[above=-2.5mm of flt.west] (c2);
+		\coordinate[above=2.5mm of md.west] (c3);
+		\coordinate[above=-2.5mm of md.west] (c4);
+		\coordinate[above left=2.5mm and 6.88mm of hh.west] (pqo3);
+		\coordinate[below left=2.5mm and 3.5mm of md.west] (pqo);
+		\coordinate[above=2.5mm of adv.east] (pqo2);
+		\draw[privarrow] (ds.east)+(0,.25cm) -- (c1);
+		\draw[pubarrow] (ds.east)+(0,-.25cm) -- (c2);
+		\draw[privarrow] (ds.east) -- (flt.west);
+		\draw[privarrow] (flt.east)+(0,.25cm) --(c3);
+		\draw[pubarrow] (flt.east)+(0,-.25cm) --(c4);
+		\draw[privarrow] (flt.east) -- (md.west);
+		\draw[lightarrow] (pqo) -- (pqo3) -- (pqo2);
+		\draw[arrow] (adv.north) -- (ds.south);
+		\draw[arrow] (adv.east) -- (hh.west);
+		\draw[arrow] (md.south) -- (hh.north);
+		%%  \draw[->,rounded corners] (ds) |- node[pos=0.75,fill=white,inner sep=2pt]{a} ++(1,1) |- (adv);
+		\end{tikzpicture}
+	}{
+		\centering
+		\ExptSepSpace
+		\begin{tikzpicture}
+		\node at (0, 2) [game](ds){\large$\FUFCMA_{\fDS}$};
+		\node  at (2, 2) [box](flt) {\Large$\Filter$};
+		\node  at (4,2) [game](md){\Large$\HH$};
+		\node at (0, 0)[game] (adv){\Large$\advA$};
+		\node at (4,0) [game](hh) {\Large$\simulator$};
+		\node at (0,1) [dashbox, label=below:{\Large$\advD$}, minimum width = 1cm, minimum height = 3cm] (distinguisher) {};
+		\coordinate[above=2.5mm of flt.west] (c1);
+		\coordinate[above=-2.5mm of flt.west] (c2);
+		\coordinate[above=2.5mm of md.west] (c3);
+		\coordinate[above=-2.5mm of md.west] (c4);
+		\coordinate[above=2.5mm of hh.west] (pqo2);
+		\coordinate[above left=2.5mm and 3.5mm of hh.west] (pqo3);
+		\coordinate[above left=2.5mm and 6.5mm of hh.west] (pqo6);
+		\coordinate[below left=2.5mm and 3.5mm of md.west] (pqo);
+		\coordinate[below left=2.5mm and 6.5mm of md.west] (pqo5);
+		\coordinate[above=2.5mm of adv.east] (pqo4);
+		\draw[privarrow] (ds.east)+(0,.25cm) -- (c1) ;
+		\draw[pubarrow] (ds.east)+(0,-.25cm) -- (c2);
+		\draw[privarrow] (ds.east) -- (flt.west);
+		\draw[privarrow] (flt.east)+(0,.25cm) --(c3);
+		\draw[pubarrow] (flt.east)+(0,-.25cm) --(c4);
+		\draw[privarrow] (flt.east) -- (md.west);
+		\draw[lightarrow] (pqo) -- (pqo3) -- (pqo2);
+		\draw[lightarrow] (pqo5) -- (pqo6) -- (pqo4);
+		\draw[arrow] (adv.north) -- (ds.south);
+		\draw[arrow] (adv.east) -- (hh.west);
+		\draw[arrow] (hh.north) -- (md.south);
+		%%  \draw[->,rounded corners] (ds) |- node[pos=0.75,fill=white,inner sep=2pt]{a} ++(1,1) |- (adv);
+		\end{tikzpicture}
+	}
+	\vspace{-5pt}
+	\caption{Left: A visualization of how filtered indifferentiability helps transition from the $(\construct{MD}[\hh], \hh)$ model to the $(\HH,\HH)$ model. The ``real'' game is on the left and the ``ideal'' game is on the right. $\simulator$ is a simulator meant to replace the primitive random oracle $\hh$ when no primitive is used.}
+	\label{pic-indiff}
+\end{figure}
+Figure~\ref{pic-indiff} captures how filtered indifferentiability helps transition from the $(\construct{MD}[\hh], \hh)$ model to the $(\HH, \hh)$ model.
+The left side of this Figure is the ``real'' game, which is identical to the right side of Figure~\ref{pic-real-ufcma}.
+We shift our perspective to view the contents of the dashed box as a distinguisher $\advD$ which simulates the filtered UF game for adversary $\advA$.
+Since the distinguisher encompasses both $\FUFCMA_{\fDS}$ and $\advA$, it has access to both the (filtered) $\PrivO$ oracle and the $\PubO$ oracle, and it accesses $\construct{MD}[\hh]$ through $\Filter$.
+The light gray arrow still represents access to the transcripts of all public-port $\PrivO$ queries; however, in the filtered indiff game this is implemented by returning these queries from $\PrivO$ instead of by a separate oracle.
+%The private ports which use a secret seed and hence limit the distinguisher's access is crucial for filter indifferentiability.
+We then shift to the ``ideal'' game on the right side, which is in the $(\HH, \HH)$ model.
+We replace $\construct{MD}[\hh]$ with a random oracle $\HH$, and in order to maintain the same interface for $\advD$, we replace $\hh$ with a simulator $\Simulator$, which may access  both $\HH$ and transcripts of all public-port $\PrivO$ queries.
+We bound the chance of the $\advD$ distinguishing these two games by Theorem~\ref{th-md-indiff}.
+
+Finally, we move fully into the $(\HH, \HH)$ model. In Figure~\ref{pic-comp}, we see on the left how to merge the adversary and simulator of the ``ideal'' f-indiff game into a single fUF adversary $\advB$, shown on the right side of the same figure.
+This new adversary forwards all of $\advA$'s queries to the game except those to $\PubO$; these it answers by running the simulator with oracle $\PubO$.
+Figure~\ref{pic-indiff} and  Figure~\ref{pic-comp} are together captured by Theorem~\ref{th-use-findiff}.
+
+
+\begin{figure}[t]
+	\twoCols{0.46}{0.46}
+	{
+		\ExptSepSpace
+		\centering
+		\begin{tikzpicture}
+		\node at (0, 2) [game](ds){\large$\FUFCMA_{\fDS}$};
+		\node  at (2, 2) [box](flt) {\Large$\Filter$};
+		\node  at (4,2) [game](md){\Large$\HH$};
+		\node at (0, 0)[game] (adv){\Large$\advA$};
+		\node at (4,0) [game](hh) {\Large$\simulator$};
+		\node at (2,0) [dashbox, label=below:{\Large$\advB$}, minimum width = 5cm, minimum height = .8cm] (advb) {};
+		\coordinate[above=2.5mm of flt.west] (c1);
+		\coordinate[above=-2.5mm of flt.west] (c2);
+		\coordinate[above=2.5mm of md.west] (c3);
+		\coordinate[above=-2.5mm of md.west] (c4);
+		\coordinate[above=2.5mm of hh.west] (pqo2);
+		\coordinate[above left=2.5mm and 3.5mm of hh.west] (pqo3);
+		\coordinate[above left=2.5mm and 6.5mm of hh.west] (pqo6);
+		\coordinate[below left=2.5mm and 3.5mm of md.west] (pqo);
+		\coordinate[below left=2.5mm and 6.5mm of md.west] (pqo5);
+		\coordinate[above=2.5mm of adv.east] (pqo4);
+		\draw[privarrow] (ds.east)+(0,.25cm) -- (c1) ;
+		\draw[pubarrow] (ds.east)+(0,-.25cm) -- (c2);
+		\draw[privarrow] (ds.east) -- (flt.west);
+		\draw[privarrow] (flt.east)+(0,.25cm) --(c3);
+		\draw[pubarrow] (flt.east)+(0,-.25cm) --(c4);
+		\draw[privarrow] (flt.east) -- (md.west);
+		\draw[lightarrow] (pqo) -- (pqo3) -- (pqo2);
+		\draw[lightarrow] (pqo5) -- (pqo6) -- (pqo4);
+		\draw[arrow] (adv.north) -- (ds.south);
+		\draw[arrow] (adv.east) -- (hh.west);
+		\draw[arrow] (hh.north) -- (md.south);
+		%%  \draw[->,rounded corners] (ds) |- node[pos=0.75,fill=white,inner sep=2pt]{a} ++(1,1) |- (adv);
+		\end{tikzpicture}
+	}
+{
+	\ExptSepSpace
+	\centering
+	\begin{tikzpicture}
+	\node at (0, 2) [game](ds){\large$\FUFCMA_{\fDS}$};
+	\node  at (2, 2) [box](flt) {\Large$\Filter$};
+	\node  at (4,2) [game](md){\Large$\HH$};
+	\node at (0, 0)[game] (adv){\Large$\advB$};
+	\node at (2,0) [dashbox,draw=none,label=below:\Large\phantom{$\advB$}, minimum width = 5cm, minimum height = .8cm] (advb) {};
+%	\begin{pgfonlayer}{background}
+	\node at (4,0) [game, draw=none](hh) {\Large\phantom{$\simulator$}};
+%	\end{pgfonlayer}
+	\coordinate[above=2.5mm of flt.west] (c1);
+	\coordinate[above=-2.5mm of flt.west] (c2);
+	\coordinate[above=2.5mm of md.west] (c3);
+	\coordinate[above=-2.5mm of md.west] (c4);
+	\coordinate[above=2.5mm of adv.east] (pqo2);
+	\coordinate[above left=2.5mm and 3.5mm of hh.west] (pqo3);
+	\coordinate[below left=2.5mm and 3.5mm of md.west] (pqo);
+	\draw[privarrow] (ds.east)+(0,.25cm) -- (c1) ;
+	\draw[pubarrow] (ds.east)+(0,-.25cm) -- (c2);
+	\draw[privarrow] (ds.east) -- (flt.west);
+	\draw[privarrow] (flt.east)+(0,.25cm) --(c3);
+	\draw[pubarrow] (flt.east)+(0,-.25cm) --(c4);
+	\draw[privarrow] (flt.east) -- (md.west);
+	\draw[lightarrow] (pqo) -- (pqo3) -- (pqo2) node[midway, above, color=black] {\small $\pHASH$};
+	\draw[arrow] (adv.north) -- (ds.south);
+	\draw[arrow] (adv.east) -- node[midway, below, color=black] {\small $\eHASH$} (hh.center) -- (md.south) ;
+	%%  \draw[->,rounded corners] (ds) |- node[pos=0.75,fill=white,inner sep=2pt]{a} ++(1,1) |- (adv);
+	\end{tikzpicture}
+}
+	\vspace{-5pt}
+	\caption{Left: Applying composition to the ideal filtered indifferentiability game: we can view $\advA$ and $\simulator$ as a single algorithm $\advB$ which plays game $\FUFCMA_{\fDS,\Filter,\roSp_2}$.  Right: The $\FUFCMA_{\fDS,\Filter,\roSp_2}$ game for adversary $\advB$.
+	\label{pic-comp}}
+\end{figure}

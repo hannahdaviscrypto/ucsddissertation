@@ -1,0 +1,81 @@
+\ProvidesPackage{crypto-environments}
+
+%
+% this file provides some environments useful to define experiments, oracles, algorithms
+%
+
+\NeedsTeXFormat{LaTeX2e}
+\RequirePackage{enumitem}%[2011/09/28 v3.5.2]  %%% requires enumitem >= 3.0 !
+\RequirePackage{xifthen}
+\RequirePackage{xcolor}
+
+\newcommand{\hindent}{\hspace*{1em}} % define horizontal indentation width
+\newcommand{\cryptoenvsetsize}{\footnotesize} % set font size to \footnotesize in fullversion
+
+\newcommand{\ExptSepSpace}{\vspace*{0.2cm}}  % vertical separation space between two oracles/descriptions in an experiment figure
+
+\newcommand{\skipline}{\item[] \stepcounter{enumi}}
+
+\newenvironment{code}[1][]{
+% \begin{enumerate}[label=\scriptsize\color{gray}\ttfamily\arabic*, ref=\arabic*, align=right, topsep=4pt, itemsep=0.05em, leftmargin=1.35em, #1]
+\begin{enumerate}[label=\scriptsize\color{gray}\ttfamily\arabic*, ref=\arabic*, align=right, topsep=4pt, itemsep=0em, leftmargin=1.35em, #1]
+}{
+\end{enumerate}
+}
+
+\newenvironment{experiment}[1]{
+\cryptoenvsetsize
+\underline{#1:}
+\begin{code}[series=experiment] % experiments restart the counter
+}{
+\end{code}
+}
+
+% Start a new experiment with (optional) experiment header, without main code environment
+\newcommand{\NewExperiment}[1][]{%
+	\let\enit@resume@series@experiment\@empty % restart the experiment counter
+	\ifthenelse{\isempty{#1}}{}{
+		\underline{#1}%
+		\ExptSepSpace
+	}
+}
+
+\newenvironment{oracle}[2][]{
+\cryptoenvsetsize
+\underline{#2:}
+\begin{code}[resume=experiment, #1] % oracles resume the experiment's counter
+}{
+\end{code}
+}
+
+\newenvironment{algorithm}[2][]{
+\cryptoenvsetsize
+\underline{#2:}
+\begin{code}[#1]
+}{
+\end{code}
+}
+
+\newenvironment{algorithminitial}[2][]{
+\cryptoenvsetsize
+\underline{#2:}
+\begin{code}[series=algorithm,#1] % restarts the algorithm counter
+}{
+\end{code}
+}
+
+\newenvironment{algorithmsubsequent}[2][]{
+\cryptoenvsetsize
+\underline{#2:}
+\begin{code}[resume=algorithm,#1] % resumes the algorithm counter
+}{
+\end{code}
+}
+
+
+% starred versions include \ExptSepSpace at the end
+\newenvironment{experiment*}[1]{\begin{experiment}{#1}}{\end{experiment}\ExptSepSpace}
+\newenvironment{oracle*}[1]{\begin{oracle}{#1}}{\end{oracle}\ExptSepSpace}
+\newenvironment{algorithm*}[1]{\begin{algorithm}{#1}}{\end{algorithm}\ExptSepSpace}
+\newenvironment{algorithminitial*}[1]{\begin{algorithminitial}{#1}}{\end{algorithminitial}\ExptSepSpace}
+\newenvironment{algorithmsubsequent*}[1]{\begin{algorithmsubsequent}{#1}}{\end{algorithmsubsequent}\ExptSepSpace}

@@ -1,0 +1,173 @@
+\section{Filtered indifferentiability}\label{sec-fi} 
+
+\heading{Functors.} Following~\cite{EC:BelDavGun20}, we use the term functor for a transform that constructs one function from another. A functor $\construct{F}\Colon\FuncSp{SS}\to\FuncSp{ES}$ takes as oracle a function $\hh$ from a starting function space $\FuncSp{SS}$ and returns a function $\construct{F}[\hh]$ in the ending function space $\FuncSp{ES}$.
+%For simplicity we will assume $\FuncSp{SS}$ has arity 1.
+
+
+\heading{MD functor.} We are interested in the Merkle-Damg{\aa}rd~\cite{C:Merkle89a,C:Damgaard89b} transform. This transform constructs a hash function with domain $\bits^*$ from a compression function $\hh\Colon\bits^{4k}\to\bits^{2k}$ for some integer $k$. It is the basis of the design for $\SHA512$, where the compression function $\sha{512}$ has $k=256$. In our language, the Merkle-Damg{\aa}rd transform is a functor $\construct{MD}\Colon \allowbreak \AllFuncs(\bits^{4k},\allowbreak \bits^{2k}) \allowbreak  \to \allowbreak  \AllFuncs(\bits^{*}, \allowbreak  \bits^{2k})$. It  is parameterized by a padding function $\padF\Colon \N  \to\bits^{\leq 2k}$ that takes the length $\ell$ of an input $X$ to the hash function and returns a padding string $P \gets \padF(\ell)$, at most $2k$ bits long, such that $\ell+|P|$ is a multiple of $2k$.
+%We require that $\padF$ has an inverse function $\UnPadF\Colon \bits^* \to \bits^*\cup \{\bot\}$ with the property that for all strings $X$, it holds that $\UnPadF(X \concat \padF(|X|)) = X$. (This means that the padding must be uniquely decodeable).
+We also fix an ``initialization vector'' $\initV \in \bits^{2k}$. Given oracle $\hh$, the functor defines hash function $\HH = \construct{MD}[\hh]\Colon\bits^{*}\to\bits^{2k}$ as follows:
+
+\begin{tabbing}
+\underline{Functor $\construct{MD}[\hh](X)$} \\[2pt]
+$y[0] \gets \IV$ \\
+$P\gets \padF(|X|)$ ; $X'[1]\ldots X'[m] \gets X\|P$ \comment{Split $X\|P$ into $2k$-bit blocks} \\
+For $i=1,\ldots,m$ do $y[i] \gets \hh(X'[i]\|y[i-1])$ \\
+Return $y[m]$
+\end{tabbing}
+
+%\noindent The EdDSA signature scheme calls the SHA512 hash function twice. In the underlying security proof, it is convenient to replace this with calls to two distinct random oracles. To accommodate this transition, we define the double-MD functor $\construct{2MD}\Colon \allowbreak \AllFuncs(\bits^{4k},\allowbreak \bits^{2k}) \allowbreak  \to \allowbreak  \AllFuncs(\bits^{*}, \allowbreak  \bits^{2k};\bits^{*}, \allowbreak  \bits^{2k})$ by $\construct{2MD}[\hh] = (\construct{MD}[\hh],\construct{MD}[\hh])$.
+
+
+\heading{Filters.} Rather than directly query a random oracle $\HH$, we have queries go to a filter $\Filter$ that itself queries $\HH$. Formally, a filter $\Filter$ begins by specifying a base function space $\Filter.\FuncSp{BS}$, in which we will ask $\HH$ to be. One can pick a seed $\oseed\getsr  \Filter.\Sg$ via a seed-generation algorithm $\Filter.\Sg$. Then the filter evaluation algorithm takes $\oseed$ and a pair $(i,x)$ and, with oracle access to $\HH \in \Filter.\FuncSp{BS}$, deterministically returns an output $Y \gets \Filter.\FilterEv[\HH](\oseed,(i,x))$. We refer to $i \in [1..\Filter.\numPorts]$ as the \textit{port-number}, with $\Filter.\numPorts \in \N$ being the number of ports of the filter. The filter also designates some subset
+% $\Filter.\IntIndx\subseteq [1..\Filter.\numPorts]$ of indexes as ``internal'' and another subset
+$\Filter.\ExtIndx\subseteq [1..\Filter.\numPorts]$ of the ports as ``public.''
+% (In filter-indifferentiability, the simulator will have access only to external indices, while the distinguisher will have access to all of them.)
+% These sets are not necessarily disjoint.
+
+We write $(Y;Q) \gets \Filter.\FilterEv[\HH](\oseed,(i,x))$ for a query-enhanced execution, in which we return, together with the output $Y \gets \Filter.\FilterEv[\HH](\oseed,(i,x))$, a string $Q$ that is the transcript of all queries made to $\HH$ and responses received when $i\in\Filter.\ExtIndx$, and $\emptystring$ otherwise.
+Giving $Q$ to the simulator will then capture a variant of public indifferentiability that restricts its knowledge to public ports.
+
+We say that the filter is seedless if $\Filter.\Sg$ always returns $\emptystring$, in which case we may omit providing it as input to $\Filter[\HH].\FilterEv$.
+
+As an example, the EdDSA filter we will use is described in Section~\ref{sec-schemes}, with the evaluation algorithm  shown at the bottom of Figure~\ref{fig-eddsa-filter}.
+
+
+%\heading{EdDSA filter.} The filter we will use, denoted $\FltEDDSA$ and called the EdDSA filter, is parameterized by two integers $k$ and $\numUsers$ and an output function $\Out$. The function space $\roSp$ from which this filter's oracle $\HH$ is drawn will be the set of all $\HH\Colon\bits^*\to\bits^{2k}$. (This space has arity 1.) The filter has 3 ports, so that $\FltEDDSA.\numPorts=3$, and $\FltEDDSA.\ExtIndx=\{3\}$, meaning port 3 is public, but ports 1,2 are not. The seed-generation algorithm $\FltEDDSA.\Sg$ returns a random vector $\oseed$ over $\bits^k$ with $\numUsers$ elements, namely $\oseed\getsr (\bits^{k})^{\numUsers}$. Our filter's input $x$ is required to be a tuple $(\usr, w)$, where $\usr$ is an integer in $[1..\numUsers]$ and $w\in\bits^*$.  Then we define
+%
+%\begin{tabbing}
+%\underline{Function $\FltEDDSA.\FilterEv[\HH](\oseed,(i,x))$} \comment{$i\in \{1,2,3\}$} \\[2pt]
+%$(\usr,w)\gets x$ \comment{Parse $x$ into $\usr\in [1..\numUsers]$ and $w\in \bits^*$} \\
+%If $i=1$ then return $\HH(\oseed[\usr])[1..k]$ \\
+%If $i=2$ then $y\gets \HH(\oseed[\usr])[k+1..2k]\| w$ ; return $\Out(\HH(y))$ \\
+%If $i=3$ then return $\Out(\HH(w))$
+%\end{tabbing}
+%
+%
+
+
+\begin{figure}[t]
+
+	\twoCols{0.45}{0.45}{
+		\ExperimentHeader{Game $\Gfindiff_{\construct{F},  \simulator, \Filter}$}
+
+		\begin{algorithm-initial}{$\Initialize()$}
+			\item $b \getsr \bits$
+			\item $\oseed \getsr \Filter.\Sg$ ; $\simstate \getsr \simulator.\Sg$
+			\item $\hh \getsr \FuncSp{SS}$
+			; $\HH_0 \getsr \FuncSp{ES}$ ; $\HH_1 \gets \construct{F}[\hh]$
+		\end{algorithm-initial}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\PrivO(X)$}
+			\item $(Y;Q) \gets \Filter.\FilterEv[\HH_b](\oseed,X)$
+			\item $\simstate\gets\simstate\|Q$
+			\item Return $Y,Q$
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+\begin{algorithm-subsequent}{$\PubO(\X)$}
+			\item If $b=1$ then  $Z\gets \hh(\X)$
+			\item Else $(\simstate,Z) \gets \simulator.\Eval[\HH_0] (\simstate,\X)$
+			\item return $Z$
+		\end{algorithm-subsequent}
+	\ExptSepSpace
+		\begin{algorithm-subsequent}{$\Finalize(b')$}
+			\item return $[[b = b']]$
+		\end{algorithm-subsequent}
+
+	}
+{
+	\ExperimentHeader{Game $\Gindiff_{\construct{F},  \simulator}$}
+
+	\begin{algorithm-initial}{$\Initialize()$}
+		\item $b \getsr \bits$
+		\item $\simstate \getsr \simulator.\Sg$
+		\item $\hh \getsr \FuncSp{SS}$
+		; $\HH_0 \getsr \FuncSp{ES}$ ; $\HH_1 \gets \construct{F}[\hh]$
+	\end{algorithm-initial}
+	\begin{algorithm-subsequent}{$\PrivO(X)$}
+		%	\item if $i \not\in \Filter.\PubS$ then return $\bot$
+		\item $Y \gets \HH_b(X)$
+		\item $\simstate\gets\simstate \concat (X, Y)$ \comment{Game $\Gwpindiff_{\construct{F},  \simulator}$ only}
+		\item Return $Y$
+	\end{algorithm-subsequent}
+	\ExptSepSpace
+	%		\begin{algorithm}{$\PrivOInt(i,x)$}
+	%			\item if $i \not\in \Filter.\PrivS$ then return $\bot$
+	%			\item $Y \gets \Filter.\FilterEv^{\HH_b}(\oseed,(i,x))$
+	%			\item Return $Y$
+	%		\end{algorithm}
+	%		\ExptSepSpace
+	\begin{algorithm-subsequent}{$\PubO(X)$}
+		\item If $b=1$ then $Z\gets \hh(X)$
+		\item Else $(\simstate,Z) \gets \simulator.\Eval[\HH_0] (\simstate,X)$
+		\item return $Z$
+	\end{algorithm-subsequent}
+		\ExptSepSpace
+	\begin{algorithm-subsequent}{$\Finalize(b')$}
+		\item return $[[b = b']]$
+	\end{algorithm-subsequent}
+}
+	\vspace{-5pt}
+	\caption{Left: Game  $\Gfindiff_{\construct{F},  \simulator, \Filter}$ measuring indifferentiability of a functor $\construct{F}\Colon \FuncSp{SS}\to\FuncSp{ES}$ with respect to simulator $\simulator$ and filter $\Filter$. Right: Standard and weak public indifferentiability games $\Gindiff_{\construct{F},  \simulator}$ and $\Gwpindiff_{\construct{F},  \simulator}$, where the latter includes line~5 and the former does not.
+	}
+	\label{fig-gm-indiff}
+	\hrulefill
+\end{figure}
+
+
+
+\heading{Filtered indifferentiability.} Let $\construct{F} \Colon \FuncSp{SS} \to \FuncSp{ES}$ be a functor. We want the tuple of functions $\construct{F}[\hh]$, with $\hh$ drawn from $\FuncSp{SS}$, to be able to ``replace" a tuple drawn directly from $\FuncSp{ES}$.  Indifferentiability~\cite{TCC:MauRenHol04} is a way of defining what this means. But $\construct{MD}$ fails to meet this notion due to the extension attack. To be able to show that it nonetheless suffices for EdDSA, we now introduce filtered indistinguishability.
+
+Let $\Filter$ be a filter with $\Filter.\FuncSp{BS}=\FuncSp{ES}$. Consider the filtered indifferentiability game $\Gfindiff_{\construct{F}, \simulator, \Filter}$ on the left in Figure~\ref{fig-gm-indiff}. Here $\simulator$ is a simulator that specifies two algorithms. The first, $\simulator.\Sg$, picks an initial state $\simstate$, also called the simulator seed, as at line~2. The second, the simulator evaluation algorithm $\simulator.\Eval$, is run in the $b=0$ case, as on line~8. It takes a $\PubO$ query $X$ and the current state, and, with oracle access to $\HH_0$, returns a reply $Z$ to the query and an updated state. (Recall that we are assuming $\FuncSp{SS}$ has arity 1, so $\PubO$ and $\hh$ have just one argument.)
+% We require that $\simulator.\Eval$'s queries to $\PrivO(i,\cdot)$ satisfy $i\in \Filter.\ExtIndx$. That is, the simulator is not allowed to query $\PrivO(i,\cdot)$ for $i\not\in\Filter.\ExtIndx$.
+The adversary playing the game is called a distinguisher. It accesses $\HH_b$, not directly, but through the filter, via oracle $\PrivO$, which it can query with any $i,x$ such that $i\in [1..\Filter.\numPorts]$. The execution at line~4 is the query-enhanced one (as defined above), so that $Q$ is the set of transcripts (i.e. both queries and answers) made by $\Filter.\Eval$ to $\HH_b$. If the port $i$ is public, $Q$ is given to the simulator by adding it, at line~5, to the simulator state. This means we are asking for weak public indifferentiability for the subset of ports designated as public. The advantage of distinguisher $\advD$ against the filtered indifferentiability of functor $\construct{F}$ with respect to simulator $\simulator$ and filter $\Filter$ is
+\[\findiffAdv{\construct{F},  \simulator, \Filter}{\advD} = \Pr[\Gfindiff_{\construct{F},  \simulator, \Filter}(\advD) | b=0] - \Pr[\Gfindiff_{\construct{F},  \simulator, \Filter}(\advD) | b=1].\]
+Asymptotically, we would say that $\construct{F}$ is filter-indifferentiable relative to $\Filter$ if there exists a polynomial-time simulator $\simulator$ such that $\findiffAdv{\construct{F},  \simulator, \Filter}{\advD}$ is negligible for all polynomial-time adversaries $\advD$. Thus, showing filter-indistinguishability requires demonstrating a simulator.
+
+To better understand the relation of filtered indifferentiability to prior notions, we present, on the right of Figure~\ref{fig-gm-indiff}, the games for standard~\cite{TCC:MauRenHol04} indifferentiability, and a second notion of our own called \textit{weak public indifferentiability}, abbreviated wp-indiff.
+The difference between the two is that line~5 is included only in the latter.
+Here $\PrivO$ allows the distinguisher to directly query $\HH_b$.
+In the filtered case, in contrast, $\PrivO$ queries are made to the filter, and the latter queries $\HH_b$, which restricts the way in which the distinguisher can access $\HH_b$.
+The filter will be chosen to exclude attacks that would violate standard indifferentiability yet allow attacks needed to prove security of the application.
+The secrecy of the filter seed $\oseed$ (neither the distinguisher nor the simulator get it) plays a crucial role in making filtered indifferentiability non-trivially different from standard indifferentiability.  In weak public indifferentiability (wp-indiff), all queries made to $\PrivO$ are provided to the simulator. Filtered indifferentiability generalizes this, providing the simulator with queries made by the filter, but only for ports that are designated as public.
+
+To see that wp-indiff is a special case of f-indiff, consider the filter which on input $(\oseed, X)$, makes the query $\HH_b(X)$ and returns its output $Y$. Then the query transcript $Q$ contains exactly the tuple $(X,Y)$. From Figure~\ref{fig-gm-indiff}, we can see that both games identically append $(X,Y)$ to $\simstate$ in the $\PrivO$ oracle. The response to query $\PrivO(X)$ is $Y,(X,Y)$ in f-indiff and just $Y$ in wp-indiff, but in both games the distinguisher already knows $X$ and learns only $Y$ from the repsonse, so the difference is just one of format. Since $\simstate$, the simulator, and the $\PubO$ oracle's pseudocode are the same in both games, all $\PubO$ queries will be handled identically in the f-indiff and wp-indiff games.
+
+A side-by-side comparison shows that standard indifferentiability can be expressed in our framework as the special case in which the filter $\Filter$ is defined as follows.
+$\Filter$ is seedless, $\Filter[\HH].\FilterEv(i,x) = \HH_i(x)$ and $\Filter.\ExtIndx =  \emptyset$, meaning none of the $\FuncSp{ES}.\arity$ ports are public.
+
+Another prior definition of interest is public indifferentiability~\cite{EC:DodRisShr09}\cite{PROVSEC:YonMiyOht08}, which is incomparable with filtered indifferentiability and is a stronger and more general notion than we require to prove the security of $\EdDSA$.
+We therefore rely only on weak public indifferentiability, a restricted variant of public indifferentiability in which the simulator but not the distinguisher may see all queries made to $\PrivO$. The simulator can see all queries $(X,Y)$ through its seed $\simstate$. The distinguish knows its own queries since it knows the input $X$ and it knows the output $Y$ returned by $\PrivO$, but it doesn't know the queries made by the simulator to $\PrivO$.
+Public indifferentiability therefore directly implies wp-indiff by limiting the class of distinguishers to those which never request the list of all queries.
+Weak public indifferentiabilty can also be captured as a special case of filtered indifferentiability, with $\Filter$ being as above except that now $\Filter.\ExtIndx =  [1..\FuncSp{ES}.\arity]$, meaning all ports are public.
+
+Context-restricted indiff (CRI)~\cite{SCN:JosMau18}, formulated in the constructive cryptography framework~\cite{ICS:MauRen11,TCC:MauRen16}, also has the notion of a ``filter'' which restricts access to the public interface of a system.
+A ``context'' in CRI combines a filter with a set of auxiliary resources; f-indiff does not cover these auxiliary resources.
+
+We do not directly compare context-restricted indifferentiability to f-indiff because it is defined outside of our game-playing framework, and we do not use the notions of ``resources'' and ``converters''.
+Instead, we define a new notion $\findiff'$ which is identical to f-indiff except that it excludes line $5$ from the f-indiff game $\Gfindiff$ (c.f. Fig~\ref{fig-gm-indiff}).
+In short, the simulator in $\findiff'$, and in CRI, is not permitted to see the filter's query transcripts.
+This game comes as close as possible to CRI in our framework: it is necessarily more limited as we define $\findiff'$ only in relation to random oracles drawn from function spaces; CRI applies to a broader set of ideal primitives.
+Also unlike CRI, our $\findiff'$ does not support auxiliary primitives.
+However, $\findiff'$ captures the critical difference between CRI and f-indiff: that in CRI, information may not be passed between the private and public interfaces.
+This stems from a requirement of CRI called \textit{outboundness}, which it inherited from the original indifferentiability framework.
+Outboundness holds if and only if queries to the $\PrivO$ oracle do not influence the behavior of the $\PubO$ oracle, and vice versa.
+Thus a CRI context cannot contain any filter with public ports.
+Without public-port filters, we cannot study indiff in settings where the adversary knows some or all of honest parties' hash inputs: the exact settings for which public indifferentiability was defined.
+This includes $\EdDSA$: one of the hash inputs in the $\Sign$ algorithm contains an adversarially controlled message and no secrets, so few other context restrictions can apply; this quality is common among digital signature schemes.
+Inspired by of public indifferentiability, f-indiff therefore extends the class of CRI filters to include restrictions on secrecy.
+
+
+
+%Next, we'll prove indifferentiability for a form of the Merkle-Damgard transform.
+%The EDDSA signature scheme uses a Merkle-Damgard hash function in two ways.
+%It applies $\SHA512$ directly to produce secret keys and when signing it interprets $\SHA512$ digests as integers and reduces them modulo the group order $\Prime$.
+%We will formalize this construction as a functor $\construct{F}$.
+%To provide generality beyond EDDSA, we parameterize $\construct{F}$ by a set $\S$ of bitstrings and an \textit{output function} $\Out: \bits^{2k}, \S$.
+%
+%Let $k$ be an integer, and let functor $\construct{F}$ have starting space  $\roSp_1 := \AllFuncs(\bits^*,\bits^{2k})$. For the ending space of $\construct{F}$, we define the arity-2 random oracle space $\roSp_2$ as follows: its seed generation algorithm $\roSp_2.\Sg$ samples a uniformly random bitstring of length $k$, and the set of tuples $\roSp.\Funcs$ is the set of all $\HH = (\HH_1, \HH_2)$ such that $\HH_1 \in \AllFuncs(\bits^k \times \{\emptystring\}, \bits^{2k})$ and $\HH_2 \in \AllFuncs(\bits^k \times \bits^*, \S)$ with the condition that $\HH_2(\oseed, \X) = \HH_2(0^k, \X)$ for all $(\oseed, \X) \in \bits^k \times \bits^*$.
+%We also define $\roSp_2.\PrivS = \{1\}$ and $\roSp_2.\PubS = \{2\}$.
+%When $\construct{F}_{\S, \Out}$ is given oracle access to a tuple of functions $\hh \in \roSp_1$, it returns a tuple containing the following two functions:
+%
+%\[\construct{F}_{\S,\Out}[\hh](1, \oseed,\emptystring) := \construct{MD}[\hh](\oseed).\]
+%\[\construct{F}_{\S,\Out}[\hh](2, \oseed,\X) := \Out(\construct{MD}[\hh](X)).\]

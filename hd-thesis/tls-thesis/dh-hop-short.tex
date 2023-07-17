@@ -1,0 +1,143 @@
+\hd{The below is a condensed version of the DH game, possibly for use in a shorter version or possibly just as a sanity check.}
+%\gamehop{game:abort-dhe}
+	In this game, we add another flag to the game and abort the game when it is set.
+	Namely, flag $\bad_\dhe$ is set if the adversary ever queries a random oracle
+	\[
+		\RO_x(\psk, \dhe, \Thash(\cid[s]))
+	\]
+	for any $(x,s) \in \{\mathlist{(\chtk,3), (\shtk,4), (\sfin, 5) (\cats,5), (\sats,6), (\ems,7), (\cfin, 8), (\rms,8)}\}$ such that
+	\begin{itemize}
+		\item there is a query $\RevLongTermKey(u,v,\pskid)$ with $\pskeys[(u,v,\pskid)] = \psk$, i.e. $\psk$ is corrupted,
+		\item there are honest sessions $\pi_u^i$ and $\pi_v^j$ that are contributively partnered in stage $s$ with $\cid[s] = (\CH, \CKS, \CPSK, \SH, \SKS, \SPSK,\dotsc)$, and
+		\item $\dhe = g^{xy}$ such that $\CKS = g^x$ and $\SKS = g^y$.
+	\end{itemize}
+
+We bound the probability that $\bad_{\dhe}$ is set by a reduction $\advB_4$ to the Strong Diffie--Hellman problem in group $\G$.
+
+In this problem, the adversary $\advB_4$ gets as input a strong DH challenge $(A = g^a, B = g^b)$ as well as access to an oracle $\stDH_a$ for the Decisional Diffie--Hellman problem with the first argument fixed. 
+Given inputs $C:=g^c$ and $W$ for any $c \in \Z_p$, $\stDH_a(C, W)$ returns $\true$ if and only if $W = g^{ac} = C^a$.
+Its goal is to submit $Z$ to its $\Finalize$ oracle such that $Z = g^{ab}$.
+
+To do this, $\advB_4$ simulates \thisGame for adversary $\advA^*$.
+At a high level, it embeds its strong DH challenges into the key shares of every initiator session and every partnered responder session.
+When $\advA^*$ triggers the $\bad_{\dhe}$ flag in the simulated game, $\advB_4$ will learn the Diffie--Hellman secret $\dhe$ associated with two of these embedded key shares.
+Then it can extract the strong DH challenge secret using some basic algebra.
+However, sessions with embedded key shares must be handled carefully, because $\advB_4$ does not know their Diffie--Hellman secrets and therefore cannot generate the keys as it should in \thisGame.
+In these situations, it will instead sample random keys and $\Finished$ messages.
+We then use several look-up tables to appropriately program random oracle queries and maintain consistency with these random keys.
+(However, programming is only necessary after the pre-shared key is corrupted thanks to \refGameText{game:mac-forgery-prep}.)
+
+Lookup table $\Theta$ tracks internal session state that is unique to the reduction.
+Table $D$ is maintained by the random oracles and contains the Diffie--Hellman secret $\dhe$ from each random oracle query.
+Sessions will use $D$ to check if their $\dhe$ value has already been guessed by the adversary.
+Table $Q$ is maintained by the sessions and contains their randomly sampled keys and all of the information necessary for the random oracles to program later queries.
+Table $H$ is the table used to implement all of our random oracles via lazy sampling.
+We also rely tables $S$, $F$, and $R$ from earlier games (respectively \refGameText{game:log-keys} and \refGameText{game:mac-forgery-prep}).
+
+
+We will describe the behavior of $\advB_4$ in more detail.
+It honestly executes the $\Initialize$, $\RevSessionKey$, $\Finalize$, and $\Test$ queries as in \thisGame.
+We address $\Send$, $\RO_x$, and $\RevLongTermKey$ queries individually.
+
+For $\Send$ queries, $\advB_4$ performs all the bookkeeping steps as in $\thisGame$.
+However, it changes the implementation of both initiator and responder sessions significantly.
+Whenever a $\Send$ query creates a new initiator session $\pi_u^i$, we generate the $\ClientKeyShare$ by randomizing the strong Diffie--Hellman challenge $A$:
+After sampling a nonce $r_C\sample \bits^{\nl}$, the new session picks an integer  $\tau_u^i \sample \Z_p$ uniformly at random and sets $\CKS \assign A \cdot g^{\tau_u^i}$.
+Then, it logs $\tau_u^i$ under index $(r_C, \CKS)$ in the new look-up table $\Theta$.
+
+New responder sessions also generate their key shares in this way, with two differences: first, they randomize $B$ instead of $A$.
+Second, responder sessions only use randomized key shares if they have an honest partner in stage $2$ ($\eems$).
+They can detect the existence of such a partner using table $S$.
+Since \refGameText{game:copy-keys}, responder sessions already do this to copy keys $\ets$ and $\eems$.
+
+Sessions without embedded key shares will behave in the reduction exactly as they do in \thisGame.
+For sessions with embedded key shares, however, we cannot compute the Diffie--Hellman secret $\dhe$, and we cannot complete any step of the game which requires this value.
+These steps include key derivation and computing the $\Finished$ messages for sessions whose $\psk$ has been corrupted, and logging $\RO$ query inputs for sessions with uncorrupted $\psk$s (cf.\ \refGameText{game:mac-forgery-prep}).
+We therefore explain how to handle these in the reduction.
+
+When a session with corrupted $\psk$ wants to derive a key $k \in \{\shtk, \chtk, \cats, \sats, \ems, \rms\}$, it would either copy that key from an honest partner or make a query to $\RO_k$ containing $\dhe$ as an input.
+In the reduction, sessions which can copy their keys still do so.
+Sessions which would query $\RO_k$ first check to see if such a query has already occurred.
+
+Concretely, $\advB_4$ computes the context $d$ that would be input to $\RO_k$ as the third argument.
+If a key is being derived from an embedded key share, we know that the initiator's key share must have been embedded. 
+The responder's key share may be embedded or it may be adversarially controlled. 
+We therefore search prior $\RO$ queries for the Diffie--Hellman secret using only the initiator session's randomizer $\tau_u^i$, found using table $\Theta$, and the responder session's key share $Y$.
+$\advB_4$ loops through all the entries in table $D_k[\psk, d]$.
+(We will discuss the origin of these entries below.)
+For each entry with value $Z$, $\advB_4$ queries $\stDH_a(Y, Z \cdot Y^{-\tau_u^i})$.
+
+Although $\advB_4$ may query $\stDH_a$ several times in response to a single $\Send$ query, it remains efficient because it only checks $\RO$ queries whose context is $d$.
+Due to the lack of nonce/group element and hash collisions established in games \refGameText{game:hello-coll} and \refGameText{game:hash-coll}, the context $d$ is unique to session $\pi_u^i$ and its partner. 
+Therefore each entry in $D_{\chtk}[\psk, d]$ will be checked at most twice over the course of the entire reduction.
+
+If one of the $\stDH_a$ queries returns true, the adversary has computed the correct Diffie--Hellman secret $Z$.
+If only one of the key shares corresponding to $\dhe$ is embedded with the challenge, the adversary may control the other and compute the secret that way. 
+In this case, the session sets $\dhe$ to $Z$ and derives its keys as in \thisGame. 
+If instead both key shares are embedded, then the $\bad_{\dhe}$ flag would be set because the adversary has computed a Diffie--Hellman secret corresponding to two partnered sessions.
+In this case, $\advB_4$ looks up the responder's randomizer $\tau_v^j$ in table $\Theta$.
+Then it wins the strong Diffie--Hellman game by querying $\Finalize$ on input
+\[
+Z \cdot Y^{-\tau_u^i} \cdot A^{-\tau_v^j} = Y^a \cdot A^{-\tau_v^j} = (g^a)^{b + \tau_v^j} \cdot (g^a)^{-\tau_v^j} = g^{ab}
+\]
+
+If the $\stDH_a$ oracle never returns true, then the session creates a log entry in table $Q_k$ to help program future $\RO$ queries.
+If $k$ is the randomly sampled key for stage $s$, then $\advB_4$ logs 
+\[
+(\psk, d = \ROthash(\sid[s]) \mapsto \left(  \tau_u^i, \tau_v^j, (\sid[s]), k \right).
+\]
+(If the responder key share is not embedded, let $\tau_v^j = \bot$ here.)
+
+When $\psk$ is not corrupted, we do not need to worry about consistency with any prior $\RO$ queries, and the $\bad_{\dhe}$ flag cannot be triggered.
+For these sessions, $\advB_4$ samples keys at random and creates a log in $Q_k$.
+Since we have no pre-shared key (due to \refGameText{game:mac-forgery-prep}), the log entry has the form 
+\[
+((u,v,\pskid), d = \ROthash(\sid[s]) \mapsto \left(  \tau_u^i, \tau_v^j, (\sid[s]), k \right).
+\]
+
+The reduction handles $\Finished$ messages in much the same way as keys, but there are is an important difference.
+Because $\Finished$ messages are not keys, they do not have associated session IDs and sessions must know $\dhe$ to find or log their values in table $F$.
+In our reduction, initiator sessions which compute $\cfin$ and responder sessions which compute $\sfin$ do this in the same way they derive keys.
+Wherever a $\sid$ is called for, we use the transcript that enters the $\Finished$ message computation: $\CH \concat \ldots \EE$ for $\sfin$ and $\CH \concat \ldots \SF$ for $\cfin$.
+To verify $\Finished$ messages, sessions check for the existence of an honest partner in the next stage and extract the $\Finished$ message from that partner's session ID.
+An initiator receiving $\EE$ and $\SF$ checks for a partnered responder session in stage $4$ ($\shtk$). If this partner exists, it will also have a stage $5$ session ID containing the $\EncryptedExtensions$ and $\ServerFinished$ message it sent.
+The initiator checks $\EE$ and $\SF$ against its partner's session $ID$. If they match, it accepts stage $5$ and copies its partner's $\sid$ and keys. 
+If they do not match, it terminates.
+This is an accurate simulation of $\thisGame$ because the session cannot accept unless its partner exists thanks to game \refGameText{game:honest-mac-forgery}.
+Responder sessions analogously check the stage-$8$ session ID of their stage-$7$ partner to verify the $\ClientFinished$ message.
+
+Next, we discuss the implementation of the random oracles.
+If $\RO_k$ receives a query that was already answered it answers consistently.
+However, if there is a new query of the form $(\psk, Z, d)$, we append $Z$ to the list $D_k[\psk, d]$.
+Then, if $Q_k[\psk, d] \neq \bot$, we know an honest session with pre-shared key $\psk$ and context hash $d$ randomly sampled the key $k$ without knowing the correct Diffie--Hellman secret.
+We therefore use the $\stDH_a$ oracle to check whether $Z$ is that secret.
+Let $(\tau_u^i, \tau_v^j, \mathit{ctxt}, \mathit{key})$ be the entry of $Q_k[\psk, d]$, where $\tau_u^i$ and $\tau_v^j$ denote the randomness used by the client and the server to randomize the stDH challenge, respectively, $\mathit{ctxt} = \CH \concat \dotsb$ denotes the transcript such that $d = \RO_\Thash(\mathit{ctxt})$ and $\mathit{key}$ denotes the key chosen by the session.
+Using this information, it fetches $\SKS = Y$ and queries $\stDH_a(Y, Z \cdot Y^{-\tau_u^i})$.
+If this is answered positively, we know that the right DH value $Z$ was queried.
+Then if $\tau_u^j = \bot$, i.e. the log in $Q_k$ was set by a client without a honestly partnered server, we need to program the random oracle to be consistent.
+That is, $H_k[\psk, Z, d] \assign \mathit{key}$.
+Otherwise, we know that the $Q_k$ entry was set by an honestly partnered session, and thus $Z$ is a randomized solution to our stDH challenge.
+Thus, $\advB_4$ wins the strong Diffie--Hellman game with the query $\Finalize(Z \cdot Y^{-\tau_u^i} \cdot A^{-\tau_v^j})$.
+Finally, $\RO_k$ outputs $H_k[\psk, Z, d]$.
+
+Lastly, we need to handle corruptions by the $\RevLongTermKey$ oracle.
+
+Since $\refGameText{game:mac-forgery-prep}$, the $\RevLongTermKey$ oracle upon input $(u, v, \pskid)$ samples a fresh $\psk$.
+That game also used lists $R_x$ to program all the random oracles $\RO_{x}$ for consistency with all sessions using $(u,v, \pskid)$.
+
+Adversary $\advB_4$ still does this, but in our reduction, embedded sessions do not update the lists $R_x$. 
+Instead, they create log entries in $Q_x$ with indices of the form $(u,v,\pskid), d$. 
+We cannot use these entries to program past $\RO_x$ queries, but this is not necessary since any past $\RO_x$ query containing $\psk$ would set the $\bad_{\psk}$ flag and cause the game to abort.
+We also cannot program future $\RO$ queries because we still do not know $\dhe$. 
+Instead, we just update each matching entry in $Q_x$ so that its index is $(\psk, d)$ instead of $((u, v, \pskid), d)$. 
+Future $\RO_x$ queries containing $\psk$ will then handle strong DH checking and programming for us.
+
+By the considerations above, we have that if $\bad_\dhe$ is set the $\advB_4$ wins the strong DH challenge.
+The identical-until-bad-lemma gives us that
+\begin{align} \nonumber
+\Pr[ \prevGameMath[\advA^*] \outputs 1 ] &\leq \Pr[ \thisGameMath[\advA^*] \outputs 1 ] + \Pr[ \bad_\dhe ] \\
+&\leq \Pr[ \thisGameMath[\advA^*] \outputs 1 ] + \genAdv{\stDH}{\G}{\advB_4}.
+\end{align}
+
+
+

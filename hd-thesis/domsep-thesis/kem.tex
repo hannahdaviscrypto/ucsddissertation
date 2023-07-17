@@ -1,0 +1,365 @@
+% !TEX root = main-full.tex
+
+\section{Oracle Cloning in KEMs}
+\label{sec-kem}
+
+Having shown rd-indiff of various practical cloning functors, we'd like to come back around and apply this to show IND-CCA security of KEMs (as the target primitive of the NIST PQC submissions) that use these functors. At one level, this may seem straightforward and unnecessary, for it is a special case of a general indifferentiability composition theorem, which says that once indifferentiability of a functor has been shown, ``all'' uses of it are secure. In particular, the composition theorems of~\cite{TCC:MauRenHol04,EC:RisShaShr11} for MRH-indefferentiability apply also to rd-indiff and guarantee security when the latter is measured via a single-stage game, which is true for IND-CCA KEMs. This, however, fails to account for working domains, which are not present in prior indifferentiability formulations; the existing composition results only guarantee security when the working domain is the full domain of the ending space. But this fails to be the case for some oracle cloning methods like length differentiation that are used in NIST PQC KEMs. We want a composition theorem that can allow us to conclude security of such usages.
+
+For this, we first must ask what is the meaning or definition of the working domain in the context of the application, here IND-CCA KEMs. Below, we define this. Then we give a working-domain-conscious composition theorem for IND-CCA KEMs that allows us to draw the conclusions mentioned above. The starting point for this treatment is to enhance the syntax of KEMs to allow them to say precisely what types of ROs they want and use.
+
+%The starting point of this treatment is to adapt KEM syntax to use a single function drawn from a function space instead of multiple random oracles with custom interfaces. This allows us to define a single \INDCCA security game that works for any KEM scheme, as opposed to prior notions. We then define what makes a set $\workDom$ a working domain of a KEM scheme.
+%
+%With these in place, we can give a working-domain-conscious rd-indiff composition theorem, Theorem~\ref{thm:kem-query-translation}. This theorem states that if a set $\workDom$ is a working domain of an \INDCCA secure KEM $\kemScheme_1$ with function space $\GenroSp{\functionOutSet}$ and $\construct{F}: \GenroSp{\functionInSet} \to \GenroSp{\functionOutSet}$ is an rd-indiff functor, then the natural KEM $\kemScheme_2$ running $\kemScheme_1$ with cloning functor $\construct{F}$ is also \INDCCA secure.
+%An rd-indiff composition theorem can be shown 
+
+%We apply the framework and results of prior sections to treat oracle cloning in KEMs. 
+
+%The intent is to illustrate the use of working domains. We define these for KEMs and then give a working-domain-conscious composition theorem for KEMs.
+
+%that (unlike ones for prior indifferentiability notions) takes working domains into account. 
+
+
+
+\heading{KEM syntax.} In the formal version of the ROM in~\cite{CCS:BelRog93}, there is a single random oracle that has some fixed domain and range, for example mapping $\bits^*$ to $\bits$. Schemes, however, often want multiple random oracles, and also want their oracles to have particular domains and ranges that depend on the scheme. To capture this, we have the scheme syntax include a specification of the desired function space from which the random oracle is then drawn by games defining security. We suggest that schemes specified in standards include a specification of this space, to avoid errors.
+
+Formally, a key-encapsulation mechanism (KEM) $\kemScheme$ specifies the following. First is 
+% an arity-$n$ 
+a function space $\kemRoSp$. Now as usual there is a key-generation algorithm $\kemKg$ that, given access to an oracle $\aFunc{H} \in \kemRoSp$, returns a public encryption key and matching secret decryption key, $(\pk,\allowbreak \dk)\getsr\kemKg[\aFunc{H}]$. Next there is an encapsulation algorithm $\kemEnc$ that, given input $\pk$, and given oracle $\aFunc{H}$, returns a symmetric key $K \in \bits^{\kemKl}$ and a ciphertext $C$ encapsulating it, $(C,K) \getsr\kemEnc[\aFunc{H}](\pk)$, where $\kemKl$ is the symmetric-key length of $\kemScheme$. The randomness length of $\kemEnc$ is denoted $\kemRl$. Finally, there is a deterministic decapsulation algorithm $\kemDec$ that, given inputs $\dk,C$, and given oracle $\aFunc{H}$, returns $\kemDec[\aFunc{H}](\dk,C) \allowbreak \in \allowbreak\bits^{\kemKl}\cup\{\bot\}$.
+
+
+
+%A public-key encryption scheme $\pkeScheme$ also specifies a function space $\pkeRoSp$ and function $\aFunc{H}$ is drawn from this function space in the manner described for KEMs. There is a randomized key-generation algorithm, which, given oracle access to $\aFunc{H}$ returns a public encryption key and matching secret decryption key $\(ek,\allowbreak \dk) \getsr \pkeKg[\aFunc{H}]()$. There is a message space, which we assume to be the set of all bitstrings of a certain length $\pkeML$. There is an encryption algorithm, that, given inputs $\pk$ and message $m\in \bits^\pkeML$, returns a ciphertext $C$, $(C) \getsr \kemEnc{\aFunc{H}](\pk,m)$. Finally, there is a 
+
+\begin{figure}[t]
+	\twoColsNoDivide{0.36}{0.3}{
+		\ExperimentHeader{Game %$\ngameINDCPA{\kemScheme,\roSp}$,
+			 $\ngameINDCCA{\kemScheme}$}
+		
+		\begin{oracle}{$\Initialize$}
+			\item $\aFunc{H}\getsr\kemRoSp$ ; $b\getsr\bits$
+			\item $(\pk,\dk)\getsr\kemKg[\RO]$
+			\item $(C^*,K^*_1)\getsr\kemEnc[\RO](\pk)$
+			\item $K^*_0\getsr\bits^{\kemKl}$
+			\item return $\pk,C^*,K^*_b$
+		\end{oracle}
+		
+		\ExptSepSpace
+	}{
+		\begin{oracle}{$\DecO(C)$}%{Game $\ngameINDCCA{\kemScheme,\roSp}$}
+			\item If ($C=C^*$) then return $\bot$
+			\item $K \gets \kemDec[\RO](\dk,C)$
+			\item return $K$
+		\end{oracle}	
+		\ExptSepSpace	
+		\begin{oracle}{$\RO(W)$}
+			\item return $\aFunc{H}(W)$
+		\end{oracle}
+		
+		\ExptSepSpace
+		
+		\begin{oracle}{$\Finalize(b')$}
+			\item return $(b=b')$ \vspace{4pt}
+		\end{oracle}
+	}
+	
+%	\twoCols{0.44}{0.46}{
+%		\ExperimentHeader{Games $\ngameOWCPA{\kemScheme,\roSp}$, $\ngameOWPCA{\kemScheme,\roSp}$}
+%		
+%		\begin{oracle}{$\Initialize$}
+%			\item $\aFunc{H}\getsr\roSp$
+%			\item $\params\getsr\kemPg[\RO]$
+%			\item $(\pk,\dk)\getsr\kemKg[\RO]$
+%			\item $(C^*,K^*)\getsr\kemEnc[\RO](\pk)$
+%			\item return $\pk,C^*$
+%		\end{oracle}
+%		
+%		\ExptSepSpace
+%	}{
+%		\begin{oracleC}{$\PCO(C, K)$}{Game $\ngameOWPCA{\kemScheme,\roSp}$}
+%			\item If ($K = \kemDec[\aFunc{H}](\dk,C)$) then return $1$
+%			\item Else return $0$
+%		\end{oracleC}	
+%		\ExptSepSpace	
+%		\begin{oracle}{$\RO(i,X)$}
+%			\item return $\aFunc{H}(i,X)$
+%		\end{oracle}
+%		
+%		\ExptSepSpace
+%		
+%		\begin{oracle}{$\Finalize(K)$}
+%			\item return $(K = K^*)$ \vspace{4pt}
+%		\end{oracle}
+%	}
+	
+% 	\twoCols{0.44}{0.46}{
+% 		\ExperimentHeader{$\ngameOWCPA{\pkeScheme,\roSp}$}
+% 		
+% 		\begin{oracle}{$\Initialize()$}
+% 			\item $\aFunc{H}\getsr\roSp$
+% 			\item $(\pk,\dk)\getsr\pkeKg[\RO]()$
+% 			\item $m^* \getsr \bits^{\pkeML}$
+% 			\item $c^* \getsr \pkeEnc(\pk,m)$
+% 			\item return $ \pk, c^*$
+% 		\end{oracle}
+% 		
+% 		\ExptSepSpace
+% 			
+% 		\begin{oracle}{$\RO(i,X)$}
+% 			\item return $\aFunc{H}(i,X)$
+% 		\end{oracle}
+% 		
+% 		\ExptSepSpace
+% 		
+% 		\begin{oracle}{$\Finalize(m)$}
+% 			\item return $(m=m^*)$ \vspace{4pt}
+% 		\end{oracle}
+% 		
+% 	}{
+% 		\ExperimentHeader{Game $\ngameINDCPA{\pkeScheme,\roSp}$}
+% 
+% 		\begin{oracle}{$\Initialize()$}
+% 			\item $\aFunc{H}\getsr\roSp$
+% 			\item $(\pk,\dk)\getsr\pkeKg[\RO]()$
+% 			\item $b \getsr \bits$
+% 			\item return $\pk$
+% 		\end{oracle}
+% 
+% 		\ExptSepSpace
+% 		\begin{oracle}{$\EncO(m_0,m_1)$}
+% 			\item $C \gets \pkeEnc(\pk,m_b)$
+% 			\item return $C$
+% 		\end{oracle}
+% 		
+% 		\ExptSepSpace
+% 
+% 		\begin{oracle}{$\RO(i,X)$}
+% 			\item return $\aFunc{H}(i,X)$
+% 		\end{oracle}
+% 
+% 		\ExptSepSpace
+% 
+% 		\begin{oracle}{$\Finalize(m)$}
+% 			\item return $(m=m^*)$ \vspace{4pt}
+% 		\end{oracle}
+% 	}
+% 	\caption{Top: KEM security games for indistinguishability under chosen-plaintext (resp.\ chosen-ciphertext) attacks (left) and one-wayness under chosen-plaintext (resp.\ plaintext-checking) attacks (right). Bottom: PKE security games for one-wayness (left) and indistinguishability (right) security under chosen-plaintext attacks.}
+	\caption{%
+		KEM security game for indistinguishability under  chosen-ciphertext attacks. % (top) and one-wayness under chosen-plaintext (resp.\ plaintext-checking) attacks (bottom).
+	}
+	\label{fig:KEM}
+	\hrulefill
+\end{figure}
+
+
+\heading{Security definitions.}
+We cast the standard security notion of indistinguishability under chosen-ciphertext attack (IND-CCA) for KEMs~\cite{CraSho03} in our extended syntax in Figure~\ref{fig:KEM}.
+% Our treatment is in the multi-user setting, where the adversary upon initialization can choose the number of scheme instances~$u$.
+%The security games are parameterized by a function space~$\roSp$;
+%by default, this is the KEM scheme's function space~$\kemRoSp$ (and then may be omitted).
+Adversary~$\advA$ gets a challenge ciphertext $C^*$ and a challenge key $K_b^*$ that is either the key $K_1^*$ underlying $C^*$ or a random key $K_0^*$, and, to win, must determine $b$. Decapsulation oracle $\DecO$ allows it to decapsulate any non-challenge ciphertext of its choice. We let
+\begin{newmath}
+	\indccaAdv{\kemScheme}{\advA} = 2 \Pr[\ngameINDCCA{\kemScheme}] - 1
+\end{newmath}%
+to be the ind-cca advantage of adversary~$\advA$. 
+
+
+%(and analogously for \INDCCA).
+
+%One-wayness asks from an adversary~$\advA$ to output the key encapsulated in a given ciphertext. %(for any of the users $1,\dots,u$).
+%In the \OWPCA variant, $\advA$ is additionally given a plaintext-checking oracle telling whether a given key is the decapsulation of a given ciphertext.
+%We let
+%\begin{newmath}
+%	\genAdv{OWCPA}{\kemScheme,\roSp}{\advA} = \Pr\big[ \ngameOWCPA{\kemScheme,\roSp} \big]
+%\end{newmath}%
+%to be the advantage of adversary~$\advA$ in the \OWCPA game (and analogously for \OWPCA).
+
+
+
+\heading{Working domain of a KEM.} Let $\kemScheme$ be a KEM. Let $\workDom \subseteq \GenroSpDom{\kemRoSp}$ be a subset of $\GenroSpDom{\kemRoSp}$. Consider game $\ngameDOM{\kemScheme,\workDom}$ in Figure~\ref{fig:DOM}. The intent is that, at the end of the game, the set $\usedDomain$ contains all queries made to $\RO$ by the scheme algorithms, while excluding ones made by the adversary $\advA$ but not by scheme algorithms. Boolean flag $\SchemeQuery$ controls when a query $W$ to $\RO$ is to be put in $\usedDomain$ in accordance with this policy. (We do assume all queries to $\RO$ are in $\GenroSpDom{\kemRoSp}$.) The adversary wins if it can make the scheme algorithms query a point outside the working domain. Its wdom-advantage is $\wdomAdv{\kemScheme,\workDom}{\advA} \allowbreak = \allowbreak \Pr[\ngameDOM{\kemScheme,\workDom}(\advA)]$. We say that \textit{$\workDom$ is a working domain of $\kemScheme$} if $\wdomAdv{\kemScheme,\workDom}{\advA}=0$ for all adversaries $\advA$, regardless of the running time and number of oracle queries of~$\advA$. 
+% (This condition can be relaxed to a computational one, and the latter suffices for Theorem~\ref{th-kem}, but in practice we are not aware of this relaxation being useful, so make the definition as we do.) 
+
+The set $\GenroSpDom{\kemRoSp}$ is always a working domain of $\kemScheme$. The interesting case is when one can specify a subset of it that is a working domain.
+
+
+%\hd{The computational condition is not sufficient.}
+ 
+
+ 
+
+
+
+
+
+\begin{figure}[tp]
+	\oneCol{0.6}{
+	\ExperimentHeader{Game $\ngameDOM{\kemScheme,\workDom}$}
+
+	\begin{oracle}{$\Initialize$}
+		\item $\aFunc{H}\getsr\kemRoSp$
+		; $\SchemeQuery\gets\true$
+		\item $(\pk,\dk)\getsr\kemKg[\RO]$ ; 
+		 $(C,K)\getsr\kemEnc[\RO](\pk)$
+		\item $\SchemeQuery\gets\false$
+		; Return $\pk,C,K$
+	\end{oracle}
+
+
+	\ExptSepSpace
+
+	\begin{oracle}{$\DecO(C)$}
+		\item $\SchemeQuery\gets\true$
+		; $K \gets \kemDec[\RO](\dk,C)$
+		; $\SchemeQuery\gets\false$
+		; Return $K$
+	\end{oracle}
+
+	\ExptSepSpace
+
+	\begin{oracle}{$\RO(W)$}
+	\item If $\SchemeQuery$ then $\usedDomain\gets \usedDomain\cup\{W\}$
+		\item return $\aFunc{H}(W)$
+	\end{oracle}
+
+	\ExptSepSpace
+
+	\begin{oracle}{$\Finalize$}
+		\item return $(\usedDomain\not\subseteq\workDom)$ \vspace{4pt}
+	\end{oracle}
+	}
+
+	\caption{%
+		Game to determine the working domain~$\workDom$ of a KEM~$\kemScheme$.
+	}
+	\label{fig:DOM}
+	\hrulefill
+\end{figure}
+
+%In other words, having working domain~$\workDom$ means that all queries made by scheme algorithms to $\aFunc{H}$ are always (with probability one) in the set $\workDom$. This is across all inputs and coins for the algorithms. Note that the condition is only on queries made by scheme algorithms; nothing is imposed on queries made directly by the adversary but never made by scheme algorithms.
+%(The flag $\SchemeQuery$ in the game~$\ngameDOM{\kemScheme,\workDom}(\advA)$ is $\true$ when the oracle queries are made by scheme algorithms, and only these are considered for the winning condition.
+
+
+
+
+%We say that $\kemScheme$ has \textit{disjoint working sub-domains} if the sub-domains $\workDom_1,\dots,\workDom_n$ are pairwise disjoint, meaning scheme algorithms never query two different random oracles at the same input.
+
+
+\heading{Composition.} Let $\kemScheme$ be a given KEM that we assume is IND-CCA secure. Let $\construct{F} \Colon \GenroSp{\functionInSet} \to \kemRoSp$ be a functor. We associate to them the KEM $\FkemScheme = \construct{F}(\kemScheme)$ that is defined as follows. Its function space is $\FkemRoSp = \GenroSp{\functionInSet}$, the starting space of the functor. The algorithms of $\FkemScheme$, given an oracle for $\functionIn$, run the corresponding algorithm of $\kemScheme$ with oracle $\functionOut = \construct{F}[\functionIn]$. Let $\workDom$ be a working domain for $\kemScheme$ and assume $\construct{F}$ is rd-indiff over $\workDom$. Then Theorem~\ref{th-kem}, below, says that $\FkemScheme$ is IND-CCA as well.
+
+The application to NIST PQC KEMs is as follows. Let $\kemScheme$ be a base KEM from one of the submissions, as discussed in Section~\ref{sec-pqc}, so that $\kemRoSp$ is an arity-4 function space. We know (or are willing to assume) that $\kemScheme$ is IND-CCA. Now, we want to instantiate the four oracles of $\kemScheme$ by a single one, say drawn from the sol function space $\GenroSp{\functionInSet} = \AllSOLFuncs{\bits^*}{\ell}$ for some given value of $\ell$ like $\ell=256$. We pick a cloning functor $\construct{F}\Colon \GenroSp{\functionInSet}\to \kemRoSp$ that determines a function for the base KEM from one of the given functions. The example of interest is that this is the identity cloning functor, which is not rd-indiff over its full domain. Instantiating the oracles of $\kemScheme$, via the functor applied to an oracle of the starting space, yields the KEM $\FkemScheme$. This is what, in Section~\ref{sec-pqc}, we called the final KEM, and the question is whether it is IND-CCA. Employing length differentiation corresponds to the base KEM having the corresponding working domain. From Section~\ref{sec-framework} we know that the identify functor is rd-indiff over this working domain. Now Theorem~\ref{th-kem} says that the final KEM is IND-CCA.
+
+
+
+\begin{theorem}\label{th-kem} Let $\kemScheme$ be a KEM. Let $\construct{F} \Colon \GenroSp{\functionInSet} \to \kemRoSp$ be a functor. Let $\FkemScheme = \construct{F}(\kemScheme)$ be the KEM associated to them as above. Let $\workDom$ be a working domain for $\kemScheme$, and let $\simulator$ be a read-only simulator for $\construct{F}$. Let $\advA$ be an ind-cca adversary. Then we construct  adversaries~$\advB$, and $\advD$ such that
+	\begin{align*}
+		\indccaAdv{\FkemScheme}{\advA}
+		& \leq
+		\indccaAdv{\kemScheme}{\advB}
+		%+ 2\cdot \wdomAdv{\kemScheme,\workDom}{\advC}
+		+ 2 \cdot \AdvCCINDIFF{\construct{F},\GenroSp{\functionInSet},\kemRoSp,\workDom,\simulator}{\advD} \;.
+\end{align*}
+The running time of $\advD$ is about that of $\advA$. If $\advA$ makes $q$ queries to $\RO$, then the running time of $\advB$ is about that of $\advA$ plus $q$ times the running time of $\simulator$. 
+\end{theorem}
+
+\input{domsep-thesis/kemgames}
+
+\begin{proof} Consider the games in Figure~\ref{fig-kem-games}. We have
+\begin{align*}
+	\indccaAdv{\FkemScheme}{\advA} &= 2\Pr[\Gm_0(\advA)]-1 \\
+	&= 2\Pr[\Gm_1(\advA)]-1 + 2(\Pr[\Gm_0(\advA)]-\Pr[\Gm_1(\advA)]) \;.
+\end{align*}
+Let adversary $\advB$ be as shown in Figure~\ref{fig-kem-advs}. Then
+\begin{align*}
+ 2\Pr[\Gm_1(\advA)]-1 \leq \indccaAdv{\kemScheme}{\advB} \;.
+\end{align*}
+Game $\Gm_3$ is game $\ngameCCINDIFF{\construct{F},\GenroSp{\functionInSet},\kemRoSp,\workDom,\simulator}$. Game $\Gm_2$ drops the working domain check at line~4. Let adversary $\advD$ be as shown in Figure~\ref{fig-kem-advs}. Then
+\begin{align*}
+	\Pr[\Gm_0(\advA)]-\Pr[\Gm_1(\advA)] &\leq 2\Pr[\Gm_2(\advD)]-1 \;.
+\end{align*}
+Games $\Gm_2,\Gm_3$ are identical-until-$\bad$ so by the Fundamental Lemma of Game Playing~\cite{EC:BelRog06} we have
+\begin{align*}
+	2\Pr[\Gm_2(\advD)]-1 &= 2\Pr[\Gm_3(\advD)]-1 + 
+	2(\Pr[\Gm_2(\advD)]-\Pr[\Gm_3(\advD)]) \\
+	&\leq 2\Pr[\Gm_3(\advD)]-1 + 2\Pr[\Gm_2(\advD)\mbox{ sets }\bad] \;.
+\end{align*}
+Now we have
+\begin{align*}
+	2\Pr[\Gm_3(\advD)]-1 &= \AdvCCINDIFF{\construct{F},\GenroSp{\functionInSet},\kemRoSp,\workDom,\simulator}{\advD}  \;.
+\end{align*}
+Adversary $\advD$ invokes its $\priv$ oracle only on points queried by scheme algorithms, and, regardless of the challenge bit $c$, the function underlying $\priv$ is a member of $\kemRoSp$. Because $\workDom$ is a working domain for $\kemScheme$, we have
+\begin{align*}
+	\Pr[\Gm_2(\advD)\mbox{ sets }\bad] &=0  \;.
+\end{align*}
+This concludes the proof. \qed
+\end{proof}
+%
+%
+%	We prove the theorem with a sequence of games, with the first, $\Gm_0$ being the  $\ngameINDCCA{\FkemScheme,\GenroSp{\functionInSet}}(\advA)$ game with the algorithms of $\FkemScheme$ unrolled; meaning they explicitly run the algorithms of $\FkemScheme$ with $\construct{F}[\aFunc{\functionIn}]$ as an oracle.
+%	In Game $\Gm_1$, we replace the random oracle $\aFunc{\functionIn}$ of the previous game with two identical oracles $\priv_1 =\pub_1 = \aFunc{\functionIn}$, allowing the scheme to use the internal oracle $\priv_1$ in place of its random oracle $\aFunc{\functionIn}$, and giving the adversary access to $\pub_1$. 
+%	This does not change the behavior of the random oracle or the values output by any oracle, so 
+%	\[\Pr[\Gm_1(\advA)]= \Pr[\Gm_0(\advA)].\]
+%	In Game $\Gm_2$, we set $\priv = \construct{F}[\aFunc{\functionIn}]$ and let the oracles of $\kemScheme$ call $\priv$ directly. The adversary cannot tell whether $\construct{F}$ is computed inside or outside the $\priv$ oracle, so this change is unobservable, and
+%	\[\Pr[\Gm_2(\advA)] = \Pr[\Gm_1(\advA)]. \]
+%	In Game $\Gm_3$, we set a $\bad$ flag if the internal oracle $\priv$ is called on a point outside of $\workDom$. This is just bookkeeping, so 
+%	\[\Pr[\Gm_3(\advA)] = \Pr[\Gm_2(\advA)].\]
+%	In Game $\Gm_4$, we return $\bot$ whenever the $\bad$ flag is set. By the identical-until-bad lemma, 
+%	\[ \Pr[\Gm_4(\advA)] - \Pr[\Gm_3(\advA)] \leq \Pr[\Gm_3(\advA)\text{ sets }\bad].\]
+%	Game $\Gm_3$ sets the bad flag only if $\kemScheme$ calls its oracle $\priv$ on a point outside of $\workDom$. However, $\priv = \construct[F][\aFunc{\functionIn}] \in \GenroSp{\functionOutSet}$ and $\workDom$ is a working domain of $\kemScheme$. Therefore no series of $\Initialize$ and $\DecO$ queries can make $\kemScheme$ query $\priv$ outside of $\workDom$, and $\Pr[\Gm_3(\advA)\text{ sets }\bad]=0$, so
+%	\[ \Pr[\Gm_4(\advA)]= \Pr[\Gm_3(\advA)].\]
+%	In Game $\Gm_5$, we draw a function $\aFunc{\functionOut}$ from $\GenroSp{\functionOutSet}$, and we let $\priv(i,X)$ return $ =\aFunc{\functionOut}(i,X)$ for all $(i,X) \in \workDom$. We also set $\pub_4 = \Simeval[\aFunc{\functionOut}](\commoncoins, \cdot)$, where $\commoncoins \getsr \SimgenCC()$ is chosen at the outset of the game. 
+%	We construct an adversary $\advD$ in Figure~\ref{fig-kem-advs} such that 
+%	 \[
+%	 \Pr\big[ \Gm_{4} \big] - \Pr\big[ \Gm_{5} \big]
+%	 \leq \AdvCCINDIFF{\construct{F},\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\workDom,\simulator}{\advD}.
+%	 \]
+%	The adversary $\advD$ plays game $\ngameCCINDIFF{\construct{F},\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\workDom,\simulator}$. It perfectly simulates either Game~$\Gm_4$ or Game~$\Gm_5$ for $\advA$ by relaying queries to the $\pub$ and $\priv$ oracles to its own $\pub$ and $\priv$ oracles, sampling the challenge bit~$b$ itself.
+%	If $\advA$ wins the simulated game, $\advD$ guesses that $b=1$ in the rd-indiff game; otherwise $\advD$ guesses that $b=0$.
+%	
+%	In game $\Gm_6$, we set $\pub = \aFunc{\functionOut}$.
+%	Next, we define a wrapper adversary $\advB$ with four oracles $\Initialize$, $\DecO$, $\RO$, and $\Finalize$. This adversary runs $\SimgenCC$ to get a string $\commoncoins$, then runs $\advA$. Whenever $\advA$ makes a query to $\pub$, the adversary $\advB$ answers it with $\Simeval[\RO](\commoncoins,\cdot)$.  This change simply moves the execution of $\simulator$ from the $\pub$ oracle to the adversary, so the sequence of operations in $\Gm_6(\advB)$ is identical to that of $\Gm_5(\advA)$, and
+%	\[ \Pr[\Gm_6(\advB)] =\Pr[\Gm_5(\advA)] .\]
+%	The final game $\Gm_7$, eliminates the internal $\priv$ oracle and gives the algorithms of $\kemScheme$ access to $\RO$ instead. This change is unobservable unless $\kemScheme$ queries $\priv$ on a point outside of $\workDom$. This is impossible because $\workDom$ is a working domain of $\kemScheme$, so 
+%	\[\Pr[\Gm_7(\advB)] = \Pr[\Gm_6(\advB)].\]  
+%	 Looking at game $\Gm_7$, we see that it is identical to the game $\genAdv{arg1}{arg2}{arg3}\ngameINDCCA{\kemScheme,\GenroSp{\functionOutSet}}(\advB)$, so 
+%	 \[\Pr[\Gm_7(\advB)] = \Pr[\ngameINDCCA{\kemScheme,\GenroSp{\functionOutSet}}(\advB)].\]
+%	 
+%	 Then we have the bound 
+%	 \begin{align*}	 \Pr[\ngameINDCCA{\kemScheme[\construct{F}],\GenroSp{\functionInSet}}(\advA)] - \Pr[\ngameINDCCA{\kemScheme,\GenroSp{\functionOutSet}}(\advB)] &= \Pr[\Gm_0(\advA)] - \Pr[\Gm_7(\advB)]\\
+%	 &= \Pr[\Gm_4\advA)] - \Pr[\Gm_5(\advA)]\\
+%	 &\leq \AdvCCINDIFF{\construct{F},\GenroSp{\functionInSet},\GenroSp{\functionOutSet},\workDom,\simulator}{\advD}
+%	 \end{align*}
+%	 The theorem statement follows. 
+%\end{proof}
+%
+%
+
+
+%\subsection{Concrete KEMs with oracle cloning}
+%\label{sec-kem-practicaldomsep} %% this will just map to the top section
+
+%\TODO{left over, need summary and wrap up here.}
+%
+%Coming back to our observations on the NIST PQC submissions, let us now study some of the ways practical schemes achieve domain separation with different techniques.
+%As an immediate consequence of this theorem and Corollary~\ref{th-concrete-rd-indiff}, we have shown that the security proof of every scheme in Figure~\ref{fig-domsep-kems} applies to its instantiation. This justifies our hypothesis that the schemes in Group 3 and 4 preserve provable IND-CCA security through the instantiation step. 
+%We will consider \pqcname{Classic McEliece}, a member of Group~4 from Section~\ref{sec-pqc} that discusses domain separation as part of its design, as well as \pqcname{SABER}, an example from Group~3 whose schemes achieve domain separation without explicitly discussing it in the design, as we can establish through our formalism.
+
+%\pqcheading{Classic McEliece},
+%in its specification, instantiates all of its oracles through $\SHAKE{256}$, which it always calls with a requested output length of $32$ bytes.
+%Its KEM transform, $\QpkeToKem_{14}$, uses two random oracles to derive a key confirmation ($Y$ in our framework) and the session key.
+%The security proof additionally requires a third independent random oracle to derive an independently random session key in the case that
+%decryption fails.
+%To clone three independent random oracles, \pqcname{Classic McEliece} uses a simple prefixing query translation, with single-byte prefixes for each oracle: $\texttt{0x00}$ for $\aFunc{H}_4$, $\texttt{0x01}$ for $\aFunc{H}_1$, and $\texttt{0x02}$ for $\aFunc{H}_3$.
+%This query translation is $\FixedprefixqueryRO_{\vecX}$,
+%\fg{In the submission version, this was written $\FixedprefixqueryRO_{8, \vecX}$ (for $l = 8$ bits).}
+%where $\vecX$ is the vector $(\texttt{0x00},\texttt{0x01},\texttt{0x02})$.
+%By Corollary~\ref{th-concrete-rd-indiff}, this construction is rd-indifferentiable, so 
+%Theorem~\ref{thm:kem-query-translation} gives that the security proof of \pqcname{Classic McEliece} applies to the instantiated scheme. Then \pqcname{Classic McEliece}'s instantiation is \INDCCA-secure.
+
+%\pqcheading{SABER}
+%\cite{nistpqc:SABER}
+%uses a length-differentiating construction to achieve disjoint working domains.
+%\pqcname{SABER} instantiates its three random oracles $\aFunc{H}_1$, $\aFunc{H}_2$, and $\aFunc{H}_3$ with two primitives, namely $\aFunc{H}_1$ with $\SHAA{3}{512}$ and $\aFunc{H}_3$ and $\aFunc{H}_4$ with $\SHAA{3}{256}$.%
+%\footnote{Starting to count the random oracles from~$1$, $\aFunc{H}_i$ here corresponds to $\aFunc{H}_{i+1}$ in the transform description from Section~\ref{sec-pqc}.}
+%In the working domain~$\workDom$ of \pqcname{SABER}, queries to $\aFunc{H}_3$ always have a length of $64$~bytes and queries to $\aFunc{H}_2$ never have a length of $64$~bytes.
+%Therefore, \pqcname{SABER} uses a length-differenting oracle construction to clone $\aFunc{H}_3$ and $\aFunc{H}_4$ from the same random oracle representing $\SHAA{3}{256}$. 
+%By Corollary~\ref{th-concrete-rd-indiff}, length-differentiation oracle constructions are rd-indifferentiable, and the inclusion of another independent random oracle in both the primitive and target function spaces does not impact this result. 
+%Then by Theorem~\ref{thm:kem-query-translation}, we know that the security result for \pqcname{SABER} in the arity-$3$ oracle space carries over to its instantiation when modeling $\SHAA{3}{256}$ and $\SHAA{3}{512}$ as random oracles, so the instantiation has \INDCCA security as desired.

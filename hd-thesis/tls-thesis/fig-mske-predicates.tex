@@ -1,0 +1,115 @@
+\begin{figure}[tp]
+	\begin{minipage}[t]{0.49\textwidth}
+		\begin{algorithm}{$\Fresh$}
+		\item for each $(\pi_u^i,s) \in \testedsessions$
+		\item \hindent $\ttest \gets \pi_u^i.\tested[s]$
+		\item \hindent if $\pi_u^i.\revealed[s]$ then
+		\item \hindent \hindent return $\false$
+		\comment{tested session may not be revealed}
+		
+		\item \hindent if $\exists \pi_v^j \neq \pi_u^i : \pi_v^j.sid[s] = \pi_u^i.sid[s]$ 
+		\newline \null \hindent \hindent and ($\pi_v^j.\tested[s]$ or $\pi_v^j.\revealed[s]$) then
+		\item \hindent \hindent return $\false$
+		\comment{tested session's partnered session may not be tested or revealed}
+		
+		%%%  forward secrecy
+		\item \hindent if $\pi_u^i.\taccepted[\FS[s,\fs]]<\ttest$
+		\item \hindent \hindent if $\revpsk_{(u, \pi_u^i.\peerid, \pi_u^i.\pskid)} < \pi_u^i.\taccepted[\FS[s,\fs]]$ and $\neg \pi_u^i.\hascontpart[\FS[s,\fs]]$ then %\hascontpart[s]?
+		\item \hindent \hindent return $\false$
+		\comment{Sessions with forward secrecy are fresh if they attained fs before their PSK was corrupted, or if they have a contributive partner (no tampering).}
+		
+		%%% Weak forward secrecy 2
+		\item \hindent else if $\pi_u^i.\taccepted[\FS[s,\wfstwo]]<\ttest$
+		\item \hindent \hindent if $\revpsk_{(u, \pi_u^i.\peerid, \pi_u^i.\pskid)}$ and $\neg \pi_u^i.\hascontpart[\FS[s, \wfstwo]]$ then %\hascontpart[s]?
+		\item \hindent \hindent \hindent return $\false$
+		\comment{Sessions with weak forward secrecy 2 are fresh if the PSK was never corrupted, or if they have a contributive partner.}
+		
+		%% no fs
+		\item \hindent else if $\revpsk_{\{u, \pi_u^i.\peerid\}, \pi_u^i.\pskid}$ then 
+		\item \hindent \hindent return $\false$
+		\comment{Sessions with no forward secrecy are fresh if the PSK was never corrupted.}
+		\item return $\true$
+	\end{algorithm}
+	
+	\ExptSepSpace
+	
+		\begin{algorithm}{$\ExplicitAuth$}
+			\item if $\forall \pi_u^i, s$:\\
+			\hindent $s' \gets \EAUTH[\pi_u^i.\role, s]$ \\
+			$\pi_u^i.\taccepted[s'] < \infty$ \\
+			\null \hindent and $\pi_u^i.\taccepted[s] < \infty$ \\
+			\null \hindent and $\pi_u^i.\taccepted[s'] <  \revpsk_{(u,\pi_u^i.\peerid,\pi_u^i.\pskid)}$ \\
+			\null \hindent and $\pi_u^i.\taccepted[s'] <  \infty$ \\
+			\comment{all sessions accepting in explicitly authenticated stages whose PSK was not corrupted before acceptance of the stage at which explicit authentication was (perhaps retroactively) established\dots\ }%
+			%muahahaha
+			\hindent \hindent  $\implies \exists \pi_v^j : \pi_u^i.\sid[s'] = \pi_v^j.\sid[s']$ \\
+			\hindent \hindent \hphantom{$\implies$} and $\pi_u^i.\peerid = v$ \\
+			\hindent \hindent \hphantom{$\implies$} and $\pi_u^i.\pskid = \pi_v^j.\pskid$ 
+			%\newline
+			%\null \hindent \hindent \hphantom{$\implies$} and $\pi_u^i.\role \neq \pi_v^j.\role$
+			\newline
+			\comment{\dots\ have a partnered session in that stage \dots\ }
+			\comment{\dots\ agreeing on the peerid and pre-shared key\dots\ }
+			\hindent \hphantom{$\implies$} and $(\pi_v^j.\taccepted[s] < \time \implies \pi_v^j.\sid[s] = \pi_u^i.\sid[s])$
+			\newline
+			\comment{\dots\ and partnered in stage $s$ (upon acceptance)}
+			\item \hindent return $\true$
+		\end{algorithm}
+	\end{minipage}
+%
+	\begin{minipage}[t]{0.49\textwidth}
+	\begin{algorithm}{$\Sound$}
+		%%% no triple sid match
+		\item if $\exists s$, distinct $\pi_u^i$, $\pi_v^j$, $\pi_w^k$ with $\pi_u^i.\sid[s] = \pi_v^j.\sid[s] = \pi_w^k.\sid[s]\neq\bot$ \newline
+		and $\REPLAY[s] = \false$ then
+		\item \hindent return $\false$
+		\newline \comment{no triple sid match, except for replayable stages}
+		%%% same sid ==> different roles (except replays)
+		\item if $\exists \pi_u^i, \pi_v^j$, $s$ with \newline
+		\null\hindent 
+		$\pi_u^i.\sid[s] = \pi_v^j.\sid[s] \neq \bot$ and \newline
+		\null\hindent $\pi_u^i.\role = \pi_v^j.\role$ and \newline
+		\null\hindent ($\REPLAY[s] = \false$ or $\pi_u^i.\role = \initiator$) then 
+		\item \hindent return $\false$
+		\newline \comment{partnering implies different roles (except for responders in replayable stages)}
+		
+		%%% same sid ==> same cid
+		\item if $\exists \pi_u^i, \pi_v^j$, $s$ with \newline
+		\null \hindent
+		$\pi_u^i.\sid[s] = \pi_v^j.\sid[s] \neq \bot$ and \newline $(\pi_u^i.\initcid[s] \neq \pi_v^j.\initcid[s]$ or $\pi_u^i.\respcid[s] \neq \pi_v^j.\respcid[s])$
+		\item \hindent return $\false$
+		\newline \comment{partnering implies matching cids}
+		
+		%%% different stages ==> different sids
+		if $\exists \pi_u^i, \pi_v^j$ and $s \neq t$ such that
+		\newline
+		\null \hindent $\pi_u^i.\sid[s] = \pi_v^j.\sid[t]$
+		\item \hindent return $\false$
+		\newline \comment{different stages implies different sids}
+		
+		%%% partnering implies agreement on peer ID and PSKID
+		\item if $\exists \pi_u^i, \pi_v^j$, $s$ with \newline
+		\null\hindent $\pi_u^i.\sid[s] = \pi_v^j.\sid[s]\neq \bot $ \newline
+		\null\hindent and $\pi_u^i.\peerid \neq v$ \newline
+		\null\hindent or $\pi_v^j.\peerid \neq u$ or $\pi_u^i.\pskid \neq \pi_v^j.\pskid$ then
+		\newline  \comment{partnering implies agreement on peer IDs and PSKs}
+		%because all stages are at least implicitly authenticated.
+		\item \hindent return $\false$
+		
+		%%% same sid ==> same key
+		\item if $\exists \pi_u^i, \pi_v^j$, $s$ with \newline
+		\null\hindent $\pi_u^i.\taccepted[s] < \time $ \newline
+		\null\hindent and $ \pi_v^j.\taccepted[s] < \time$ \newline
+		\null\hindent and $\pi_u^i.\sid[s] = \pi_v^j.\sid[s]\neq \bot$, \newline
+		\null\hindent but $\pi_u^i.\skey[s] \neq \pi_v^j.\skey[s]$ then
+		\newline  \comment{partnering implies same key}
+		\item \hindent return $\false$
+		\item return $\true$
+	\end{algorithm}
+	\end{minipage}
+	
+	\caption{%
+		Predicates $\Fresh$, $\ExplicitAuth$, and $\Sound$ for the MSKE pre-shared key model.
+	}
+	\label{fig:MSKE-preds}
+\end{figure}

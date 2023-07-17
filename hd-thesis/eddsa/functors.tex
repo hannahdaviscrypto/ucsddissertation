@@ -1,0 +1,29 @@
+\section{The functors} \label{sec-functors}
+
+
+
+%In the following, we will assume $c=2k$ and $b=4k$ for a fixed  security parameter $k$, as for $\SHA{512}$, where $k=128$. 
+%
+%\heading{Transform $\trA$.} EdDSA uses $\SHA{512}$ in three places. We can capture this as a transform $\trA$ that defines three functions $\trA_1^{\fIn},\trA_2^{\fIn},\trA_3^{\fIn}  \Colon \allowbreak\bits^* \allowbreak \to \allowbreak \bits^{2k}$ with all three set to $\construct{MD}^{\fIn}$. The analysis of \cite{SP:BCJZ21} (implicitly) assumes that (1) each of these is (or is indifferentiable from) a random oracle, and (2) they are independent of each other. However, as mentioned above, (1) is not true due to the extension attack. Also (2) is not true because the three are the same function and share a common compression function. Our claim is that EdDSA with $\trA$ remains secure \textit{despite} this. To show this, we will consider a sequence of steps that consider alternatives to $\trA$.
+%
+%\heading{Transform $\trB$.} A first simplifying observation is that one can define the functions a bit differently without altering the EdDSA functionality. This leads to transform $\trB$. Continue to set $\trB_1^{\fIn}$ to $\construct{MD}^{\fIn}$, but now restricted as $\trB_1^{\fIn}\Colon\bits^k\to\bits^{2k}$. Define $\trB_2^{\fIn},\trB_3^{\fIn}  \Colon \allowbreak\bits^* \allowbreak \to \allowbreak \Z_{\Prime}$, on input $X$, to return $\construct{MD}^{\fIn}(X)\bmod \Prime$, where $\Prime$ is the approximately $k$-bit prime number used in EdDSA. What have we gained? We claim that, \textit{taken individually}, each of $\trB_1,\trB_2,\trB_3$ is indifferentiable from a random oracle. For the first, it is because restricting inputs to $k$-bit strings makes them prefix free, allowing us to invoke the above-mentioned result of \cite{C:CDMP05}. For $\trB_2,\trB_3$, we need an extension, that can be established, of the above-mentioned indifferentiability of truncated $\construct{MD}$ \cite{C:CDMP05}. However, our three functions are certainly not independent. Indeed, $\trB_2,\trB_3$ are identical, and $\trB_1$ and $\trB_2$ overlap. (It is easy to mount a two-query attack that distinguishes the latter two from two independent random oracles.) Now our goal is to show that EdDSA with $\trB$ is secure, \textit{despite} the lack of independence.
+%
+%\heading{Secret indifferentiability and $\trC$.} Intuitively, the reason the lack of independence amongst the functions does not preclude a proof of EdDSA under $\trB$ is that EdDSA's invocations of the functions involve inputs that are secret and unknown to the adversary. We expect that the latter is thus unable to find inputs that would showcase the existing lack of independence. We could attempt to capture this via a dedicated analysis that goes back to the compression function, modeling it as random. We instead argue for, and take, a more modular approach. It involves extending the definitional frameworks of both signatures and indifferentiability to allow ideal functionalities that can keep and use secret seeds. We will prove security of EdDSA relative to a certain seeded ideal functionality that we define. Then we will define $\trC$, a seeded adaption of $\trB$, and show that it is indifferentiable (in our new framework) from our ideal functionality. Putting this together shows the desired security of EdDSA.
+%
+%One benefit of our general and modular results, compared to a dedicated analysis, is that it does more than justify today's, $\SHA{512}$-based EdDSA. It can also be used to prove security for other instantiations, including $\SHA{3}$, that may be considered in the future. 
+%
+%
+
+
+
+ 
+
+
+
+
+
+
+
+ 
+
+ 

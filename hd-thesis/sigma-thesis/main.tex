@@ -1,0 +1,171 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% Tighter Proofs for SIGMA-style AKE
+% Authors: Hannah, Felix
+% Started: July 2019
+% Submissions: Crypto2020, Asiacrypt2020, ACNS2021 (accepted)
+% ePrint: 2020/1029
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\titletext}{Tighter Proofs for the SIGMA\texorpdfstring{\\}{} and TLS 1.3 Key Exchange Protocols}
+\newcommand{\shorttitletext}{Tighter Proofs for the SIGMA and TLS 1.3 Key Exchange Protocols}
+
+%
+% version modifiers
+%
+
+\newif\iffull
+\fulltrue  % comment out for llncs
+
+\newif\ifanon
+\anonfalse
+
+
+%
+% Hannah Davis
+%
+% ================================================================
+% ================================================================
+
+
+\documentclass[11pt]{article}
+\usepackage[letterpaper,hmargin=1in,vmargin=1in]{geometry}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+
+\usepackage{xifthen}
+\usepackage{amsmath}
+\usepackage{soul}	\let\strikethrough\st\let\st\undefined % \st already used...
+\usepackage{amssymb}
+\usepackage{multicol}
+\usepackage{xspace}
+\usepackage{dsfont}
+\usepackage{amsfonts}
+\usepackage{graphicx}
+\usepackage[normalem]{ulem}
+\usepackage[usenames,dvipsnames,table]{xcolor}
+\usepackage[english]{babel}
+\usepackage{enumitem}	\setlist[enumerate,itemize,description]{labelindent=1em,leftmargin=2em}
+\usepackage[normalem]{ulem}
+% \usepackage{authblk}
+\iffull\else
+	% unset llncs.cls definition of proof environment
+	\let\proof\relax
+	\let\endproof\relax
+\fi
+\usepackage{amsthm}
+
+\usepackage{booktabs}
+\usepackage{multirow}
+
+\usepackage{collect}
+\usepackage{eso-pic}
+
+\usepackage{marvosym} % for corresponding-author letter symbol
+
+\usepackage{tikz}
+\usetikzlibrary{calc,backgrounds,shapes.geometric,positioning}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.15}
+
+\PassOptionsToPackage{
+		pagebackref,
+		colorlinks=true,linkcolor=black,urlcolor=Blue,citecolor=Blue,
+		bookmarksdepth=3,bookmarksopen=true
+	}{hyperref} % full version with colored links
+\usepackage{hyperref}
+
+
+% --- -----------------------------------------------------------------
+% --- Document-specific definitions.
+% --- -----------------------------------------------------------------
+
+\usepackage{crypto-environments}
+
+\input{commands}
+
+\title{\textbf{\titletext}}
+
+
+	\author{}
+% 	\author[1]{\Davis}
+% 	\affil[1]{\DavisThanks}
+% 	\author[2]{\Guenther}
+% 	\affil[2]{\GuentherThanks}
+
+% --- -----------------------------------------------------------------
+% --- The document starts here.
+% --- -----------------------------------------------------------------
+
+\begin{document}
+%
+%\begin{abstract}
+%\input{abstract}
+%\end{abstract}
+
+
+%\iffull
+%\AddToShipoutPicture*{\small
+%	\raisebox{26.0cm}{\hspace{.76in}\parbox{\textwidth}{A preliminary version of this paper appears in the proceedings of the \emph{19th International Conference on Applied Cryptography and Network Security (ACNS~2021)}.
+%	%TODO: add DOI when we have it
+%	%	DOI: \href{http://dx.doi.org/10.1007/978-3-319-63697-9_22}{10.1007/978-3-319-63697-9\_22}.
+%	This is the full version.
+%	}}}
+%\newpage
+%\tableofcontents
+%\newpage
+%\fi
+
+
+%%%%%%%%%%%%%%% INPUT FILES HERE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% \ifdraft
+% \input{notes}
+% \fi
+
+\input{introduction}
+\input{ake-model}
+\input{components}
+\input{appendix-stDHproof}
+\input{sigma}
+\input{sigma-proof}
+\input{tls}
+\input{tls-proof}
+\input{evaluation}
+\input{appendix-evaluation}
+
+\section*{Acknowledgments}
+ \input{acks}
+
+% --- -----------------------------------------------------------------
+% --- The Bibliography.
+% --- -----------------------------------------------------------------
+% --- -----------------------------------------------------------------
+% --- The Appendix.
+% --- -----------------------------------------------------------------
+
+% \iffull
+% \section*{Appendix}
+% \else
+% \section*{Appendix / Supplementary Material}
+% \fi
+
+
+%% only in lncs / non-full version
+% \iffull\else
+% 
+% %% not fitting ACNS
+% % \input{appendix-sigma}
+% % 
+% % \input{sigma-games}
+% 
+% \input{appendix-tlsproof}
+% 
+% \fi
+
+%\input{omitted-proof}
+%\input{tls-games}
+
+\end{document}

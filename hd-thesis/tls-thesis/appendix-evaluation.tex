@@ -1,0 +1,218 @@
+\def\EvalTitle{Evaluation Details}
+\iffull
+	\subsection{\EvalTitle}
+\else
+	\newpage
+	\section{\EvalTitle}
+\fi
+\label{app:evaluation}
+
+In the following, we will briefly explain the reasoning behind each of our specific resource parameter estimates. 
+An adversary in the MSKE game (cf.\ Definition~\ref{def:MSKE-security}) is limited in its runtime~$t$, the number of pre-shared keys~$\#N$, and distinct protocol sessions~$\#S$ it can observe or interact with, and the number of random oracle queries~$\#RO$ it can make.
+This last quantity captures offline work the adversary spends on computing the hash function~$\Hash$, which in our analysis we model as random oracle.
+The choice of ciphersuite enters the bound through the length of the symmetric session keys and pre-shared keys.
+For the PSK-(EC)DHE handshake, the bound also depends on the underlying Diffie--Hellman group.
+
+
+\paragraph{Runtime $t \in \{2^{40}, 2^{60}, 2^{80}\}$.}
+We consider a range of adversarial runtimes from easily achievable ($2^{40}$ operations) to state-scaled computational power ($2^{80}$ operations). 
+
+\paragraph{Random oracle queries $\#RO \in \{2^{40}, 2^{60}, 2^{80}\}$.}
+The number of random oracle queries models the number of hash function computations an adversary is capable of computing. Accordingly, we scale the number of RO queries with the runtime, always setting $\#RO = t/2^{10}$.
+
+\paragraph{Number of pre-shared keys $\#N \in \{2^{25}, 2^{35}\}$.}
+The world's largest certificate authority Let's~Encrypt reports $\approx 2^{27.5}$ active certificates for fully-qualified domains.%
+\footnote{\url{https://letsencrypt.org/stats/}} %% last checked 2021-09-29: 193M active certs, 252M fully-qualified domains certified
+While not every \emph{user} of TLS~1.3 will perform resumption, our model counts the number of \emph{pre-shared keys},
+where typically users may hold many pre-shared keys, with servers regularly issuing several PSKs per full-handshake connection for later resumption.
+We hence estimate that the number of pre-shared keys accessible to a globally-scaled adversary may well exceed the reported number of (server) certificates.
+
+\paragraph{Number of sessions $\#S \in \{2^{35}, 2^{45}, 2^{55}\}$.}
+We use the same estimates as Davis and G{\"u}nther~\cite{ACNS:DavGun21}, based on Google's and Firefox's usage reports.%
+\footnote{\url{https://transparencyreport.google.com/}, \url{https://telemetry.mozilla.org/}}
+With a daily browser user base of $2$ billion ($\approx 2^{31}$) and an HTTPS traffic encryption rate in the range of $76$--$98\%$,
+we estimate an adversary could encounter up to~$2^{55}$ distinct sessions over an extended time period.
+Note that although the PSK handshakes are less commonly used by browsers than the full TLS~1.3 handshake, they are frequently used by embedded and low-powered devices which do not appear in these reports.
+Naturally, we do not allow the number of sessions to exceed the adversary's runtime $t$.
+
+\paragraph{Diffie--Hellman groups.}
+There are ten Diffie--Hellman groups standardized for use with the PSK-(EC)DHE handshake: five elliptic-curve groups and five finite-field groups. 
+We reduce to the security of the strong Diffie--Hellman assumption in each of these groups.
+Davis and Günther gave a proof of hardness in the generic group model (GGM) for the strong DH problem.
+This result is a good heuristic for elliptic-curve groups, but not for finite-field ones because they are vulnerable to index-calculus based attacks not covered by the GGM.
+The elliptic-curve groups are more efficient and more widely used than finite-field groups, so we restrict our analysis to these groups:
+\texttt{secp256r1}, \texttt{x25519}, \texttt{secp384r1}, \texttt{x448}, \texttt{secp521r1}.
+For each group, we give in Table~\ref{tbl:bounds-full-psk-dhe} the order~$p$ and the expected security level~$b$ in bits.
+We use the security level $b$ to determine the choice of hash function and the target security level for the entire PSK-(EC)DHE handshake.
+
+\paragraph{Ciphersuite and symmetric lengths.}
+Our bounds reduce to the collision resistance of the random oracle $\ROthash$, which models the handshake's hash function.
+The choice of hash function also determines the length of the session and resumption keys.
+TLS~1.3 has five ciphersuites, all of which set the hash function to be either $\SHA{256}$ or $\SHA{384}$.
+For PSK-(EC)DHE mode, we select $\SHA{256}$ as the hash function whenever a curve with $128$-bit security is used and we select $\SHA{384}$ for higher-security curves.
+As our results of Section~\ref{sec:ks-indiff} only apply to PSK-only mode when $\SHA{256}$ is the hash function, we always use $\SHA{256}$ and a target-security level of $128$ bits.
+
+\begin{table}[t]
+	\centering
+% 	\fontsize{4.5}{5}\selectfont % smaller than \tiny
+	\footnotesize
+	\renewcommand{\arraystretch}{0.01}
+	\renewcommand{\tabcolsep}{0.15cm}
+	\vspace{-0.3cm} %% a little higher
+	\begin{tabular}{@{}lllllll@{}}
+		\toprule
+		\multicolumn{4}{c}{Adversary resources}		&		& \multicolumn{2}{c}{PSK-only}	\\
+		\cmidrule{1-4} \cmidrule{6-7}
+		$t$	& $\#N$	& $\#S$ & $\#RO$ & Target $t/2^b$	& DFGS\,{\cite{JC:DFGS21}}~	& Us~{(Cor.~\ref{cor:psk-ke})} \\
+		\midrule	
+$2^{40}$	&$2^{25}$	&$2^{35}$	&$2^{30}$	&$2^{-88}$	&\cellcolor{green!25}$\approx 2^{-158}$	&\cellcolor{green!25}$\approx 2^{-173}$	\\
+$2^{40}$	&$2^{35}$	&$2^{35}$	&$2^{30}$	&$2^{-88}$	&\cellcolor{green!25}$\approx 2^{-150}$	&\cellcolor{green!25}$\approx 2^{-173}$	\\
+\midrule
+$2^{60}$	&$2^{25}$	&$2^{35}$	&$2^{50}$	&$2^{-68}$	&\cellcolor{green!25}$\approx 2^{-119}$	&\cellcolor{green!25}$\approx 2^{-152}$	\\
+$2^{60}$	&$2^{25}$	&$2^{45}$	&$2^{50}$	&$2^{-68}$	&\cellcolor{green!25}$\approx 2^{-109}$	&\cellcolor{green!25}$\approx 2^{-151}$	\\
+$2^{60}$	&$2^{25}$	&$2^{55}$	&$2^{50}$	&$2^{-68}$	&\cellcolor{green!25}$\approx 2^{-99}$	&\cellcolor{green!25}$\approx 2^{-133}$	\\
+$2^{60}$	&$2^{35}$	&$2^{35}$	&$2^{50}$	&$2^{-68}$	&\cellcolor{green!25}$\approx 2^{-119}$	&\cellcolor{green!25}$\approx 2^{-152}$	\\
+$2^{60}$	&$2^{35}$	&$2^{45}$	&$2^{50}$	&$2^{-68}$	&\cellcolor{green!25}$\approx 2^{-109}$	&\cellcolor{green!25}$\approx 2^{-151}$	\\
+$2^{60}$	&$2^{35}$	&$2^{55}$	&$2^{50}$	&$2^{-68}$	&\cellcolor{green!25}$\approx 2^{-99}$	&\cellcolor{green!25}$\approx 2^{-133}$	\\
+\midrule
+$2^{80}$	&$2^{25}$	&$2^{35}$	&$2^{70}$	&$2^{-48}$	&\cellcolor{green!25}$\approx 2^{-79}$	&\cellcolor{green!25}$\approx 2^{-112}$	\\
+$2^{80}$	&$2^{25}$	&$2^{45}$	&$2^{70}$	&$2^{-48}$	&\cellcolor{green!25}$\approx 2^{-69}$	&\cellcolor{green!25}$\approx 2^{-112}$	\\
+$2^{80}$	&$2^{25}$	&$2^{55}$	&$2^{70}$	&$2^{-48}$	&\cellcolor{green!25}$\approx 2^{-59}$	&\cellcolor{green!25}$\approx 2^{-112}$	\\
+$2^{80}$	&$2^{35}$	&$2^{35}$	&$2^{70}$	&$2^{-48}$	&\cellcolor{green!25}$\approx 2^{-79}$	&\cellcolor{green!25}$\approx 2^{-112}$	\\
+$2^{80}$	&$2^{35}$	&$2^{45}$	&$2^{70}$	&$2^{-48}$	&\cellcolor{green!25}$\approx 2^{-69}$	&\cellcolor{green!25}$\approx 2^{-112}$	\\
+$2^{80}$	&$2^{35}$	&$2^{55}$	&$2^{70}$	&$2^{-48}$	&\cellcolor{green!25}$\approx 2^{-59}$	&\cellcolor{green!25}$\approx 2^{-112}$	\\
+	\bottomrule
+	\end{tabular}
+	
+	\medskip
+
+	\caption{%
+		Concrete advantages of a key exchange adversary with given resources $t$ (running time), $\#N$ (number of pre-shared keys), $\#S$ (number of sessions), and $\#RO$ (number of random oracle queries) in breaking the security of the TLS~1.3 PSK-only handshake protocol with a ciphersuite targeting $128$-bit security.
+		%
+		Numbers based on the prior bounds by Dowling et al.~\cite{JC:DFGS21}
+		and our bound for PSK-only in Corollary~\ref{cor:psk-ke}.
+		``Target'' indicates the maximal advantage~$t/2^b$ tolerable for a given bound on $t$ when aiming for the bit security level~$b = 128$;
+		entries in \colorbox{green!25}{green}-shaded cells meet that target.
+		We assume that the ciphersuite uses $\SHA{256}$ as its hash function (see Appendix~\ref{app:domsep} for further explanation).
+	}
+\label{tbl:bounds-full-psk-only}
+\end{table}
+
+\begin{table}[p]
+	\centering
+% 	\fontsize{4.5}{5}\selectfont % smaller than \tiny
+	% \tiny
+	\renewcommand{\arraystretch}{0.01}
+	\renewcommand{\tabcolsep}{0.15cm}
+	%\vspace{-0.5cm} %% a little higher
+	\resizebox{!}{.42\textheight}{%
+	\begin{tabular}{@{}llllllll@{}}
+		\toprule
+		\multicolumn{4}{c}{Adversary resources}		&&		& \multicolumn{2}{c}{PSK-(EC)DHE}	\\[-0.5mm]
+		\cmidrule{1-4} \cmidrule{7-8}
+		$t$	& $\#N$	& $\#S$ & $\#RO$ & Curve (\fullelse{bit security~$b$, group order~$p$}{bit sec.\!~$b$,\! order~$p$})	& Target $t/2^b$	& DFGS\,{\cite{JC:DFGS21}}~	& Us~{(Cor.~\ref{cor:full-psk-ecdhe-ke})} \\[-0.5mm]
+		\midrule
+$2^{40}$	&$2^{25}$	&$2^{35}$	&$2^{30}$	&\texttt{secp256r1} ($b \!=\! 128$, \! $p \!\approx\! 2^{256}$)	&$2^{-88}$	&\cellcolor{green!25}$\approx 2^{-92}$	&\cellcolor{green!25}$\approx 2^{-167}$	\\
+$2^{40}$	&$2^{35}$	&$2^{35}$	&$2^{30}$	&\texttt{secp256r1} ($b \!=\! 128$, \! $p \!\approx\! 2^{256}$)	&$2^{-88}$	&$\approx 2^{-82}$	& \cellcolor{green!25}$\approx 2^{-167}$	\\
+\midrule
+$2^{40}$	&$2^{25}$	&$2^{35}$	&$2^{30}$	&\texttt{x25519} ($b \!=\! 128$, \! $p \!\approx\! 2^{252}$)	&$2^{-88}$	&\cellcolor{green!25}$\approx 2^{-92}$	&\cellcolor{green!25}$\approx 2^{-163}$	\\
+$2^{40}$	&$2^{35}$	&$2^{35}$	&$2^{30}$	&\texttt{x25519} ($b \!=\! 128$, \! $p \!\approx\! 2^{252}$)	&$2^{-88}$	&$\approx 2^{-82}$	& \cellcolor{green!25}$\approx 2^{-163}$	\\
+\midrule
+$2^{40}$	&$2^{25}$	&$2^{35}$	&$2^{30}$	&\texttt{secp384r1} ($b \!=\! 192$, \! $p \!\approx\! 2^{384}$)	&$2^{-152}$	&\cellcolor{green!25}$\approx 2^{-220}$	&\cellcolor{green!25}$\approx 2^{-294}$	\\
+$2^{40}$	&$2^{35}$	&$2^{35}$	&$2^{30}$	&\texttt{secp384r1} ($b \!=\! 192$, \! $p \!\approx\! 2^{384}$)	&$2^{-152}$	&\cellcolor{green!25}$\approx 2^{-210}$	&\cellcolor{green!25}$\approx 2^{-294}$	\\
+\midrule
+$2^{40}$	&$2^{25}$	&$2^{35}$	&$2^{30}$	&\texttt{x448} ($b \!=\! 224$, \! $p \!\approx\! 2^{446}$)	&$2^{-184}$	&\cellcolor{green!25}$\approx 2^{-220}$	&\cellcolor{green!25}$\approx 2^{-301}$	\\
+$2^{40}$	&$2^{35}$	&$2^{35}$	&$2^{30}$	&\texttt{x448} ($b \!=\! 224$, \! $p \!\approx\! 2^{446}$)	&$2^{-184}$	&\cellcolor{green!25}$\approx 2^{-210}$	&\cellcolor{green!25}$\approx 2^{-301}$	\\
+\midrule
+$2^{40}$	&$2^{25}$	&$2^{35}$	&$2^{30}$	&\texttt{secp521r1} ($b \!=\! 256$, \! $p \!\approx\! 2^{521}$)	&$2^{-216}$	&\cellcolor{green!25}$\approx 2^{-220}$	&\cellcolor{green!25}$\approx 2^{-301}$	\\
+$2^{40}$	&$2^{35}$	&$2^{35}$	&$2^{30}$	&\texttt{secp521r1} ($b \!=\! 256$, \! $p \!\approx\! 2^{521}$)	&$2^{-216}$	&$\approx 2^{-210}$	& \cellcolor{green!25}$\approx 2^{-301}$	\\
+\midrule[1pt]
+$2^{60}$	&$2^{25}$	&$2^{35}$	&$2^{50}$	&\texttt{secp256r1} ($b \!=\! 128$, \! $p \!\approx\! 2^{256}$)	&$2^{-68}$	&$\approx 2^{-61}$	& \cellcolor{green!25}$\approx 2^{-132}$	\\
+$2^{60}$	&$2^{25}$	&$2^{45}$	&$2^{50}$	&\texttt{secp256r1} ($b \!=\! 128$, \! $p \!\approx\! 2^{256}$)	&$2^{-68}$	&$\approx 2^{-40}$	& \cellcolor{green!25}$\approx 2^{-132}$	\\
+$2^{60}$	&$2^{25}$	&$2^{55}$	&$2^{50}$	&\texttt{secp256r1} ($b \!=\! 128$, \! $p \!\approx\! 2^{256}$)	&$2^{-68}$	&$\approx 2^{-12}$	& \cellcolor{green!25}$\approx 2^{-127}$	\\
+$2^{60}$	&$2^{35}$	&$2^{35}$	&$2^{50}$	&\texttt{secp256r1} ($b \!=\! 128$, \! $p \!\approx\! 2^{256}$)	&$2^{-68}$	&$\approx 2^{-60}$	& \cellcolor{green!25}$\approx 2^{-132}$	\\
+$2^{60}$	&$2^{35}$	&$2^{45}$	&$2^{50}$	&\texttt{secp256r1} ($b \!=\! 128$, \! $p \!\approx\! 2^{256}$)	&$2^{-68}$	&$\approx 2^{-32}$	& \cellcolor{green!25}$\approx 2^{-132}$	\\
+$2^{60}$	&$2^{35}$	&$2^{55}$	&$2^{50}$	&\texttt{secp256r1} ($b \!=\! 128$, \! $p \!\approx\! 2^{256}$)	&$2^{-68}$	&$\approx 2^{-2}$	& \cellcolor{green!25}$\approx 2^{-127}$	\\
+\midrule
+$2^{60}$	&$2^{25}$	&$2^{35}$	&$2^{50}$	&\texttt{x25519} ($b \!=\! 128$, \! $p \!\approx\! 2^{252}$)	&$2^{-68}$	&$\approx 2^{-57}$	& \cellcolor{green!25}$\approx 2^{-128}$	\\
+$2^{60}$	&$2^{25}$	&$2^{45}$	&$2^{50}$	&\texttt{x25519} ($b \!=\! 128$, \! $p \!\approx\! 2^{252}$)	&$2^{-68}$	&$\approx 2^{-37}$	& \cellcolor{green!25}$\approx 2^{-128}$	\\
+$2^{60}$	&$2^{25}$	&$2^{55}$	&$2^{50}$	&\texttt{x25519} ($b \!=\! 128$, \! $p \!\approx\! 2^{252}$)	&$2^{-68}$	&$\approx 2^{-12}$	& \cellcolor{green!25}$\approx 2^{-123}$	\\
+$2^{60}$	&$2^{35}$	&$2^{35}$	&$2^{50}$	&\texttt{x25519} ($b \!=\! 128$, \! $p \!\approx\! 2^{252}$)	&$2^{-68}$	&$\approx 2^{-57}$	& \cellcolor{green!25}$\approx 2^{-128}$	\\
+$2^{60}$	&$2^{35}$	&$2^{45}$	&$2^{50}$	&\texttt{x25519} ($b \!=\! 128$, \! $p \!\approx\! 2^{252}$)	&$2^{-68}$	&$\approx 2^{-32}$	& \cellcolor{green!25}$\approx 2^{-128}$	\\
+$2^{60}$	&$2^{35}$	&$2^{55}$	&$2^{50}$	&\texttt{x25519} ($b \!=\! 128$, \! $p \!\approx\! 2^{252}$)	&$2^{-68}$	&$\approx 2^{-2}$	& \cellcolor{green!25}$\approx 2^{-123}$	\\
+\midrule
+$2^{60}$	&$2^{25}$	&$2^{35}$	&$2^{50}$	&\texttt{secp384r1} ($b \!=\! 192$, \! $p \!\approx\! 2^{384}$)	&$2^{-132}$	&\cellcolor{green!25}$\approx 2^{-189}$	&\cellcolor{green!25}$\approx 2^{-259}$	\\
+$2^{60}$	&$2^{25}$	&$2^{45}$	&$2^{50}$	&\texttt{secp384r1} ($b \!=\! 192$, \! $p \!\approx\! 2^{384}$)	&$2^{-132}$	&\cellcolor{green!25}$\approx 2^{-168}$	&\cellcolor{green!25}$\approx 2^{-259}$	\\
+$2^{60}$	&$2^{25}$	&$2^{55}$	&$2^{50}$	&\texttt{secp384r1} ($b \!=\! 192$, \! $p \!\approx\! 2^{384}$)	&$2^{-132}$	&\cellcolor{green!25}$\approx 2^{-140}$	&\cellcolor{green!25}$\approx 2^{-254}$	\\
+$2^{60}$	&$2^{35}$	&$2^{35}$	&$2^{50}$	&\texttt{secp384r1} ($b \!=\! 192$, \! $p \!\approx\! 2^{384}$)	&$2^{-132}$	&\cellcolor{green!25}$\approx 2^{-188}$	&\cellcolor{green!25}$\approx 2^{-259}$	\\
+$2^{60}$	&$2^{35}$	&$2^{45}$	&$2^{50}$	&\texttt{secp384r1} ($b \!=\! 192$, \! $p \!\approx\! 2^{384}$)	&$2^{-132}$	&\cellcolor{green!25}$\approx 2^{-160}$	&\cellcolor{green!25}$\approx 2^{-259}$	\\
+$2^{60}$	&$2^{35}$	&$2^{55}$	&$2^{50}$	&\texttt{secp384r1} ($b \!=\! 192$, \! $p \!\approx\! 2^{384}$)	&$2^{-132}$	&$\approx 2^{-130}$	& \cellcolor{green!25}$\approx 2^{-254}$	\\
+\midrule
+$2^{60}$	&$2^{25}$	&$2^{35}$	&$2^{50}$	&\texttt{x448} ($b \!=\! 224$, \! $p \!\approx\! 2^{446}$)	&$2^{-164}$	&\cellcolor{green!25}$\approx 2^{-200}$	&\cellcolor{green!25}$\approx 2^{-280}$	\\
+$2^{60}$	&$2^{25}$	&$2^{45}$	&$2^{50}$	&\texttt{x448} ($b \!=\! 224$, \! $p \!\approx\! 2^{446}$)	&$2^{-164}$	&\cellcolor{green!25}$\approx 2^{-170}$	&\cellcolor{green!25}$\approx 2^{-279}$	\\
+$2^{60}$	&$2^{25}$	&$2^{55}$	&$2^{50}$	&\texttt{x448} ($b \!=\! 224$, \! $p \!\approx\! 2^{446}$)	&$2^{-164}$	&$\approx 2^{-140}$	& \cellcolor{green!25}$\approx 2^{-261}$	\\
+$2^{60}$	&$2^{35}$	&$2^{35}$	&$2^{50}$	&\texttt{x448} ($b \!=\! 224$, \! $p \!\approx\! 2^{446}$)	&$2^{-164}$	&\cellcolor{green!25}$\approx 2^{-190}$	&\cellcolor{green!25}$\approx 2^{-280}$	\\
+$2^{60}$	&$2^{35}$	&$2^{45}$	&$2^{50}$	&\texttt{x448} ($b \!=\! 224$, \! $p \!\approx\! 2^{446}$)	&$2^{-164}$	&$\approx 2^{-160}$	& \cellcolor{green!25}$\approx 2^{-279}$	\\
+$2^{60}$	&$2^{35}$	&$2^{55}$	&$2^{50}$	&\texttt{x448} ($b \!=\! 224$, \! $p \!\approx\! 2^{446}$)	&$2^{-164}$	&$\approx 2^{-130}$	& \cellcolor{green!25}$\approx 2^{-261}$	\\
+\midrule
+$2^{60}$	&$2^{25}$	&$2^{35}$	&$2^{50}$	&\texttt{secp521r1} ($b \!=\! 256$, \! $p \!\approx\! 2^{521}$)	&$2^{-196}$	&\cellcolor{green!25}$\approx 2^{-200}$	&\cellcolor{green!25}$\approx 2^{-280}$	\\
+$2^{60}$	&$2^{25}$	&$2^{45}$	&$2^{50}$	&\texttt{secp521r1} ($b \!=\! 256$, \! $p \!\approx\! 2^{521}$)	&$2^{-196}$	&$\approx 2^{-170}$	& \cellcolor{green!25}$\approx 2^{-279}$	\\
+$2^{60}$	&$2^{25}$	&$2^{55}$	&$2^{50}$	&\texttt{secp521r1} ($b \!=\! 256$, \! $p \!\approx\! 2^{521}$)	&$2^{-196}$	&$\approx 2^{-140}$	& \cellcolor{green!25}$\approx 2^{-261}$	\\
+$2^{60}$	&$2^{35}$	&$2^{35}$	&$2^{50}$	&\texttt{secp521r1} ($b \!=\! 256$, \! $p \!\approx\! 2^{521}$)	&$2^{-196}$	&$\approx 2^{-190}$	& \cellcolor{green!25}$\approx 2^{-280}$	\\
+$2^{60}$	&$2^{35}$	&$2^{45}$	&$2^{50}$	&\texttt{secp521r1} ($b \!=\! 256$, \! $p \!\approx\! 2^{521}$)	&$2^{-196}$	&$\approx 2^{-160}$	& \cellcolor{green!25}$\approx 2^{-279}$	\\
+$2^{60}$	&$2^{35}$	&$2^{55}$	&$2^{50}$	&\texttt{secp521r1} ($b \!=\! 256$, \! $p \!\approx\! 2^{521}$)	&$2^{-196}$	&$\approx 2^{-130}$	& \cellcolor{green!25}$\approx 2^{-261}$	\\
+\midrule[1pt]
+$2^{80}$	&$2^{25}$	&$2^{35}$	&$2^{70}$	&\texttt{secp256r1} ($b \!=\! 128$, \! $p \!\approx\! 2^{256}$)	&$2^{-48}$	&$\approx 2^{-21}$	& \cellcolor{green!25}$\approx 2^{-92}$	\\
+$2^{80}$	&$2^{25}$	&$2^{45}$	&$2^{70}$	&\texttt{secp256r1} ($b \!=\! 128$, \! $p \!\approx\! 2^{256}$)	&$2^{-48}$	&$\approx 2^{-1}$	& \cellcolor{green!25}$\approx 2^{-92}$	\\
+$2^{80}$	&$2^{25}$	&$2^{55}$	&$2^{70}$	&\texttt{secp256r1} ($b \!=\! 128$, \! $p \!\approx\! 2^{256}$)	&$2^{-48}$	&$\approx 2^{19}$	& \cellcolor{green!25}$\approx 2^{-92}$	\\
+$2^{80}$	&$2^{35}$	&$2^{35}$	&$2^{70}$	&\texttt{secp256r1} ($b \!=\! 128$, \! $p \!\approx\! 2^{256}$)	&$2^{-48}$	&$\approx 2^{-21}$	& \cellcolor{green!25}$\approx 2^{-92}$	\\
+$2^{80}$	&$2^{35}$	&$2^{45}$	&$2^{70}$	&\texttt{secp256r1} ($b \!=\! 128$, \! $p \!\approx\! 2^{256}$)	&$2^{-48}$	&$\approx 2^{-1}$	& \cellcolor{green!25}$\approx 2^{-92}$	\\
+$2^{80}$	&$2^{35}$	&$2^{55}$	&$2^{70}$	&\texttt{secp256r1} ($b \!=\! 128$, \! $p \!\approx\! 2^{256}$)	&$2^{-48}$	&$\approx 2^{20}$	& \cellcolor{green!25}$\approx 2^{-92}$	\\
+\midrule
+$2^{80}$	&$2^{25}$	&$2^{35}$	&$2^{70}$	&\texttt{x25519} ($b \!=\! 128$, \! $p \!\approx\! 2^{252}$)	&$2^{-48}$	&$\approx 2^{-17}$	& \cellcolor{green!25}$\approx 2^{-88}$	\\
+$2^{80}$	&$2^{25}$	&$2^{45}$	&$2^{70}$	&\texttt{x25519} ($b \!=\! 128$, \! $p \!\approx\! 2^{252}$)	&$2^{-48}$	&$\approx 2^{3}$	& \cellcolor{green!25}$\approx 2^{-88}$	\\
+$2^{80}$	&$2^{25}$	&$2^{55}$	&$2^{70}$	&\texttt{x25519} ($b \!=\! 128$, \! $p \!\approx\! 2^{252}$)	&$2^{-48}$	&$\approx 2^{23}$	& \cellcolor{green!25}$\approx 2^{-88}$	\\
+$2^{80}$	&$2^{35}$	&$2^{35}$	&$2^{70}$	&\texttt{x25519} ($b \!=\! 128$, \! $p \!\approx\! 2^{252}$)	&$2^{-48}$	&$\approx 2^{-17}$	& \cellcolor{green!25}$\approx 2^{-88}$	\\
+$2^{80}$	&$2^{35}$	&$2^{45}$	&$2^{70}$	&\texttt{x25519} ($b \!=\! 128$, \! $p \!\approx\! 2^{252}$)	&$2^{-48}$	&$\approx 2^{3}$	& \cellcolor{green!25}$\approx 2^{-88}$	\\
+$2^{80}$	&$2^{35}$	&$2^{55}$	&$2^{70}$	&\texttt{x25519} ($b \!=\! 128$, \! $p \!\approx\! 2^{252}$)	&$2^{-48}$	&$\approx 2^{23}$	& \cellcolor{green!25}$\approx 2^{-88}$	\\
+\midrule
+$2^{80}$	&$2^{25}$	&$2^{35}$	&$2^{70}$	&\texttt{secp384r1} ($b \!=\! 192$, \! $p \!\approx\! 2^{384}$)	&$2^{-112}$	&\cellcolor{green!25}$\approx 2^{-149}$	&\cellcolor{green!25}$\approx 2^{-219}$	\\
+$2^{80}$	&$2^{25}$	&$2^{45}$	&$2^{70}$	&\texttt{secp384r1} ($b \!=\! 192$, \! $p \!\approx\! 2^{384}$)	&$2^{-112}$	&\cellcolor{green!25}$\approx 2^{-129}$	&\cellcolor{green!25}$\approx 2^{-219}$	\\
+$2^{80}$	&$2^{25}$	&$2^{55}$	&$2^{70}$	&\texttt{secp384r1} ($b \!=\! 192$, \! $p \!\approx\! 2^{384}$)	&$2^{-112}$	&$\approx 2^{-109}$	& \cellcolor{green!25}$\approx 2^{-219}$	\\
+$2^{80}$	&$2^{35}$	&$2^{35}$	&$2^{70}$	&\texttt{secp384r1} ($b \!=\! 192$, \! $p \!\approx\! 2^{384}$)	&$2^{-112}$	&\cellcolor{green!25}$\approx 2^{-149}$	&\cellcolor{green!25}$\approx 2^{-219}$	\\
+$2^{80}$	&$2^{35}$	&$2^{45}$	&$2^{70}$	&\texttt{secp384r1} ($b \!=\! 192$, \! $p \!\approx\! 2^{384}$)	&$2^{-112}$	&\cellcolor{green!25}$\approx 2^{-129}$	&\cellcolor{green!25}$\approx 2^{-219}$	\\
+$2^{80}$	&$2^{35}$	&$2^{55}$	&$2^{70}$	&\texttt{secp384r1} ($b \!=\! 192$, \! $p \!\approx\! 2^{384}$)	&$2^{-112}$	&$\approx 2^{-108}$	& \cellcolor{green!25}$\approx 2^{-219}$	\\
+\midrule
+$2^{80}$	&$2^{25}$	&$2^{35}$	&$2^{70}$	&\texttt{x448} ($b \!=\! 224$, \! $p \!\approx\! 2^{446}$)	&$2^{-144}$	&\cellcolor{green!25}$\approx 2^{-180}$	&\cellcolor{green!25}$\approx 2^{-240}$	\\
+$2^{80}$	&$2^{25}$	&$2^{45}$	&$2^{70}$	&\texttt{x448} ($b \!=\! 224$, \! $p \!\approx\! 2^{446}$)	&$2^{-144}$	&\cellcolor{green!25}$\approx 2^{-150}$	&\cellcolor{green!25}$\approx 2^{-240}$	\\
+$2^{80}$	&$2^{25}$	&$2^{55}$	&$2^{70}$	&\texttt{x448} ($b \!=\! 224$, \! $p \!\approx\! 2^{446}$)	&$2^{-144}$	&$\approx 2^{-120}$	& \cellcolor{green!25}$\approx 2^{-240}$	\\
+$2^{80}$	&$2^{35}$	&$2^{35}$	&$2^{70}$	&\texttt{x448} ($b \!=\! 224$, \! $p \!\approx\! 2^{446}$)	&$2^{-144}$	&\cellcolor{green!25}$\approx 2^{-170}$	&\cellcolor{green!25}$\approx 2^{-240}$	\\
+$2^{80}$	&$2^{35}$	&$2^{45}$	&$2^{70}$	&\texttt{x448} ($b \!=\! 224$, \! $p \!\approx\! 2^{446}$)	&$2^{-144}$	&$\approx 2^{-140}$	& \cellcolor{green!25}$\approx 2^{-240}$	\\
+$2^{80}$	&$2^{35}$	&$2^{55}$	&$2^{70}$	&\texttt{x448} ($b \!=\! 224$, \! $p \!\approx\! 2^{446}$)	&$2^{-144}$	&$\approx 2^{-110}$	& \cellcolor{green!25}$\approx 2^{-240}$	\\
+\midrule
+$2^{80}$	&$2^{25}$	&$2^{35}$	&$2^{70}$	&\texttt{secp521r1} ($b \!=\! 256$, \! $p \!\approx\! 2^{521}$)	&$2^{-176}$	&\cellcolor{green!25}$\approx 2^{-180}$	&\cellcolor{green!25}$\approx 2^{-240}$	\\
+$2^{80}$	&$2^{25}$	&$2^{45}$	&$2^{70}$	&\texttt{secp521r1} ($b \!=\! 256$, \! $p \!\approx\! 2^{521}$)	&$2^{-176}$	&$\approx 2^{-150}$	& \cellcolor{green!25}$\approx 2^{-240}$	\\
+$2^{80}$	&$2^{25}$	&$2^{55}$	&$2^{70}$	&\texttt{secp521r1} ($b \!=\! 256$, \! $p \!\approx\! 2^{521}$)	&$2^{-176}$	&$\approx 2^{-120}$	& \cellcolor{green!25}$\approx 2^{-240}$	\\
+$2^{80}$	&$2^{35}$	&$2^{35}$	&$2^{70}$	&\texttt{secp521r1} ($b \!=\! 256$, \! $p \!\approx\! 2^{521}$)	&$2^{-176}$	&$\approx 2^{-170}$	& \cellcolor{green!25}$\approx 2^{-240}$	\\
+$2^{80}$	&$2^{35}$	&$2^{45}$	&$2^{70}$	&\texttt{secp521r1} ($b \!=\! 256$, \! $p \!\approx\! 2^{521}$)	&$2^{-176}$	&$\approx 2^{-140}$	& \cellcolor{green!25}$\approx 2^{-240}$	\\
+$2^{80}$	&$2^{35}$	&$2^{55}$	&$2^{70}$	&\texttt{secp521r1} ($b \!=\! 256$, \! $p \!\approx\! 2^{521}$)	&$2^{-176}$	&$\approx 2^{-110}$	& \cellcolor{green!25}$\approx 2^{-240}$	\\
+\bottomrule
+	\end{tabular}}
+	
+	\medskip
+
+	\caption{%
+		Concrete advantages of a key exchange adversary with given resources $t$ (running time), $\#N$ (number of pre-shared keys), $\#S$ (number of sessions), and $\#RO$ (number of random oracle queries) in breaking the security of the TLS~1.3 PSK-(EC)DH handshake protocol.
+		%
+		Numbers based on the prior bounds by Dowling et al.~\cite{JC:DFGS21}
+		and our bound for PSK-(EC)DHE in Corollary~\ref{cor:full-psk-ecdhe-ke}.
+		``Target'' indicates the maximal advantage~$t/2^b$ tolerable for a given bound on $t$ when aiming for the respective curve's bit security level~$b$;
+		entries in \colorbox{green!25}{green}-shaded cells meet that target.
+		See Section~\ref{sec:evaluation} and Appendix~\ref{app:evaluation} for further details.
+	}
+\label{tbl:bounds-full-psk-dhe}
+\end{table}
+\iffull
+\else
+	\clearpage
+\fi

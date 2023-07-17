@@ -1,0 +1,501 @@
+\section{Tighter Security Proof for the TLS~1.3 Handshake}
+\label{sec:tls-proof}
+
+We now give our second main result, the tighter-security bound \fullelse{for the TLS~1.3 handshake protocol}{for TLS~1.3}.
+
+\begin{theorem}
+	\label{thm:tls}
+	Let $\advA$ be a key exchange security adversary against the TLS~1.3 handshake protocol as specified in Figure~\ref{fig:tls-protocol} based on a hash function~$\Hash$, a signature scheme~$\SIGScheme$, and a group~$\group$ of prime order~$p$,
+	and let the $\HKDF$ functions~$\Extract$ and $\Expand$ in the protocol be modeled as (independent) random oracles~$\RO_1$, resp.~$\RO_2$. 
+	For any $(t, \qNewUser, \qSend, \qRevSessionKey, \qRevLongTermKey, \qTest)$-$\KESEC$-adversary against \SIGMAI making at most $\qRO$ queries to the random oracle,
+	we give algorithms~$\advB_1$, $\advB_2$, $\advB_3$, and $\advB_4$ in the proof,
+	with running times~$t_{\advB_i} \approx t$ (for $i = 1,3,4$) and $t_{\advB_2} \approx t + 2\qRO \log_2 p$ close to that of $\advA$, such that
+	\begin{collectinmacro}{\TLSBound}{}{} %%% ===== COLLECT BEGIN =====
+	\begin{align*}
+		\Adv&^{\KESEC}_{\mTLS}(t, \qNewUser,\qSend, \qRevSessionKey,\qRevLongTermKey,\qTest)
+			\leq
+% 			\frac{\qSend^2}{2^{\nl}} + \frac{\qSend^2}{2p} + \frac{\qSend^2}{2^{\nl}\cdot p} % sid collisions -- old game hops
+			\frac{3\qSend^2}{2^{\nl+1}\cdot p} % sid collisions
+			+ \Adv^{\COLL}_{\Hash}(t_{\advB_1})\\ % hash collisions
+			&+  2 \cdot \Adv^{\strongDH}_{\group}(t_{\advB_2},\qRO)
+			+\frac{\qRO\cdot \qSend}{2^{\kl-1}}
+			+ \Adv^{\muEUFCMA}_{\SIGScheme}(t_{\advB_3},\qNewUser,\qSend,\qSend,\qRevLongTermKey)\\
+			&+ \Adv^{\muEUFCMA}_{\HMAC}(t_{\advB_4}, \qSend,\qSend,1, \qSend,1,0).
+	\end{align*}
+	\end{collectinmacro}
+	\TLSBound
+	Here,
+	$\nl = 256$ is the nonce length in TLS~1.3,
+	$\kl$ is the output length of~$\RO_2 = \HKDF.\Expand$,
+	$\group$ is the used Diffie--Hellman group of prime order~$p$,
+	and $\qSend \cdot \qRO \leq 2^{\kl-3}$.%
+	\footnote{We simplify the factor on $\Adv^{\strongDH}_{\group}$ to~$2$ by assuming $\qSend \cdot \qRO \leq 2^{\kl-3}$, which is true for any reasonable real-world parameters.
+	See the proof for the exact bound.}
+\end{theorem}
+
+\iffull
+\else
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% TLS Proof VERY short version for lncs / non-full
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% \begin{proof}[Proof outline]
+\subsubsection*{Proof idea\lncsdot}
+Let us first outline the core and novel technical steps, before we give some more proof details below;
+for space reasons we defer the full proof to the full version~\cite{EPRINT:DavGun20}.
+We note that as all keys in the \SIGMA exchange are derived from the master key $mk$, which is itself derived from the shared Diffie--Hellman secret, all intermediate keys in TLS~1.3 are derived from the handshake secret $\HS$, which is derived directly from the shared Diffie--Hellman secret $\DHE$.
+Embedding a DH challenge into all sessions robs the reduction of the ability to compute $\HS$;
+as in the \SIGMA proof, we will need to use the strong DH oracle to detect and program queries that would output an inconsistent value of $\HS$.
+Since $\HS$ is derived without context, a naive method would have to check every input to $\HKDF.\Extract$ against the DH shares received by each session, which would however result in a non-tight, quadratic runtime loss. 
+
+We instead leverage that the handshake secret~$\HS$ is an internal value, not exposed by any oracle.
+The adversary hence cannot detect an inconsistent $\HS$ value until it makes the entire chain of queries leading to one of the keys $\tkshs$, $\tkchs$, $\CFK$, $\SFK$, or $\ATS$ used in $\Send$, $\RevSessionKey$, and $\Test$ responses.
+Our reduction prudently sets up a separate bidirectional lookup table for each ``link'' in that chain.
+The adversary can make the RO queries in the chain in any order; we need only program the last one for consistency, at which time we have seen the session's DH secret, nonces, and group elements as query inputs.
+Linking the output of one key-derivation step to the input of the next this way, the reduction can identify the relevant sessions using only constant time and linear space.
+Together with a careful argument that the attacker is unlikely to guess an intermediate chain value, this allows us to treat $\HKDF.\Extract$ and $\HKDF.\Expand$ as two individual random oracles.
+Thereby, we stay close to how HKDF is used in TLS~1.3 and obtain two compact strong-DH bounds.
+%
+% One subtlety that is unique to our proof is that the reduction to the strong DH problem no longer maintains perfect consistency.
+% Because key derivation happens as a multi-stage process, it is possible, though unlikely, that the adversary will randomly guess one of the intermediate values of key derivation without making the corresponding RO query.
+% If this happens, the reduction does not have a complete ``chain'' and cannot identify which sessions' shared DH secret has been discovered.
+% It therefore can neither program the ROs appropriately nor extract the challenge secret from the shared secret, because it does not know which keys are known or which randomness was used by the compromised sessions.
+% This flaw leads to a loss of $\frac{2^{kl}}{2^{kl} - \qRO \cdot \qSend}$ in the reduction.
+% We assume, as is true for any reasonable choices of the symmetric parameter $kl$, that $\qRO \cdot \qSend \leq 2^{kl -2}$.
+% This allows us to upper bound this factor with a much simpler constant.
+% \end{proof}
+
+\bigskip
+
+Now we give a more precise view of the structure of our proof, with a particular focus on nonstandard techniques % and the points at which the proof differs from that for \SIGMAI due to aspects unique to TLS~1.3.
+and the critical random oracle programming in the reduction step to the strong Diffie--Hellman problem, handling the complexity of TLS~1.3's key schedule.
+
+\begin{proof}
+	\let\proofsep\medskip %% tighter spacing in here
+	
+	\startproof{TLS-short}
+	
+	We develop the bound via a series of code-based game hops.
+	
+	\proofngame[initial-game]
+	
+	The first game $\curGm$ is the key exchange security game (cf.\ Figure~\ref{fig:AKE-security}) for the TLS~1.3 handshake protocol (Figure~\ref{fig:tls-protocol}).
+	%, where the formal algorithms~$\KEActivate$ and $\KERun$ execute the steps shown in Figure~\ref{fig:tls-protocol} as well as appropriate maintenance of the session state.
+	%
+	%execute e capture the two protocol steps for each role in formal algorithms~$\KEActivate$, $\RunRespI$, $\RunInit$, and $\RunRespII$.
+	% We briefly define the formal algorithms $\KEActivate$, $\RunRespI$, $\RunInit$, and $\RunRespII$ (following the formal algorithm structure of \SIGMAI from Figure~\ref{fig:sigma-formal}) as follows.
+	% Let $\KEActivate$ include all of the client computation up to its first sent message, and $\RunInit$ cover the rest of the client's actions.
+	% Let the $\RunRespI$ algorithm perform all of the server's computation up to the generation of its second message,
+	% and let the $\RunRespII$ algorithm include all of the server's remaining computation.
+	% After acceptance, servers set their peer id to that contained in~$\CCERT$, clients set their peer identity to that in~$\SCERT$, and all sessions set their session key $\skey \gets \ATS$.
+	% With these definitions in place,
+	So,
+	$\Pr[\curGm*\Rightarrow 1] = \Pr[ \Gm^{\KESEC}_{\TLS,\advA} \Rightarrow 1 ]$.
+	
+	
+	\proofngames[collisions]{4}
+	
+	Over the next four games we ensure the uniqueness of each session's protocol transcript by aborting if an honest session chooses a nonce and DH share that have already been sent or received by another honest session, or if a collision occurs in the hash function $\Hash$. We limit the probability of nonce and DH share collisions using a union bound, and give a simple reduction $\advB_1$ to the collision resistance of the hash function~$\Hash$. We also lazily sample the random oracles $\RO_1$ and $\RO_2$ using internal tables $H_1$ and $H_2$.
+	Excluding collisions, we obtain the bound
+	$\Pr[\prevGm*\Rightarrow 1] - \Pr[\curGm\Rightarrow 1] \leq \frac{3\qSend^2}{2^{\nl+1}\cdot p}% sid collisions
+	+ \Adv^{\COLL}_{\Hash}(t_1)$.
+	
+	
+	\proofngames[copy-keys]{2}
+	
+	Following the technique of~\cite{C:CCGJJ19}, we let initiator sessions in category~(A) copy session, MAC, and traffic encryption keys from their partners via a table indexed by session IDs. 
+	In TLS~1.3, there are two encryption keys $\tkshs$ and $\tkchs$, and two MAC keys $\SFK$ and $\CFK$ to copy. One significant difference from both~\cite{C:CCGJJ19} and our \SIGMAI proof is that the session key $\ATS$ now depends on the messages $\sSCERT$, $\sSCERTV$, and $\sSFIN$. We have not yet ensured that partnered sessions agree on these values. Therefore honest initiators will only copy $\ATS$ from their partners if they received the exact same $(\sSCERT\cab \sSCERTV\cab \sSFIN)$ sent by their partner, which they check via an internal look-up table. Otherwise, $\ATS$ is still computed as in previous games. 
+	Since keys are only copied when partners agree on all of the information entering the key derivation function, this change is unobservable to~$\advA$, hence
+	$\Pr[\curGm*\Rightarrow 1] = \Pr[\prevGm*\Rightarrow 1]$.
+	
+	
+	\proofngames[programming]{2}
+	
+	These two games contain both the most critical step and the one that diverges the most from the \SIGMAI proof.
+	We let all category~(A) sessions that are not already copying their keys pick the handshake traffic keys $\SHTS$ and $\CHTS$, and the session key $\ATS$ uniformly at random, checking for consistency with the random oracle $\RO_2$ and retroactively programming it when necessary.
+	(Category (A) initiator sessions who do not copy $\ATS$ due to tampering sample only $\ATS$.) 
+	Then, we eliminate the consistency check and let these sessions' handshake traffic keys and session key be uniformly random and inconsistent with the adversary's queries to $\RO_2$. 
+	We argue that the adversary can only detect this inconsistency if it queries $\RO_2$ on the correct input to derive one of $\SHTS$, $\CHTS$, or $\ATS$ for a category~(A) session, an event we refer to as event~$F$. 
+	
+	We give a reduction $\advB_2$ to the strong DH assumption in group~$\group$ which wins with high probability if event $F$ occurs. 
+	Given a challenge $C,D$, algorithm $\advB_2$ simulates Game $7$. It embeds $C$ in the DH shares of all initiators and $D$ in the DH shares of all category~(A) responders. 
+	Because $\advB_2$ cannot compute the DH secret for embedded sessions, it uses its $\stDH$ oracle to catch and program all queries to $\RO_2$ which are dependent on this secret. When event~$F$ occurs, $\advB_2$ uses its own randomness to extract the challenge DH secret from the DH secret contained in the query that triggered event~$F$. 
+	In addition to the details covered in Section~\ref{sec:tls-proof}, the reduction has a few nuances:
+	\begin{enumerate}
+		\item If for some category~(A) session, $\advA$ can guess without making the corresponding query any of the intermediate values $\HS = \RO_1(\constant[1],\DHE)$, $\dHS = \RO_2(\HS,\inputlabel[3],\Hash(``"))$, or $\MS = \RO_1(\dHS,0)$, where $\DHE$ is the DH secret associated to some pair of embedded shares $(\X,\Y)$ chosen by honest sessions, then it can trigger event $F$ without ever submitting $\DHE$ to an oracle.
+		Without knowing $\DHE$, $\advB_2$ cannot detect this query, so it does not program $\RO_2$ appropriately and the simulation fails.
+		$\advB_2$ does not itself compute $\HS$, $\dHS$, or $\MS$ for category~(A) sessions, so if $\advA$ does not make the appropriate queries than all three values are uniformly random and each can be guessed with probability at most~$\frac{\qRO \cdot \qSend}{2^{\kl}}$.  
+		
+		\item In TLS~1.3, the context string including the Diffie--Hellman shares is hashed with $\Hash$ before it enters the key derivation, so $\advB_2$ cannot directly associate an $\RO_2$ query with an honest~$\sid$.
+		We address this by logging hash computations of honest sessions in a reverse look-up table~$R$.
+		Then in the $\RO_2$ oracle, $\advB_2$ can use $R$ to efficiently find the context associated with a particular query.
+		
+	\end{enumerate}
+	When $\qRO \cdot \qSend \leq 2^{\kl - 3}$, we obtain the bound
+	$\Pr[\prevGm*\Rightarrow 1 ] - \Pr[\curGm*\Rightarrow 1] \leq 2\cdot \Adv^{\strongDH}_{\group}(t_{\advB_2},\qRO) +\frac{\qRO \cdot \qSend}{2^{\kl}}$.
+	
+	The reduction $\advB_2$ queries the $\stDH$ oracle at most once for each query to $\RO_2$ query and once more when event $F$ occurs.
+	Computing the input to each $\stDH$ query requires 1 multiplication and one exponentiation in the base group, which can be done using $1+2\log_2 p$ total group operations. In our runtime analysis, we count each group operation as $1$ step, so $t_{\advB_2} \approx t + 2 \qRO\log_2 p$.
+	
+	\proofngame[uniform-keys] 
+	In game $\curGm$, category~(A) sessions sample all encryption and MAC keys uniformly at random. This is distinguishable only if the adversary can query $\RO$ on a string containing one of the random values $\SHTS$ or $\CHTS$, so by the birthday bound
+	$\Pr[\prevGm*\Rightarrow 1 ] - \Pr[\curGm*\Rightarrow 1] \leq \frac{\qRO\cdot \qSend}{2^{\kl}}$.
+	
+	\proofngames[sigs-and-macs]{4}
+	In the remaining games, we eliminate signature and MAC forgeries via straightforward reductions $\advB_3$ and $\advB_4$ to the multi-user EUF-CMA security of $\SIGScheme$ and $\MACScheme$. This gives the bound 
+	$
+	\Pr[\prevGm*\Rightarrow 1 ] - \Pr[\curGm*\Rightarrow 1] \leq
+	\Adv^{\muEUFCMA}_{\SIGScheme}(t_{\advB_3\cab \qNew\cab \qSend\cab \qSend\cab \qRevLongTermKey})
+	+ \Adv^{\muEUFCMA}_{\MACScheme}(t_{\advB_4}\cab \qSend\cab \qSend\cab 1\cab \qSend\cab 1\cab 0).
+	$
+	
+	Finally, we argue that $\advA$ has advantage $0$ in game $\curGm$, using logic similar to that in our $\SIGMAI$ proof, with two slight differences: 1. Partnered sessions no longer use labels to distinguish their MAC tags; instead we note that  messages tagged by initiator sessions are strictly longer than messages tagged by responder sessions. 2. We cannot immediately conclude that partnered sessions agree on the same session key because the session key $\ATS$ relies on values that are not contained in the session identifier. However, since we have excluded MAC forgeries, all the information entering the derivation of $\ATS$ is authenticated by the responder session's MAC tag.
+\end{proof}
+
+\fi
+
+\iffull
+\begin{collectinmacro}{\TLSProofFull}{}{} %%% ===== COLLECT BEGIN =====
+\startproof{TLS}
+We prove our bound by making an incremental series of changes to the key exchange security game and limiting the amount that each change affects the success probability of $\advA$. 
+\newcounter{advB-TLS}
+
+\proofngame[tls-start]
+
+The initial game, Game $\curGm$, is the key exchange security game for TLS played by $\advA$, using the implicit $\KEKGen$, $\KEActivate$, and $\KERun$ routines defined by the TLS protocol specification on the left side of Figure~\ref{fig:tls-protocol}.
+(In this game, $\HKDF.\Extract$ and $\HKDF.\Expand$ are modeled by random oracles $\RO_1$ and $\RO_2$ respectively.)
+By definition, 
+\[\Pr[\curGm\Rightarrow 1] = \Pr[ \Gm^{\KESEC}_{\TLS,\advA} \Rightarrow 1 ].\]
+
+\proofngame[tls-log-nonces]
+
+In game $\prevGm$, we start logging the nonces and group elements chosen by honest sessions. Whenever two honest sessions choose the same nonces or group elements, we set a flag $\bad[C]$. Whenever an honest responder session chooses a nonce and group element that have already been received by another session, we set a flag $\bad[O]$. We also make both random oracles $\RO_1$ and $\RO_2$ lazily sampled using internal tables $H_1$ and $H_2$. These changes only affect the values of the game's internal state, and the view of the adversary remains the same as in $\prevGm$, so 
+\[ \Pr[\curGm\Rightarrow 1] = \Pr[\prevGm \Rightarrow 1]. \]
+
+\proofngame[tls-sid-collisions]
+
+Starting with $\curGm$, we abort whenever two honest sessions sample the same nonce or group element and whenever an honest responder samples a nonce and group element that are already in use. Since this happens only after one of the flags $\bad[C]$ and $\bad[O]$ is set, by the identical-until-bad lemma,
+\[\Pr[\prevGm*\Rightarrow 1] - \Pr[\curGm*\Rightarrow 1] \leq \Pr[\bad[C] \gets \true\text{ or }\bad[O]\gets \true \text{ in }\prevGm].\]
+One nonce and one group element is chosen in each $\RunInitI$ call and each $\RunRespI$ call, so at most one nonce and one group element is chosen for each of the~$\qSend$ queries the adversary makes to its $\Send$ oracle.
+We use the birthday bound to limit the probability of a collision (flag $\bad[C]$) in either the set of honest sessions' nonces or the set of honest sessions' DH shares to $\frac{\qSend^2}{2^{\nl+1}\cdot p}$. Every time a responder session chooses a nonce and group element, there are at most $\qSend$ values have already been chosen, so by the union bound $\bad[O]$ is set with probability at most $\frac{\qSend^2}{2^{\nl}\cdot p}$.  Therefore
+\[
+	\Pr[ \prevGm* \Rightarrow 1] - \Pr[ \curGm* \Rightarrow 1] \leq \frac{3\qSend^2}{2^{\nl+1}\cdot p}.
+\]
+%%%technically the multiplier could be 3/2, not 2. 
+\proofngame[tls-log-sidhashes]
+
+Next, we must ensure that partial transcripts between honest sessions do not collide under the hash function $\Hash$. This is a step unique to the $\TLS$ proof, which hashes all of its context with a collision-resistant hash function before it is input into key-derivation. In $\curGm$, honest sessions will log all of their hash outputs in a look-up table $T$: whenever an honest session computes $d = \Hash(s)$ for some string $s$, it sets $T[d] \gets s$ if $T[d]$ has not already been defined.
+If $T[d]$ is not empty, then some prior honest session has computed $d = \Hash(s')$ for some string $s'$. The session will set a flag $\bad[\Hash]$ if $s' \neq s$, noting that a collision has occurred. We also remove the now superfluous $\bad[C]$ flag. These administrative changes do not affect the view of the adversary, so 
+\[\Pr[\curGm*\Rightarrow 1 ] = \Pr[\prevGm* \Rightarrow 1]. \]
+
+\proofngame[tls-hash-collisions]
+
+\stepcounter{advB-TLS}
+In Game $\curGm$, we abort whenever hashes computed by honest sessions collide (i.e. the $\bad[\Hash]$ flag is set). By the identical-until-bad lemma,
+\[ \Pr[\prevGm \Rightarrow 1] - \Pr[\curGm\Rightarrow 1] \leq \Pr[\bad[\Hash] \gets \true\text{ in }\prevGm].\]
+We bound the probability that $\bad[\Hash]$ is set via a reduction $\curadvB$ to the collision-resistance security of $\Hash$. 
+The reduction simulates $\prevGm$ honestly for the adversary $\advA$. 
+If the flag $\bad[\Hash]$ is set, then the reduction has obtained strings $s$, $s'$, and $d$ such that $s' \neq s$, and $\Hash(s) = \Hash(s') = d$. Then $\curadvB$ outputs $(s,s')$ and wins the collision-resistance game, so $\genAdv{cr}{\Hash}{\curadvB} \geq \Pr[\bad[\Hash] \gets \true\text{ in } \prevGm].$
+The runtime~$t_{\curadvB}$ of $\curadvB$ approximately equals the runtime of $\advA$ in $\prevGm$.
+It follows that 
+\[ \Pr[\prevGm* \Rightarrow 1] - \Pr[\curGm* \Rightarrow 1] \leq \Adv^{\COLL}_{\Hash}(t_{\curadvB}).\]
+
+\proofngame[tls-log-keys]
+
+In Game $\curGm$, we remove the superfluous $\bad[\Hash]$ flag and make additional internal changes to the behavior of honest sessions. 
+As in the \SIGMAI proof, all honest initatior sessions now log the first message they send in a set $\Sent$, and honest responder sessions use this set to check whether their first received message came from an honest session without tampering. If so, we say the responder session has an ``honest origin partner."
+In the \SIGMAI protocol, partnering between honest sessions was sufficient to ensure agreement on the derived master key and all subsequently computed keys, since partners are guaranteed to hold the same nonces and group elements. 
+In TLS~1.3, partnering also ensures agreement on the handshake traffic secrets $\SHTS$ and $\CHTS$, but it does not ensure agreement on the session key $\ATS$. 
+Therefore the responder only logs the handshake traffic keys $\SFK, \CFK, \tkshs,$ and $\tkchs$ in a look-up table $\S$ under its session identifier. 
+In addition to the session identifier, the application traffic secret $\ATS$ depends on the server's identity $\sSCERT$, signature $\sSCERTV$, and MAC tag $\sSFIN$. 
+These values are not necessarily shared by partner sessions in Game $\curGm$, so two partnered sessions may derive different values of $\ATS$.   
+The responder session therefore logs its session key $\ATS$ in a second look-up table $\S'$ indexed by all of the dependencies of the session key: $\sid, \sSCERT,\sSCERTV$, and $\sSFIN$. 
+All of this is just bookkeeping, so 
+\[ \Pr[\curGm*\Rightarrow 1] = \Pr[\prevGm* \Rightarrow1].\]
+
+\proofngame[tls-copy-keys]
+
+Going forward from Game $\curGm$, honest initiators copy their key material from tables $\S$ and $\S'$ if it is consistent for them to do so.
+In the case where the adversary has tampered with the values of $\sSCERT$, $\sSCERTV$, or $\sSFIN$, the partner's session key depends on the untampered values and should not be copied.
+Therefore honest initiators always copy encryption and MAC keys from the table $\S$ if they have an honest partner session, but they only copy $\ATS$ when the $\sSCERT, \sSCERTV$, and $\sSFIN$ messages they received match the ones sent by their partner.
+The initiator session can check whether tampering occurred using the table $\S'$, which will contain a session key $\ATS$ at index $\sid \conc \sSCERT \conc \sSCERTV \conc \sSFIN$ if and only if the honest partner session computed and sent $\sSCERT$, $\sSCERTV$, and $\sSFIN$.
+
+We argue that all copied keys are consistent with the keys that would be derived in $\prevGm$.
+Recall that partnered sessions agree on the nonces and the DH shares $\X$ and $\Y$ as components of $\sid$, so they also agree on the shared DH secret $\Zz$ associated with the pair $(\X,\Y)$. 
+Partnered sessions therefore agree on the handshake secret $\HS$, which is derived from $\Zz$ without context, and on the handshake traffic secrets, which are derived with the session identifier as context.
+Thus partnered sessions agree on the values of the handshake traffic keys $\SFK,\CFK,\tkshs$, and $\tkchs$ which are derived from the handshake traffic secrets. 
+For the adversary it is hence unobservable if honest sessions compute the handshake traffic keys themselves, or copy the keys from their partners.
+By agreeing on the handshake secret $\HS$, partnered sessions will also agree on the master secret $\MS$, which is derived from $\HS$ without context. 
+The if $\sSCERT$, $\sSCERTV$, and $\sSFIN$ are left untampered, both sessions will derive the session key as $\RO_2(\MS, \inputlabel[8],\Hash(\sid \conc \sSCERT \conc \sSCERTV \conc \sSFIN)])$. Hence it is again unobservable whether an honest initiator derives $\ATS$ itself or copies $\ATS$ from an honest partner which agrees on the values of $\sSCERT$, $\sSCERTV,\sSFIN$; consequently
+\[ \Pr[\curGm* \Rightarrow 1] = \Pr[\prevGm* \Rightarrow 1].\]
+
+%\proofngame[tls-log-guessing]
+%While the \SIGMAI protocol uses only one random oracle to derive its master key, the TLS protocol's key schedule uses both $\HKDF.\Extract$ and $\HKDF.\Expand$ multiple times to obtain the final keys. We therefore need to ensure that the adversary $\advA$ is not able to guess intermediate values in the key derivation process without making the corresponding queries to $\RO_1$ and $\RO_2$. To this end, in game $\curGm$ we make random oracle $\RO_2$ log the first input $s$ of each query in a list $W$. Whenever $\RO_1$ or $\RO_2$ samples a response to a new query (including both adversarial queries and queries made by the game), they set a flag $\bad[W]$ if the response was the input to a prior $\RO_2$ query, using the list $W$ to efficiently check the condition. This is again just bookkeeping, so 
+%\[ \Pr[\curGm* \Rightarrow 1] = \Pr[\prevGm* \Rightarrow 1].\]
+
+%\proofngame[tls-no-guessing]
+%We now eliminate the possibility of guessing the intermediate values of key derivation. In Game $\curGm$, the game aborts when an $\RO_1$ or $\RO_2$ would return a value the adversary has already queried to $\RO_2$ (i.e., when the $\bad[W]$ flag is set). By the identical-until bad lemma,
+%\[ \Pr[\prevGm \Rightarrow 1] - \Pr[\curGm\Rightarrow 1] \leq \Pr[\bad[W] \gets \true\text{ in } \prevGm].\]
+%We bound the right-hand side of this equation.  Let $hl_1$ be the output length of $\RO_1$, and let $hl_2$ be the output length of $\RO_2$. Since the responses to random oracle queries are sampled randomly, they are independent of the contents of the list $W$ of prior inputs to $\RO_2$.
+% Each $\RunInit$ or $\RunRespI$ call queries $\RO_2$ on at most $4$ different inputs (these inputs are $\HS, \SHTS, \CHTS$, and $\MS$), so if the adversary makes $\qRO$ total queries to $\RO_1$ and $\RO_2$, and $\qSend$ queries to the $\Send oracle$, then $W$ has at most $\qRO + 4\qSend$ entries. 
+%By the birthday bound and the union bound, the probability that one of the responses from $\RO_1$ or $\RO_2$ collides with an element of $W$ is at most$\bad[R]$ is at most $\frac{(\qRO)(\qRO + 4 \qRO \qSend)}{2^{hl_1}}+ \frac{(\qRO)(\qRO + 4 \qRO \qSend)}{2^{hl_2}}$, hence 
+%\[ \Pr[\prevGm \Rightarrow 1] - \Pr[\curGm\Rightarrow 1] \leq \frac{(\qRO)(\qRO + 4 \qRO \qSend)}{2^{hl_1}}+ \frac{(\qRO)(\qRO + 4 \qRO \qSend)}{2^{hl_2}} .\]
+
+\proofngame[tls-uniform-keys]
+
+In Game $\curGm$, all responders sample $\ATS$, $\SHTS$ and $\CHTS$ randomly (unless their values have already been fixed by queries to random oracle $\RO_2$ on the corresponding input), then retroactively programs random oracle $\RO_2$ by setting its internal table $H_2$ on the appropriate input.
+%They also update the list $W$ to include the inputs $\HS$ and $\MS$. 
+Partnered initiator sessions which have not copied $\ATS$ (i.e., those who received tampered $\sSCERT$, $\sSCERTV$, and $\sSFIN$) also sample $\ATS$ randomly and program $\RO_2$ when necessary.
+We choose to program $\ATS$, $\SHTS$, and $\CHTS$, as opposed to only $\mk$ in the \SIGMAI proof, because these three keys are derived with context. 
+Most importantly, the DH shares $\X$ and $\Y$ indirectly enter the key derivation for these keys, which will be critical for the reduction in the next step.
+This simply moves the lazy sampling process from $\RO_2$ to $\RunRespI$ and $\RunInit$ for certain queries, which is unobservable to the adversary; therefore
+\[ \Pr[\curGm* \Rightarrow 1] = \Pr[\prevGm* \Rightarrow 1]. \]
+
+\proofngame[tls-stop-programming]
+
+The step between $\prevGm$ and $\curGm$ is most technically involved step of this proof, and it is also the most significantly altered from the corresponding step in the proof of \SIGMAI. 
+In $\curGm$, partnered initiators and responder sessions with honest origin partners will stop maintaining the consistency of their keys $\ATS$, $\SHTS$, and $\CHTS$ with the random oracle $\RO_2$. 
+Specifically, responders with honest origin partners sample $\ATS$, $\SHTS$, and $\CHTS$ uniformly at random even if $\RO_2$ has already been queried on the string $\HS,\inputlabel,\sidhash$ for the appropriate label and hash, and they do not retroactively program $\RO_2$. Partnered initiator sessions which have not copied $\ATS$ from their partner also sample $\ATS$ uniformly without checking or programming $\RO_2$. 
+These keys are therefore completely random, and they will be inconsistent with any random oracle queries made before or after the keys are sampled.
+
+In order to detect this inconsistency, the adversary must make a query to $\RO_2$ that would, in $\prevGm$, return one of the unprogrammed keys.
+Which queries are these? 
+They are the queries that an honest responder session with honest origin partner would use to derive $\SHTS$, $\CHTS$, and $\ATS$, and the queries that an honest partnered initiator which received a tampered message would use to derive $\ATS$. 
+Formally, let $\sid = (\nonce, \nonce',\X,\Y)$ be the session ID held by some honest responder session with honest origin partner, and let $\sSCERT$, $\sSCERTV$, $\sSFIN$ be the identity, signature, and MAC tag sent by this session. 
+Let $\DHE$ be the DH secret corresponding to the pair $(\X,\Y)$.
+Then the adversary $\advA$ can detect an inconsistency (in derviations of honest responders) in game $\curGm$ if at any point during the game $\advA$ queries $\RO_2$ on one of the tuples
+\[
+	(\RO_1(\constant[1],\DHE), \inputlabel,\Hash(\sid))
+	\qquad \text{or} \qquad
+	(\MS,\inputlabel[8],\Hash(\sid\conc \sSCERT \conc \sSCERTV \conc \sSFIN)),
+\]
+where $\inputlabel \in \{\inputlabel[1], \inputlabel[2]\}$
+and where for some $\HS$, $\dHS$, we have that $\HS = \RO_1(\constant[1],\DHE)$, that $\dHS = \RO_2(\HS,\inputlabel[3],\Hash(\texttt{""}))$, and that $\MS = \RO_1(\dHS,0)$.
+Otherwise (for derviations of honest initiators), let $\sid$ be the session ID held by an honest partnered initiator session, and let $\sSCERT$, $\sSCERTV$, and $\sSFIN$ be the identity, signature, and MAC tag received by that session.
+For initiator sessions that do not copy~$\ATS$, at least one of these values was not sent by the honest partner.
+Then the adversary $\advA$ can detect an inconsistency in game $\curGm$ if at any point it queries $\RO_2$ on the tuple
+\[
+	(\MS,\inputlabel[8],\Hash(\sid\conc \sSCERT \conc \sSCERTV \conc \sSFIN)),
+\]
+where for some $\HS$, $\dHS$, we have that $\HS = \RO_1(\constant[1],\DHE)$, that $\dHS = \RO_2(\HS\cab \inputlabel[3]\cab \Hash(\texttt{""}))$, and that $\MS = \RO_1(\dHS,0)$.
+Let event $F$ denote the event that the adversary $\advA$ makes at least one of the above queries.
+If event $F$ does not occur, then $\ATS$, $\SHTS$, and $\CHTS$ are chosen uniformly at random in both $\prevGm$ and $\curGm$, hence
+\[\Pr[\prevGm \Rightarrow 1] - \Pr[\curGm]\Rightarrow 1] \leq \Pr[F\text{ occurs in }\prevGm]. \]
+\stepcounter{advB-TLS}%
+We bound the probability of event $F$ via a reduction $\curadvB$ to the strong Diffie--Hellman assumption in group~$\group$.
+The reduction will make no more queries to its $\stDH$ oracle than $\advA$ makes to its $\RO_2$ oracles.
+
+Given its strong DH challenge $(A = g^a, B= g^b)$ and having access to the strong Diffie--Hellman oracle $\stDH_a$, $\curadvB$ simulates $\prevGm$ for an adversary $\advA$ in the following manner: In all honest initiator sessions, $\curadvB$ samples $r$ uniformly at random from $\ZZ_p$ and sets the session's DH share $\X \gets A \cdot g^r$. In all honest responder sessions with honest origin partner, $\curadvB$ samples $r'$ uniformly from $\ZZ_p$ and sets the session's DH share $\Y \gets B \cdot g^{r'}$. Both of these DH shares are still distributed uniformly over $\ZZ_p$ as long as $p$ is prime and $A$ and $B$ are not the identity.  To extract $g^{ab}$ when event $F$ occurs, the reduction $\curadvB$ will follow the same general strategy as the reduction $\advB_1$ in the proof of \SIGMAI, with four major points of divergence. We address these points first, before giving a full description of $\curadvB$.
+\begin{enumerate}
+	\item Since $\curadvB$ no longer knows $x$ or $y$ such that $\X = g^x$ or $\Y=g^y$, it cannot compute the Diffie--Hellman secret $\DHE$ or the derived handshake secret $\HS$, so it samples $\HS$ randomly for honest responder sessions with honest origin partners and for honest partnered initiator sessions. The adversary can only tell that $\HS$ was not correctly computed if it notices that $\SHTS$, $\CHTS$, or $\dHS$ are derived from an incorrect value of $\HS$. 
+	The former two cases require the adversary to make a query that triggers event $F$. In the latter case, $\dHS$ is not revealed to the adversary through any oracle, so the adversary must notice that $\ATS$, which is derived indirectly from $\dHS$ via the master secret, is derived from an incorrect value of $\HS$. This also requires $\advA$ to make a query that triggers event $F$. Therefore, until event $F$ occurs, this change is unobservable to the adversary.
+	\item In the TLS protocol, the context string, including the Diffie--Hellman shares $\X$ and $\Y$, is hashed with $\Hash$ before it enters key derivation, so $\curadvB$ cannot directly associate a query to $\RO_2$ with the honest session(s) whose session ID is being used. The reduction addresses this by having each honest responder with honest origin partner and each honest partnered initiator, log the hash of its context in a reverse look-up table $R$.
+	(The context does not include the handshake or master secrets.)
+	Then in the $\RO_2$ oracle, $\advB_2$ can use $R$ to efficiently check whether the hash $\sidhash$ of a query is used to derive a handshake or application traffic key.
+	\item Due to TLS's complex key schedule, no one random oracle query contains both a pair of Diffie--Hellman shares and the DH secret associated with that pair. Instead, $\curadvB$ will augment the $\RO_1$ and $\RO_2$ oracles to log in a reverse look-up table $T$ the DH secret associated with each of the intermediate values $\HS$, $\dHS$, and $\MS$. The DH secret for $\dHS = \RO_2(\HS,\inputlabel[3],\Hash(\texttt{""}))$ simply be copied from $T[\HS]$, and the DH secret for $\MS = \RO_1(\dHS,0)$ will be copied from $T[\dHS]$. For each query to $\RO_2$ with secret $s$, the reduction can efficiently check using $T$ whether $s$ was derived from some DH secret via $\RO_1$. 
+	\item The TLS key schedule uses multiple random oracle queries (if we model $\HKDF.\Extract$ and $\HKDF.\Expand$ as random oracles) whereas the \SIGMAI protocol uses only one. If $\advA$ can guess the intermediate value $\HS = \RO_1(\constant[1]\cab \DHE)$, where $\DHE$ is the DH secret associated to some pair of embedded shares $(\X,\Y)$ chosen by honest sessions, then it can trigger event $F$ without ever submitting $\DHE$ to an oracle. In this case, $\advA$ can trigger event $F$, but $\curadvB$ cannot win the Strong DH game. However, if $\RO_1(\constant[1],\DHE)$ is never queried, then it is uniformly random, and the probability that $\advA$ guesses correctly is bounded by $\frac{\qRO \cdot \qSend}{2^{\kl}}$ by the birthday bound. 
+\end{enumerate}
+
+To compute the correct handshake and application traffic keys, $\curadvB$ needs to be able to correctly program $\CHTS$, $\SHTS$, and $\ATS$.
+When these keys are chosen by an honest responder with honest origin partner or a partnered initiator, $\curadvB$ uses its strong DH oracle to check whether $\RO_2$ has already received the query that the adversary needs to make to generate these keys. If the query has already been made, $\curadvB$ can look up the DH secret using $T$ and win the game. 
+Otherwise, $\curadvB$ hashes the session's context and logs it in $R$, so that future $\RO_2$ queries can identify this session for retroactive programming.
+It also logs the session's randomness in a look-up table $\Q$, to be used if event $F$ is triggered relative to this session by a future $\RO_2$ query.
+
+Like in the \SIGMAI proof, $\curadvB$ must be able to correctly compute handshake and application traffic keys for unpartnered initiator sessions. Because all initiator sessions have embedded DH shares, $\curadvB$ cannot compute the DH secret $\DHE$ for these sessions. However, it can use its StrongDH oracle to check whether the adversary has queried such a secret and copy the expected keys to preserve consistency in this case. If no query has been made, the keys are selected randomly and the initiator session stores its context, randomness, and keys in $R$.  In future queries to the $\RO_2$ oracle, $\curadvB$ will use $R$ to efficiently check whether a query should output one of the initiator session's keys. If so, it retroactively programs the oracle using the keys from $R$. 
+
+Therefore, if event $F$ occurs, reduction $\curadvB$ wins the strong Diffie--Hellman game except with probability $\frac{\qRO\cdot \qSend}{2^{\kl}}$, resulting in
+$\Adv^{\strongDH}_{\group}(t_{\curadvB},\qRO) \geq (1-\frac{\qRO\cdot \qSend}{2^{\kl}})\cdot \Pr[F]$. 
+Then $\Pr[F] \leq \frac{2^{\kl}}{2^{\kl}-\qRO\cdot \qSend} \cdot \Adv^{\strongDH}_{\group}(t_{\curadvB},\qRO)$. 
+Otherwise, the reduction simulates $\prevGm$ perfectly except with probability $\frac{\qRO \cdot \qSend}{2^{\kl}}$.
+
+\begin{align*}
+\Pr[ \prevGm* \Rightarrow 1 ]
+&= \Pr[ \curGm* \Rightarrow 1] + \Pr[F] + (1-\Pr[F])\cdot \frac{\qRO\cdot \qSend}{2^{\kl}} \\
+&\leq \Pr[ \curGm* \Rightarrow 1] + \frac{2^{\kl}+\qRO\cdot \qSend}{2^{\kl}-\qRO \cdot \qSend} \cdot \Adv^{\strongDH}_{\group}(t_{\curadvB},\qRO)+\frac{\qRO \cdot \qSend}{2^{\kl}} \\
+&\leq \Pr[ \curGm* \Rightarrow 1] + 2 \cdot \Adv^{\strongDH}_{\group}(t_{\curadvB},\qRO)+\frac{\qRO\cdot \qSend}{2^{\kl}},
+\end{align*}
+where the last simplification step assumes that $\qSend \cdot \qRO \leq 2^{\kl-2}$, which is true for any reasonable real-world parameters.
+
+\proofngame[tls-uniform-traffic-keys]
+
+In Game $\curGm$, honest responders with honest origin partners sample $\SFK$, $\CFK$, $\tkchs$ and $\tkshs$ uniformly at random, so these keys are no longer consistent with $\RO_2$. The adversary can distinguish this change if and only if it queries $\RO_2$ on a string $\SHTS,\inputlabel,\Hash(\texttt{""})$, or $\CHTS,\inputlabel,\Hash(\texttt{""})$, where $\inputlabel \in \{\inputlabel[4],\inputlabel[6]\}$, and $\SHTS$ and $\CHTS$ are chosen by an honest responder sessions with honest origin partner. Call this event $E$. In these sessions, $\SHTS$ and $\CHTS$ are chosen uniformly at random by $\prevGm$, and they are never revealed by any oracle. Therefore the probability of event $E$ is at most $\frac{\qRO \cdot \qSend}{2^{\kl}}$ by the birthday bound, hence 
+\[ \Pr[\prevGm] \leq \Pr[\curGm] + \frac{\qRO \cdot \qSend}{2^{\kl}}.\]
+
+Note that this step in the \SIGMAI proof introduced a multi-user PRF security bound due to final keys being derived through a PRF, not the random oracle.
+Modeling $\HKDF.\Expand$ as random oracle~$\RO_2$, we here instead incur a birthday bound under the random oracle instead of a multi-user PRF security bound for~$\HKDF.\Expand$.
+
+\medskip
+
+The remaining game hops are identical to those in the proof of \SIGMAI, so we discuss them only briefly. 
+
+
+\proofngame[tls-signature-bookkeeping]
+
+In Game $\curGm$, we log all messages signed by an honest session in a look-up table $\Q_S$, and we set a flag $\bad[S]$ whenever a partnered session verifies a signature with an uncorrupted public key on a message that was not in $\Q_S$. This is just administrative, so 
+\[\Pr[\curGm*\Rightarrow 1] = \Pr[\prevGm* \Rightarrow 1]. \]
+
+\proofngame[tls-signature-forgery]
+\stepcounter{advB-TLS}
+In Game $\curGm$, we abort if the flag $\bad[S]$ is set. In this case, an honest partnered session received a signature which was not computed by an honest session, and which was verified by an uncorrupted public key. We can give a straightforward reduction $\curadvB$ to the multi-user EUF-CMA security of the signature scheme that wins whenever $\bad[S]$ is set and has runtime approximately equal to that of $\advA$ in $\prevGm*$. By the identical-until-bad lemma,
+\[Pr[\prevGm* \Rightarrow 1] - \Pr[\curGm* \Rightarrow 1] \leq \Adv^{\muEUFCMA}_{\SIGScheme}(t_{\curadvB},\qNewUser,\qSend,\qSend,\qRevLongTermKey).
+\]
+
+Interestingly and in contrast to the \SIGMAI proof, soundness is still not guaranteed after this game hop, because we do not require the signature scheme to be strongly unforgeable. Therefore the adversary may be able to produce a new signature on a message that had been signed by an honest session, allowing it to tamper with $\sSCERTV$ without setting the $\bad[S]$ flag.
+
+\proofngame[tls-mac-bookkeeping]
+
+In Game $\curGm$ we log all messages for which an honest session computed a MAC tag in a look-up table $\Q_{M}$. We remove the $\bad[S]$ flag and instead set a flag $\bad[M]$ if an honest partnered session verifies a MAC on a message that is not in $\Q_{M}$. Again, this is only bookkeeping and does not impact the view of $\advA$, hence
+\[\Pr[\curGm*\Rightarrow 1] = \Pr[\prevGm* \Rightarrow 1]. \]
+
+\proofngame[tls-mac-forgery]
+
+\stepcounter{advB-TLS}
+Finally, in Game $\curGm$, we abort if an honest session with an honest partner verifies a MAC tag on a message which was not tagged by any honest session; i.e if the $\bad[M]$ flag is set. We can give a simple reduction $\curadvB$ to multi-user MAC security. The reduction $\curadvB$ assigns a pair of indices $i,i+1$ to each session identifier held by an honest session with honest origin partner. When an honest session with honest origin partner needs to compute a server MAC tag, $\curadvB$ finds the pair $(i,i+1)$ using the session identifier and calls its $\MACTag$ oracle with user identity $i$. When the session needs a client MAC tag $\curadvB$ calls $\MACTag$ with user identity $i+1$. The reduction calls its $\MACTag$ oracle no more than twice for every query $\advA$ makes to $\Send$ (once to generate a tag, and once to verify a tag).  Since by Game $\lblGm{tls-uniform-traffic-keys}$ all honest sessions with honest origin partners sample their MAC keys $\SFK$ and $\CFK$ uniformly at random, the keys implicitly generated by the MAC security game are consistent with the expected operation of Game $\curGm$. When the flag $\bad[M]$ is set, a partnered session has received a valid tag on a message which was never logged in $\Q_{M}$. The reduction can look up the pair $(i,i+1)$ using the session identifier of whichever session set $\bad[M]$. Since $\curadvB$ logs every message for which it calls its $\MACTag$ oracle, this is a valid forgery for either identity $i$ or identity $i+1$, and $\curadvB$ will win. Then 
+\[ \Pr[\prevGm* \Rightarrow 1] - \Pr[\curGm* \Rightarrow 1] \leq  \Adv^{\muEUFCMA}_{\MACScheme}(t_{\curadvB}, \qSend,\qSend,1, \qSend,1,0). \]
+The runtime of $\curadvB$ is about that of $\advA$ in $\prevGm*$. 
+
+\medskip
+
+We can now finally argue that the advantage of~$\advA$ in~$\curGm$ is zero.
+The adversary $\advA$ would win game $\curGm$ with probability better than $\frac{1}{2}$ in one of three ways:
+\begin{enumerate}
+	\item $\Sound$ is false,
+	\item $\ExplicitAuth$ is false, or
+	\item $\Fresh$ is true and $b' = b$.
+\end{enumerate}
+
+\paragraph{Soundness}
+The flag $\Sound$ is set if (1) three honest sessions hold the same session identifier, or if (2) two partnered sessions accept with different session keys. 
+By Game $\lblGm{tls-sid-collisions}$, each session identifier is held by at most one session of each role. There are only two roles so case (1) never occurs.
+If two partnered sessions $\pi_1$ and $\pi_2$ accept, the initiator session $\pi_1$ verified a MAC tag $\tau$ on the message $m = \nonce\conc \nonce' \conc \X \conc \Y\conc \sSCERT \conc \sSCERTV$. Because $\tau$ was verified by an honsest partnered session, by Game $\lblGm{tls-mac-forgery}$, this message was tagged by an honest session.
+Honest sessions only tag strings including their own nonce, and by Game $\lblGm{tls-sid-collisions}$, the only honest session with nonce $\nonce'$ is $\pi_2$. Then $\pi_2$ must have tagged the message $m$, so $\pi_1$ and $\pi_2$ agree on both $\tau$ and $m$. Since the DH shares $\X$ and $\Y$ are components of $m$, $\pi_1$ and $\pi_2$ also agree on the DH secret $\DHE$ associated with the pair $(\X,\Y)$. Consequently, $\pi_1$ and $\pi_2$ will agree on any value derived deterministically from $m$, $\tau$, and $\DHE$, including the session key $\ATS$. 
+Then the flag $\Sound$ is always true in $\curGm$.
+
+\paragraph{Explicit authentication}
+The flag $\ExplicitAuth$ is set if there exists a session $\pi_u^i$ that accepts with uncorrupted peer identity $v$, and either (1) no honest session $\pi_v^j$ is partnered with $\pi_u^i$, or (2) a session $\pi_v^j$ is partnered with $\pi_u^i$ but accepts with peer identity $w \neq u$. 
+To have accepted with peer identity $v$, the session $\pi_u^i$ must have received and verified a signature $\sigma$ using the public key of identity $v$ on a message $m$ containing the session identifier of $\pi_u^i$. As $v$ was uncorrupted at the time that $\pi_u^i$ accepted, by Game $\lblGm{tls-signature-forgery}$, the message $m$ must have been signed by some honest session $\pi_v^j$. As honest sessions only sign messages containing their own session identifiers, $\pi_v^j.\sid = \pi_u^i.\sid$, so $\pi_v^j$ and $\pi_u^i$ are partnered.
+If case (2) occurs, $\pi_v^j$ must have accepted a MAC tag $\tau$ on message $m'$ containing its session ID and the identity $w$ of its peer. We know that $\pi_v^j$ is a partnered session, so by $\lblGm{tls-mac-forgery}$, $m'$ was tagged by some honest session. Honest sessions tag only messages containing their own session identifiers, so by $\lblGm{tls-sid-collisions}$, the message $m'$ must have been tagged by either $\pi_u^i$ or $\pi_v^j$. In \SIGMAI, the messages tagged by these two sessions are differentiated by there labels. Here, they are differentiated by their length: one role signs a message including values $\sSFIN$, $\sCCERT$, and $\sCCERTV$, while the other signs a message which does not contain these values. For this reason $\pi_v^j$ will not verify the tag on a message it signed itself. Therefore $m'$ must have been tagged by $\pi_u^i$, so $m'$ contains the identity $u$. This contradicts the assumption that $w \neq u$, so case (2) never occurs, and the flag $\ExplicitAuth$ is always false in~$\curGm$.
+
+\paragraph{Guessing the challenge bit}
+Now the adversary can only win with advantage better than zero is by guessing the correct value of $b$ when the $\Fresh$ flag is set to true. 
+This requirement ensures that all tested sessions accepted with uncorrupted peer identities.
+Since $\ExplicitAuth$ is true, each tested session must therefore have an honest session with which it is partnered, and by $\Sound$, this session holds the same session key.
+Then by $\lblGm{tls-copy-keys}$, each tested initiator session copies the session key of its partner.
+By $\lblGm{tls-stop-programming}$ each tested responder session, and each responder session partnered with a tested initiator session chooses its session key uniformly at random.
+By $\Fresh$, the partners of tested sessions were not tested or revealed. 
+Then the session keys of all tested sessions are sampled uniformly and never revealed to the adversary by any oracle. Therefore the key returned by each $\Test$ query is uniformly random and independent of the bit $b$.
+The adversary's view is independent of the bit $b$, so it will win $\curGm$ with probability $\frac{1}{2}$, and consequently its advantage is $0$.
+
+\medskip
+
+Collecting the bounds across all game hops gives the theorem statement.
+\end{collectinmacro}
+
+\iffull
+\begin{proof}
+\TLSProofFull
+\end{proof}
+\else
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% TLS Proof short version for lncs / non-full
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Due to space restrictions, we only give a high-level summary of the proof here, with a particular focus on those points where the proof differs from that for \SIGMAI (in Section~\ref{sec:sigma-proof}) due to aspects unique to TLS~1.3.
+The full proof can be found in Appendix~\ref{apx:tls-proof-full}.
+
+\begin{proof}[Proof summary]
+\let\proofsep\medskip %% tighter spacing in here
+
+\startproof{TLS-short}
+
+Similar to the \SIGMAI proof, we will develop the bound via a series of incrementally changing code-based games. 
+
+
+\proofngame[initial-game]
+
+The first game $\curGm$ is the key exchange security game (cf.\ Figure~\ref{fig:AKE-security}) for the TLS~1.3 handshake protocol (Figure~\ref{fig:tls-protocol}).
+Similar to~\SIGMAI (cf.\ Figure~\ref{fig:sigma-formal}), we capture the two protocol steps for each role in formal algorithms~$\KEActivate$, $\RunRespI$, $\RunInit$, and $\RunRespII$.
+% We briefly define the formal algorithms $\KEActivate$, $\RunRespI$, $\RunInit$, and $\RunRespII$ (following the formal algorithm structure of \SIGMAI from Figure~\ref{fig:sigma-formal}) as follows.
+% Let $\KEActivate$ include all of the client computation up to its first sent message, and $\RunInit$ cover the rest of the client's actions.
+% Let the $\RunRespI$ algorithm perform all of the server's computation up to the generation of its second message,
+% and let the $\RunRespII$ algorithm include all of the server's remaining computation.
+% After acceptance, servers set their peer id to that contained in~$\CCERT$, clients set their peer identity to that in~$\SCERT$, and all sessions set their session key $\skey \gets \ATS$.
+% With these definitions in place,
+This way,
+$\Pr[\curGm*\Rightarrow 1] = \Pr[ \Gm^{\KESEC}_{\TLS,\advA} \Rightarrow 1 ]$.
+
+
+\proofngames[collisions]{4}
+
+Over the next four games we start to abort if any collisions arise among the nonces, Diffie--Hellman shares, or context hashes computed by honest sessions. We also abort if any responder session chooses a nonce and group element that have already been received by another session. We use the general strategy of logging all values of interest, then setting a bad flag and aborting if we compute a value that has already been logged. We limit the probability of nonce and DH share collisions using the birthday bound, and give a simple reduction $\advB_1$ to the collision resistance of the hash function~$\Hash$. We also lazily sample the random oracles $\RO_1$ and $\RO_2$ using internal tables $H_1$ and $H_2$.
+Excluding collisions, we obtain the bound
+$\Pr[\prevGm*\Rightarrow 1] - \Pr[\curGm\Rightarrow 1] \leq \frac{3\qSend^2}{2^{\nl+1}\cdot p}% sid collisions
++ \Adv^{\COLL}_{\Hash}(t_1)$.
+
+
+\proofngames[copy-keys]{2}
+
+As in the \SIGMAI proof, we will let partnered initiator sessions copy key material from their honest partners via a table indexed by their session identifiers.
+In TLS~1.3, there are two encryption keys $\tkshs$ and $\tkchs$, and two MAC keys $\SFK$ and $\CFK$ to copy. One significant difference from the \SIGMAI proof is that the session key $\ATS$ now depends on the messages $\sSCERT$, $\sSCERTV$, and $\sSFIN$. We have not ensured that partnered sessions agree on these values. Therefore honest initiators will only copy $\ATS$ from their partners if they received the exact same $(\sSCERT\cab \sSCERTV\cab \sSFIN)$ sent by their partner. In particular, equality is checked for the unencrypted values via an internal look-up table. 
+Since keys are only copied when partners agree on all of the information entering the key derivation function, this change is unobservable to~$\advA$, hence
+$\Pr[\curGm*\Rightarrow 1] = \Pr[\prevGm*\Rightarrow 1]$.
+
+
+\proofngames[programming]{2}
+
+These two games contain both the most critical step and the one that diverges the most from the proof for~\SIGMAI.
+Let a responder session with honest origin partner be one whose first message was sent by an honest initiator session. 
+First, we let all responder sessions with honest origin partners pick the handshake traffic keys $\SHTS$ and $\CHTS$, and the session key $\ATS$ uniformly at random, checking for consistency with the random oracle $\RO_2$ and retroactively programming it when necessary. 
+Partnered initiator sessions who cannot copy their session key $\ATS$ due to tampering with their partner's second server messages $(\sSCERT\cab \sSCERTV\cab \sSFIN)$ will also pick $\ATS$ at random, ensuring consistency with~$\RO_2$.
+Then, these sessions eliminate the consistency check and let their handshake traffic keys and session key be uniformly random and inconsistent with the adversary's queries to $\RO_2$. 
+We argue that the adversary can only detect this inconsistency if it queries $\RO_2$ on the correct input to derive one of $\SHTS$, $\CHTS$, or $\ATS$ for an honest session with an honest origin partner, an event we refer to as event $F$. 
+
+As in the \SIGMAI proof, we give a reduction $\advB_2$ to the strong DH assumption in group~$\group$ which wins with high probability if event $F$ occurs. 
+This reduction follows roughly the same strategy: it embeds its challenges in the DH shares of all initiators and all responders with honest origin partners. 
+Because $\advB_2$ cannot compute the DH secret for embedded sessions, it uses its $\stDH$ oracle to catch and program all queries to $\RO_2$ which are dependent on this secret. When event~$F$ occurs, $\advB_2$ uses its own randomness to extract the challenge DH secret from the DH secret contained in the query that triggered event $F$.
+However, compared to the \SIGMAI proof, $\advB_2$'s strategy is customized for the TLS protocol in a few significant ways: 
+\begin{enumerate}
+	\item The TLS key schedule uses multiple random oracles where $\SIGMAI$ uses only one.
+	If $\advA$ can guess the intermediate value $\HS = \RO_1(\constant[1],\DHE)$, where $\DHE$ is the DH secret associated to some pair of embedded shares $(\X,\Y)$ chosen by honest sessions, then it can trigger event $F$ without ever submitting $\DHE$ to an oracle.
+	In this case, $\advA$ triggers event $F$, but $\advB_2$ can neither win the Strong DH game nor simulate $\prevGm$ correctly.
+	However, if $\RO_1(\constant[1],\DHE)$ is never queried it remains uniformly random, and by the birthday bound $\advA$ succeeds at guessing $\HS$ with probability at most~$\frac{\qRO \cdot \qSend}{2^{\kl}}$. 
+
+	\item In the TLS protocol, the context string including the Diffie--Hellman shares is hashed with $\Hash$ before it enters the key derivation, so $\advB_2$ cannot directly associate a query to $\RO_2$ with an honest~$\sid$.
+	We address this by logging hash computations of honest sessions in a reverse look-up table~$R$.
+	Then in the $\RO_2$ oracle, $\advB_2$ can use $R$ to efficiently find the context associated with a particular query.
+	
+	\item Due to TLS's complex key schedule, no one random oracle query contains both a pair of Diffie--Hellman shares and the DH secret associated with that pair. Instead, $\advB_1$ must link queries to $\RO_1$, which contain the DH secret with queries to $\RO_2$, which contain the context. It does this by augmenting the $\RO_1$ and $\RO_2$ oracles.
+	When each of the intermediate values $\HS$, $\dHS$, and $\MS$ is derived, the associated DH secret is logged in a reverse look-up table $T$.
+% 	The handshake $\HS$ is derived directly from the DH secret;
+% 	$\dHS$ and $\MS$ copy the DH secret associated with $\HS$ when they are derived.
+	This allows~$\advB_2$ efficient look-ups to check association of DH secrets and context through its strong DH oracle.
+	
+\end{enumerate}
+When $\qRO \cdot \qSend \leq 2^{\kl - 2}$, we obtain the bound
+$\Pr[\prevGm*\Rightarrow 1 ] - \Pr[\curGm*\Rightarrow 1] \leq 2 \cdot \Adv^{\strongDH}_{\group}(t_{\advB_2},\qRO) +\frac{\qRO \cdot \qSend}{2^{\kl}}$.
+
+Similar to $\advB_1$ in the proof of $\SIGMA$, $\advB_2$ queries the $\stDH$ oracle at most once for each entry in $H'$. Although one call to $\RunInit$ or $\RunRespI$ may cause up to three $\stDH$ queries, each of these queries will have a unique label and a unique entry in $H'$.
+Computing the input to each $\stDH$ query requires 1 multiplication and one exponentiation in the base group, which can be done using $1+2\log_2 p$ total group operations. In our runtime analysis, we count each group operation as $1$ step, so $t_{\advB_2} \approx t + 2 \qRO\log_2 p$.
+
+\proofngame[uniform-keys] 
+In game $\curGm$, sessions with honest origin partners sample all encryption and MAC keys uniformly at random. This is distinguishable only if the adversary can query $\RO$ on a string containing one of the random values $\SHTS$ or $\CHTS$, so by the birthday bound
+$\Pr[\prevGm*\Rightarrow 1 ] - \Pr[\curGm*\Rightarrow 1] \leq \frac{\qRO\cdot \qSend}{2^{\kl}}$.
+
+\proofngames[sigs-and-macs]{4}
+In the remaining games, we eliminate signature and MAC forgeries via reductions $\advB_3$ and $\advB_4$ to the multi-user EUF-CMA security of $\SIGScheme$ and $\MACScheme$, precisely as we did in the proof of $\SIGMAI$. This gives the bound 
+$
+	\Pr[\prevGm*\Rightarrow 1 ] - \Pr[\curGm*\Rightarrow 1] \leq
+		\Adv^{\muEUFCMA}_{\SIGScheme}(t_{\advB_3\cab \qNew\cab \qSend\cab \qSend\cab \qRevLongTermKey})
+		+ \Adv^{\muEUFCMA}_{\MACScheme}(t_{\advB_4}\cab \qSend\cab \qSend\cab 1\cab \qSend\cab 1\cab 0).
+$
+
+Finally, we argue that $\advA$ has advantage $0$ in game $\curGm$ using similar logic to the proof of $\SIGMAI$, with two substantive differences. 
+First, we must make a slightly more involved argument about soundness because the session key $\ATS$ relies on values that are not contained in the session identifier. 
+For $\curGm$, two partnered sessions must still hold the same session key because the information $\sid\conc\sSCERT\conc\sSCERTV\conc\sSFIN$ is authenticated by the responder session's MAC tag. 
+Second, MAC tags are no longer labeled by role. However, messages tagged by initiator sessions are strictly longer than messages tagged by responder sessions, so we can still differentiate the two easily. 
+\end{proof}
+
+\fi
+\fi

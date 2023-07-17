@@ -1,0 +1,173 @@
+\section{The TLS 1.3 Handshake Protocol}
+\label{sec:tls}
+
+The Transport Layer Security (TLS) protocol in version~1.3~\cite{rfc8446} bases its key exchange design (the so-called handshake protocol) on a variant of \SIGMAI.
+Following the core \SIGMA design, the TLS~1.3 main handshake is an ephemeral Diffie--Hellman key exchange, authenticated through a combination of signing and MAC-ing the (full, hashed) communication transcript.%
+\footnote{TLS~1.3 also specifies an abbreviated resumption-style handshake based on pre-shared keys; we focus on the main DH-based handshake in this work.}
+Additionally, and similar to~\SIGMAI, beyond establishing the main (application traffic) session key, handshake traffic keys are derived and used to encrypt part of the handshake.
+
+Beyond additional protocol features like negotiating the cryptographic algorithms to be used, communicating further information in extensions, etc.---which we do not capture here---, TLS~1.3 however deviates in two core cryptographic aspects from the more simplistic and abstract SIGMA(-I) design:
+it hashes the communication transcript when deriving keys and computing signatures and MACs,
+and it uses a significantly more complicated key schedule.
+In this section we revisit the TLS~1.3 handshake and discuss the careful technical changes and additional assumptions needed to translate our tight security results for \SIGMAI to TLS~1.3's main key exchange mode.
+
+
+\iffull
+\subsection{Protocol Description}
+\else
+\subsubsection*{Protocol description\lncsdot}
+\fi
+
+We focus on a slightly simplified version of the handshake encompassing all essential cryptographic aspects for our tightness results.
+% Due to the substantial complexity of the TLS~1.3 handshake, we focus here on a slightly simplified version of the protocol which encompasses all essential cryptographic aspects but abstracts away further technical protocol details that are not relevant for our analysis.
+In particular, we only consider mutual authentication and security of the main application traffic keys%
+\fullonly{ (see \cite{CCS:DFGS15,EPRINT:DFGS16,EuroSP:FisGue17,JC:DFGS21} for full computational, multi-stage key exchange analyses of the different modes with varying authentication)} and accordingly leave out some computations and additional messages.
+\fullonly{To ease linking back to the underlying \SIGMAI structure, we describe the protocol in the following referencing back to the latter (cf.\ Section~\ref{sec:sigma}).}
+We illustrate the handshake protocol and its accompanying key schedule in Figure~\ref{fig:tls-protocol}, the latter deriving keys in the extract-then-expand paradigm of the HKDF key derivation function~\cite{C:Krawczyk10}.%
+\footnote{%
+\fullonly{We follow the standard HKDF syntax: }%
+$\HKDF.\Extract(\textit{XTS}\cab \textit{SKM})$ on input salt~$\textit{XTS}$ and source key material~$\textit{SKM}$ outputs a pseudorandom key~$\textit{PRK}$.
+$\HKDF.\Expand(\textit{PRK}\cab \textit{CTXinfo})$ on input a pseudorandom key~$\textit{PRK}$ and context information~$\textit{CTXinfo}$ outputs pseudorandom key material~$\textit{KM}$.}
+
+\begin{figure}[t!]
+	\centering
+	
+	\input{sigma-thesis/fig-tls-protocol.tex}
+	\hspace{-0.5cm}
+	\input{sigma-thesis/fig-tls-keyschedule.tex}
+	
+	%
+	% Legend
+	%
+	\begin{minipage}{0.95\textwidth}
+	\vspace{0.25cm}%
+	\scriptsize%
+	\begin{tabular}{lllll}
+		\multicolumn{2}{l}{\textbf{Protocol flow legend}}
+			&~~~& \multicolumn{2}{l}{\textbf{Message Abbreviations}} \\
+		{\TLSmsg{$\mathtt{MSG}$}:~$Z$}	& message $\mathtt{MSG}$ sent, containing $Z$
+			&& \TLSmsg{$\sCHELO$}	& \TLSmsg{$\CHELO$} \\
+		$\{\TLSmsg{\mathtt{MSG}}\}_K$	& message AEAD-encrypted with~$K = \tkshs / \tkchs$
+			&& \TLSmsg{$\sSHELO$}	& \TLSmsg{$\SHELO$} \\
+			&&& \TLSmsg{$\sCCERT/\sSCERT$}~	& \TLSmsg{$\mathtt{Client/}\mSCERT$} \\
+			&&& \TLSmsg{$\sCCERTV/\sSCERTV$}	& \TLSmsg{$\mathtt{Client/}\mSCERTV$} \\
+			&&& \TLSmsg{$\sCFIN/\sSFIN$}	& \TLSmsg{$\mathtt{Client/}\SFIN$} \\
+	\end{tabular}
+% 	\begin{tabular}{ll}
+% 		\TLSmsg{+~$\mathtt{MSG}$}	& message sent as extension within previous message \\
+% 		\TLSmsg{$\mathtt{MSG}^*$}	& message only sent for intended client authentication \\
+% 	\end{tabular}
+	\end{minipage}
+	
+	\caption{%
+		The simplified TLS~1.3 main Diffie--Hellman handshake protocol (left) and key schedule (right).
+		Values~$\inputlabel[i]$ and~$\constant[i]$ indicate bitstring labels, resp.\ constant values, (distinct per~$i$).
+		Boxes $\sExtract$ and $\sExpand$ denote $\HKDF$ extraction resp.\ expansion, dashed inputs to~$\sExpand$ indicating context information (see protocol figure for detailed computations).
+	}
+	\label{fig:tls-protocol}
+\end{figure}
+
+In the TLS~1.3 handshake, the client acts as initiator and the server as responder.
+Within $\HELO$ messages, both send nonce values~$\nonce_C$ resp.\ $\nonce_S$ together with ephemeral Diffie--Hellman shares~$g^x$ resp.\ $g^y$.
+Based on these values, both parties extract a handshake secret~$\HS$ from the shared DH value~$\DHE = g^{xy}$ using $\HKDF.\Extract$ with a constant salt input.%
+\fullelse{\footnote{This salt input becomes relevant for pre-shared key handshakes, but in the full handshake takes the constant value~$\constant[1] = \Expand(\Extract(0,0), \texttt{"derived"}, \Hash(\texttt{""}))$.}}{ }
+In a second step, client and server derive their respective handshake traffic keys~$\tkchs$, $\tkshs$ and MAC keys~$\CFK$, $\SFK$ through two levels of $\HKDF.\Expand$ steps from the handshake secret~$\HS$, including in the first level distinct labels and the hashed communication transcript~$\Hash(\sCHELO \conc \sSHELO)$ so far as context information.
+
+The handshake traffic keys are then used to encrypt the remaining handshake messages.
+First the server, then the client send their certificate (carrying their identity and public key), a signature over the hashed transcript up to including their certificate\fullonly{ ($\Hash(\sCHELO \conc \dots \conc \sSCERT)$, resp.\ $\Hash(\sCHELO \conc \dots \conc \sCCERT)$)}, as well as a MAC over the (hashed) transcript up to incl.\ their signatures\fullonly{ ($\Hash(\sCHELO \conc \dots \conc \sSCERTV)$, resp.\ $\Hash(\sCHELO \conc \dots \conc \sCCERTV)$)}.
+Note the similarity to \SIGMAI here:
+each party signs both nonces and DH values (within $\sCHELO \conc \sSHELO$, modulo transcript hashing) together with a unique label,
+and then MACs both nonces and their own identity (the latter being part of their certificate).%
+\fullelse{\footnote{Instead of using distinct labels for the client and server MAC computations, TLS~1.3 employs distinct MAC keys for client and server, achieving separation between the two MAC values this way.}}{ }
+The application traffic secret~$\ATS$---which we treat as the session key~$\skey$, unifying secrets of both client and server---is then derived from the master secret~$\MS$ through $\HKDF.\Expand$ with handshake context up to the $\SFIN$ message.
+The master secret in turn is derived through (context-less) $\Expand$ and $\Extract$ from the handshake secret~$\HS$.
+
+
+\iffull
+\subsection{Handling the TLS~1.3 Key Schedule}
+\else
+\subsubsection*{Handling the TLS~1.3 key schedule\lncsdot}
+\fi
+
+\iffull
+As mentioned before, the message flow of the TLS~1.3 handshake relatively closely follows the \SIGMAI design~\cite{C:Krawczyk03,SIGMA-fullversion} (cf.\ Figure~\ref{fig:sigma-protocol}):
+after exchanging nonces and DH shares (in $\HELO$) from both sides, the remaining (encrypted) messages carry identities ($\CERT$), signatures over the nonces and DH shares ($\CERTV$), and MACs over the nonces and identities ($\FIN$).
+
+What crucially differentiates the TLS~1.3 handshake from the basic \SIGMAI design (beyond putting more under the respective signatures and MACs, which does not negatively affect the key exchange security we are after) is the way keys are derived.
+While \SIGMAI immediately derives a master key through a random oracle with input \emph{both} the shared DH secret \emph{and} the session identifying nonces and DH shares,
+TLS~1.3 separates them in its HKDF-based extract-then-expand key schedule:
+The core secrets---handshake secret ($\HS$) and master secret ($\MS$)---are derived without further context purely from the shared DH secret~$\DHE = g^{xy}$ (beyond other constant inputs).
+Only when deriving the specific-purpose secrets---handshake traffic keys ($\tkchs$, $\tkshs$), MAC keys ($\CFK$, $\SFK$), and session key ($\ATS$)---is context added to the key derivation, including in particular the nonces and DH shares identifying the session.
+To complicate matters even further, this context is hashed before entering key derivation (or signature and MAC computation), and the final session key~$\ATS$ depends on more messages than just the session-identifying ones.
+Since our tighter security proof for the SIGMA(-I) protocol (cf.\ Section~\ref{sec:sigma-proof}) heavily makes use of (exactly) the session identifiers being input together with DH secrets to a random oracle when programming the latter,
+the question arises how to treat the TLS~1.3 key schedule when aiming at a similar proof strategy.
+
+In their concurrent work, Diemert and Jager~\cite{JC:DieJag20} satisfy this requirement by modeling the full derivation of each stage key in their multi-stage treatment as a separate random oracle.
+This directly connects inputs to keys, but results in a monolithic random oracle treatment of the key schedule which loses the independence of the intermediate $\HKDF.\Extract$ and $\HKDF.\Expand$ steps in translation.
+
+We overcome the technical obstacle of this linking while staying closer to the structure of TLS~1.3's key schedule.
+First of all, we directly model both $\HKDF.\Extract$ and $\HKDF.\Expand$ as individual (programmable) random oracles,
+which leads to a slightly less excessive use of the random oracle technique.
+We then have to carefully orchestrate the programming of intermediate secrets and session keys in a two-level approach,
+connecting them through constant-time look-ups,
+and taking into account that inputs to deriving the session keys depend on values established through the intermediate secrets (namely, the server's $\FIN$ MAC).
+Along the way, we separately ensure that we recognize any hashed inputs of interest that the adversary might query to the random oracle, without modeling the hash function~$\Hash$ as a random oracle itself.
+By tracking intermediate programming points (especially $\HS$ and~$\MS$) in the random oracles, we recover the needed capability of linking sessions and their session identifiers and DH shares exchanged to the corresponding session keys.
+This finally allows us to again (efficiently) determine when and on what input to query the strong Diffie--Hellman oracle when programming challenge DH shares into the TLS~1.3 key exchange execution during the proof.
+
+\else
+
+What crucially differentiates the TLS~1.3 handshake from the basic \SIGMAI design is the way keys are derived.
+While \SIGMAI derives its master key through a random oracle with input \emph{both} the shared DH secret \emph{and} the session identifying nonces and DH shares,
+TLS~1.3 separates them in its HKDF-based extract-then-expand key schedule:
+The core $\HS$ and $\MS$ secrets are derived \emph{without} further context purely from the shared DH secret~$\DHE = g^{xy}$.
+Only when deriving the specific-purpose secrets---handshake traffic keys, MAC keys, and the session key~$\ATS$---are the nonces and DH shares add as session-identifying context.
+To complicate matters even further, this context is hashed and the final session key~$\ATS$ depends on more messages than just the session-identifying ones.
+Recall that the original techniques by Cohn-Gordon et al.~\cite{C:CCGJJ19} heavily relies on (exactly) the session identifiers being input together with DH secrets to a random oracle when programming the latter,
+impeding a more direct application like for \SIGMAI.
+In their concurrent work, Diemert and Jager~\cite{JC:DieJag20} satisfy this requirement by modeling the full derivation of each stage key in their multi-stage treatment as a separate random oracle.
+This directly connects inputs to keys, but results in a monolithic random oracle treatment of the key schedule which loses the independence of the intermediate $\HKDF.\Extract$ and $\HKDF.\Expand$ steps in translation.
+As we will show next, we overcome the technical obstacle of this linking while directly modeling $\HKDF.\Extract$ and $\HKDF.\Expand$ as individual random oracles,
+carefully orchestrating the programming of intermediate secrets and session keys and connecting them through constant-time look-ups.
+This leads to a slightly less excessive use of the random oracle technique and allows us to stay much closer to the structure of TLS~1.3's key schedule.
+
+\fi
+
+
+% \hrulefill
+%
+%\subsection*{\color{Red}Problems with the TLS key schedule compared to SIGMA}
+%
+%\begin{itemize}
+%	\item Proof strategy needs $(n_C, n_S, g^x, g^y, g^{xy})$ in the RO query to (efficiently!) do StrongDH look-ups.
+%	\item In TLS, we have $HS \gets Extract(0, g^{xy})$ which doesn't allow for this; the handshake transcript (ClientHello+ServerHello), which include $(n_C, g^x)$ resp.\ $(n_S, g^y)$ only enter key derivations in Expand calls.
+%	\item This captures the derivation of $tk_{hs}$ ($k_e$ in \SIGMAI notation) and the MAC keys ($k_t$ in SIGMA), but not the expansion of~$dHS$ towards the master secret is \emph{without} transcript.
+%	\item However, the final session key $tk_{app}$ ($k_s$ in SIGMA) will be derived from $MS$ \emph{with} transcript.
+%\end{itemize}
+%
+%
+%\subsection*{\color{Red}Updated proof Idea}
+%
+%\begin{itemize}
+%	\item We will have two random oracles:
+%	\begin{enumerate}
+%		\item $RO_1 = \Extract$ will map $\DHE$ values to $\HS$ (and later derived $\dHS$ to $\MS$), we keep (two) tables mapping $\HS$ and $\MS$ values back to~$\DHE$ ($Q1[\HS] = \DHE$, resp.\ $Q2[\MS] = \DHE$), so that we know which $\DHE$ inputs to $\Expand$ originated from.
+%		
+%		\item $RO_2 = \Expand$ will capture expansion from $\HS$ and $\MS$. Here is where context information ($g^x, g^y$ through $\CHELO$, $\SHELO$ message inputs) enters the key derivation.
+%	\end{enumerate}
+%	
+%	\item Comparing with SIGMA, we treat HS as the master key. While this is not derived from sid, we can figure out what sid it belongs to because immediately afterwards it is used within Expand together with the sid.
+%	
+%% 	\item $MS \gets Extract(dHS, 0)$ is computed regularly from $dHS = RO_1(Z, ...)$ (and we immediately do this when a $dHS$ call in $RO_1$ happens), but we will store the intermediary mapping of values $Z$ to $MS$ as $Q[MS] = Z$. (Read as: $MS$ was derived from $Z$ in $RO_1$.)
+%	
+%	\item Note: $\Hash$ is \emph{not} a random oracle (but just collision resistant). In order to map hash inputs to $RO_2$ back to the session identifiers, we keep tables mapping all hashed transcripts, $H_i = \Hash(\sCHELO \conc \dots)$, of sessions to their inputs (or at least to the nonces and $g^x, g^y$), so we know when some $H_i$ is used for which we need to lookup the DH share inputs, and the sid it corresponds to.
+%	
+%	\item When the adversary calls $RO_2(X,  l)$ for some $l$ containing (the hash of) $g^x, g^y$, we can detect if we've seen $X$ (as key to $Q1$/$Q2$) being derived before, and then can call our StrongDH oracle on $(g^x, g^y, Q[X])$.
+%	
+%	\item Adversary asking~$RO_2$ on some $X$ that results from an encoded challenge \emph{before} the challenge is encoded---bound by probability of $|RO_1|$, but also: isn't it still fine if we detect this later and call our StrongDH oracle then? \fg{Probably not, later detecting means an adversary might have been able to detect this already?}
+%	
+%	\item Probability that $X$ of any $RO_2$ is later hit by a $RO_1$ output should be birthday-bounded by \#queries to $RO_1$ squared / $|RO_1|$.
+%\end{itemize}
+%
+%
+%

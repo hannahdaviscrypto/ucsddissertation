@@ -1,0 +1,498 @@
+\section*{Game code for the indiff proof}
+\begin{figure}[tp]
+	\begin{minipage}[t]{0.48\textwidth}
+		\NewExperiment[Game $\Gm_0$]
+		
+		\begin{algorithm}{$\Initialize()$}
+			\item $b \gets 0$
+			%\item $\hh \getsr \SSp$
+			\item $\HH \getsr \ESp$
+			\item $\state \getsr \emptystring$
+		\end{algorithm}
+		\ExptSepSpace
+		\begin{algorithm}{$\PubO(i,\Y)$}
+			\item $(z,\state) \gets \simulator[\HH] (i,\Y,\state)$
+			\item return $z$
+		\end{algorithm}
+		\ExptSepSpace
+		\begin{algorithm}{$\PrivO(i,\X)$}
+			\item return $\HH(i,\X)$
+		\end{algorithm}	
+		\ExptSepSpace
+		\begin{algorithm}{$\Finalize(b')$}
+			\item return $b'$
+		\end{algorithm}
+			\ExptSepSpace
+			\begin{oracle}{$\simulator(i, \Y,\state)$}
+				\item $T, M \gets \state$
+				\item if $M_{i}[\Y] \neq \bot$
+				\item \quad then return $M_{i}[\Y]$
+				\item $y \gets \simulator_{i}[\HH](\Y, T)$
+				\item $M_{i}[\Y] \gets y$
+				\item return $y$
+			\end{oracle}
+		\ExptSepSpace
+			\begin{oracle}{$\simulator_{\HKDFExtr}(\Y, T)$}
+				\item $y \getsr \KEkeyspace$
+				\item $(i, d) \gets \Y$
+				\item if $i = 0$ then 
+				\item \quad $T_{0}[y] \gets d$
+				\item else if $d = 0$ then 
+				\item \quad $T_{1}[y] \gets i$
+				\item $T_{2}[y] \gets (i,d)$
+				\item return $y$
+			\end{oracle}
+		\end{minipage}
+		\begin{minipage}[t]{0.49\textwidth}
+			\ExptSepSpace
+			\begin{oracle}{$\simulator_{\HKDFExpnd}[\HH](\Y, T)$}
+				\item $y \getsr \KEkeyspace$
+				\item $(i, d, \ell) \gets \Y$
+				\item if $\ell \in \{\labelExtBinder, \labelDerived\}$ and $d = \hash(\emptymessage)$
+				\item \quad then $T_{3}[(\ell,y)] \gets i$
+				\item if $\ell \in \{\labelClientHTS, \labelServerHTS\}$
+				\item \quad then $T_{4}[y] \gets (\ell, i, d)$
+				\item	
+				\item if $\ell \in \{\labelETS, \labelEEMS\}$ and $T_{0}[i] \neq \bot$
+				\item \quad then $y \gets \HH(\mathcal{L}(\ell,\emptystring),(T_{0}[i], d))$
+				\item
+				\item if $\ell \in \{ \labelClientATS, \labelServerATS,\labelEMS, \labelRMS \}$
+				\item \quad $(\dhe, \des) \gets T_2[T_3[(\labelDerived, T_1[i])]]$
+				\item \quad $\psk \gets T_0[T_3[(\labelExtBinder, \des)]]$
+				\item \quad if $\psk\neq \bot$
+				\item \quad \quad then $y \gets \HH(\mathcal{L} (\ell,\emptystring),(\psk, \dhe, d))$ 
+				\item
+				\item if $\ell = \labelFinished$ and $d = \emptymessage$ 
+				\item \quad $\psk \gets T_0[T_3[(\labelExtBinder), i]]\neq \bot$
+				\item \quad if $\psk \neq \bot$ 
+				\item \quad \quad then $y \gets \HH(\bk,(\psk))$
+				\item 
+				\item if $\ell \in \{\labelFinished, \labelk, \labeliv \}$
+				\item \quad $(\ell', \hs, \hash_2) \gets T_4[i]$
+				\item \quad $(\des, \dhe) \gets T_2[\hs]$
+				\item \quad $\psk \gets T_0[T_3[(\labelDerived, \des)]]$
+				\item \quad if $\psk \neq \bot$ and $\mathcal{L}(\ell', d) \neq \bot$ then
+				\item \quad \quad $y \gets \HH(\mathcal{L} (\ell', d),(\psk, \dhe,\hash_2))$
+				\item return $y$
+			\end{oracle}
+		\end{minipage}
+		\label{fig:gm0-ks-indiff}
+		\caption{Indiff game instantiated with simulator $\simulator$, also Game $\Gm_0$ in the proof of Lemma~\ref{th-ks-indiff}.}
+	\end{figure}
+
+\begin{figure}[tp]
+	\begin{minipage}[t]{0.48\textwidth}
+		\NewExperiment[Games $\Gm_1$, \fbox{$\Gm_2$}]
+		
+		\begin{algorithm}{$\Initialize()$}
+			\item $b \gets 0$
+			\item $\HH \getsr \ESp$
+			\item $\state \getsr \emptystring$
+		\end{algorithm}
+		\ExptSepSpace
+		\begin{algorithm}{$\Finalize(b')$}
+			\item \gamechange{\fbox{if $\bad_C$ then return $0$}}
+			\item return $b'$
+		\end{algorithm}
+		\ExptSepSpace			
+		\begin{oracle}{$\simulator(i, \Y,\state)$}
+			\item $T, M, \gamechange{L} \gets \state$
+			\item if $M_{i}[\Y] \neq \bot$
+			\item \quad then return $M_{i}[\Y]$
+			\item $y \gets \simulator_{i}[\HH](\Y, T,\gamechange{L})$
+			\item $M_{i}[\Y]\gets y$
+			\item return $y$
+		\end{oracle}
+		\ExptSepSpace	
+			\begin{oracle}{$\simulator_{\HKDFExtr}(\Y, T, \gamechange{L})$}
+				\item $y \getsr \KEkeyspace$
+				\item \gamechange{if $y \in L$ then $\bad_C \gets \true$}
+				\item \gamechange{if $\exists t \in L$ such that $y \in t$} \item \quad \gamechange{$\bad_C \gets \true$}
+				\item \gamechange{$ L \gets L \cup \{y, \Y\}$}
+				\item $(i, d) \gets \Y$
+				\item if $i = 0$ then 
+				\item \quad $T_{0}[y] \gets d$
+				\item else if $d = 0$ then 
+				\item \quad $T_{1}[y] \gets i$
+				\item $T_{2}[y] \gets (i,d)$
+				\item return $y$
+			\end{oracle}
+		\end{minipage}
+		\begin{minipage}[t]{0.49\textwidth}
+			\ExptSepSpace
+			\begin{oracle}{$\simulator_{\HKDFExpnd}[\PrivO](\Y, T, \gamechange{L})$}
+				\item $y \getsr \KEkeyspace$
+				\item \gamechange{if $y \in L$ then $\bad_C \gets \true$}
+				\item \gamechange{if $\exists t \in L$ such that $y \in t$} 
+				\item \quad \gamechange{$\bad_C \gets \true$}
+				\item \gamechange{$ L \gets L \cup \{y, \Y\}$}
+				\item $(i, d, \ell) \gets \Y$
+				\item if $\ell \in \{\labelExtBinder, \labelDerived\}$ and $d = \hash(\emptymessage)$
+				\item \quad then $T_{3}[(\ell,y)] \gets i$
+				\item if $\ell \in \{\labelClientHTS, \labelServerHTS\}$
+				\item \quad then $T_{4}[y] \gets (\ell, i, d)$
+				\item	
+				\item if $\ell \in \{\labelETS, \labelEEMS\}$ and $T_{0}[i] \neq \bot$
+				\item \quad then $y \gets \HH(\mathcal{L}(\ell,\emptystring),(T_{0}[i], d))$
+			\item
+			\item if $\ell \in \{ \labelClientATS, \labelServerATS,\labelEMS, \labelRMS \}$
+			\item \quad $(\dhe, \des) \gets T_2[T_3[(\labelDerived, T_1[i])]]$
+			\item \quad $\psk \gets T_0[T_3[(\labelExtBinder, \des)]]$
+			\item \quad if $\psk\neq \bot$
+			\item \quad \quad then $y \gets \HH(\mathcal{L} (\ell,\emptystring), (\psk, \dhe, d))$ 
+			\item
+			\item if $\ell = \labelFinished$ and $d = \emptymessage$ 
+			\item \quad $\psk \gets T_0[T_3[(\labelExtBinder), i]]$
+			\item \quad if $\psk \neq \bot$ 
+			\item \quad \quad then $y \gets \HH(\bk,\psk)$
+			\item 
+			\item if $\ell \in \{\labelFinished, \labelk, \labeliv \}$
+			\item \quad $(\ell', \hs, \hash_2) \gets T_4[i]$
+			\item \quad $(\des, \dhe) \gets T_2[\hs]$
+			\item \quad $\psk \gets T_0[T_3[(\labelDerived, \des)]]$
+			\item \quad if $\psk \neq \bot$ and $\mathcal{L}(\ell', d) \neq \bot$ then
+			\item \quad \quad $y \gets \HH(\mathcal{L} (\ell', d), (\psk, \dhe,\hash_2))$
+			\item return $y$
+		\end{oracle}
+	\end{minipage}
+	\label{fig:gm12-ks-indiff}
+	\caption{ Games $\Gm_1$ and $\Gm_2$ in the proof of Lemma~\ref{th-ks-indiff}. Boxed code is only in $\Gm_2$}
+\end{figure}
+
+\begin{figure}[tp]
+	\begin{minipage}[t]{0.48\textwidth}
+		\NewExperiment[Game $\Gm_4$]
+	
+		\begin{algorithm}{$\PubO(i,\Y)$}
+			\item $(z,\state) \gets \simulator[\HH] (i,\Y,\state)$
+			\item \gamechange{$\state' \gets (T', M', L)$}
+			\item \gamechange{$\simulator[\HH](i, \Y, \state')$}
+			\item return $z$
+		\end{algorithm}			
+	\end{minipage}
+	\begin{minipage}[t]{0.49\textwidth}
+		\ExptSepSpace
+	\begin{algorithm}{$\PrivO(i,\X)$}
+	\item \gamechange{$\state' \gets (T', M', L)$}
+	\item \gamechange{$\construct{C}[\simulator(\cdot, \cdot, \state')](i, \X)$}
+	\item return $\HH(i,\X)$
+\end{algorithm}	
+\ExptSepSpace
+\end{minipage}
+\label{fig:gm4-ks-indiff}
+\caption{ Game $\Gm_4$ in the proof of Lemma~\ref{th-ks-indiff}.}
+\end{figure}
+
+
+\begin{figure}[tp]
+	\begin{minipage}[t]{0.48\textwidth}
+		\NewExperiment[Games $\Gm_5$ and $\Gm_6$]
+	
+	\begin{algorithm}{$\PubO(i,\Y)$}
+		\item $(z, \state) \gets \simulator[\HH] (i,\Y, \gamechange{(T, M, L, T')})$
+		\item $\state' \gets (T', M', L)$
+		\item $(z', state') \gets\simulator[\HH](i, \Y, \state')$
+		\item return $z$
+	\end{algorithm}
+	\ExptSepSpace
+	\begin{algorithm}{$\Finalize(b')$}
+		\item if $\bad_C$ then return $0$
+		\item \gamechange{if $\bad_O$ then return $0$}
+		\item return $b'$
+	\end{algorithm}
+	\ExptSepSpace			
+	\begin{oracle}{$\simulator(i, \Y,\state)$}
+		\item $T, M, L, \gamechange{T'} \gets \state$
+		\item if $M_{i}[\Y] \neq \bot$
+		\item \quad then return $M_{i}[\Y]$
+		\item $y \gets \simulator_{i}[\HH](\Y, T,L, \gamechange{T'})$
+		\item $M_{i}[\Y]\gets y$
+		\item return $y$
+	\end{oracle}
+\end{minipage}
+\begin{minipage}[t]{0.49\textwidth}
+	\ExptSepSpace
+	\begin{oracle}{$\simulator_{\HKDFExpnd}[\HH](\Y, T, L, \gamechange{T'})$}
+		\item $y \gets \hh(\HKDFExpnd\concat\Y)$
+		\item $(i, d, \ell) \gets \Y$
+		\item if $\ell \in \{\labelExtBinder, \labelDerived\}$ and $d = \hash(\emptymessage)$
+		\item \quad then $T_{3}[(\ell,y)] \gets i$
+		\item if $\ell \in \{\labelClientHTS, \labelServerHTS\}$
+		\item \quad then $T_{4}[y] \gets (\ell, i, d)$
+		\item	
+		\item if $\ell \in \{\labelETS, \labelEEMS\}$ and $T_{0}[i] \neq \bot$
+		\item \quad $y \gets \HH(\mathcal{L}(\ell,\emptystring),(T_{0}[i], d))$
+		\item \gamechange{else if $\ell \in \{\labelETS, \labelEEMS\}$ and $T'_{0}[i] \neq \bot$}
+		\item \quad \gamechange{$\bad_O \gets \true$}
+		\item \quad \gamechange{\fbox{$y \gets\HH(\mathcal{L}(\ell,\emptystring),(T'_{0}[i], d))$ }}
+	\item
+	\item if $\ell \in \{ \labelClientATS, \labelServerATS,\labelEMS, \labelRMS \}$
+	\item \quad $(\dhe, \des) \gets T_2[T_3[(\labelDerived, T_1[i])]]$
+	\item \quad \gamechange{$(\dhe', \des') \gets T'_2[T'_3[(\labelDerived, T'_1[i])]]$}
+	\item \quad $\psk \gets T_0[T_3[(\labelExtBinder, \des)]]$
+	\item \quad \gamechange{$\psk' \gets T'_0[T_3[(\labelExtBinder, \des')]]$ }
+	\item \quad if $\psk\neq \bot$
+	\item \quad \quad $y \gets \HH(\mathcal{L} (\ell,\emptystring),(\psk, \dhe, d))$ 
+	\item \quad \gamechange{else if $\psk' \neq \bot$}
+	\item \quad \quad \gamechange{$\bad_O \gets \true$}
+	\item \quad \quad \gamechange{\fbox{$y \gets \HH(\mathcal{L}(\ell, \emptystring), (\psk', \dhe', d))$}}
+	\item
+	\item if $\ell = \labelFinished$ and $d = \emptymessage$ 
+	\item \quad $\psk \gets T_0[T_3[(\labelExtBinder, i)]]$
+	\item \quad \gamechange{$\psk' \gets T'_0[T'_3[(\labelExtBinder, i)]]$}
+	\item \quad if $\psk \neq \bot$ 
+	\item \quad \quad $y \gets \HH(\bk, \psk)$
+	\item \quad \gamechange{else if $\psk' \neq \bot$}
+	\item \quad \quad \gamechange{then $\bad_O \gets \true$}
+	\item \quad \quad \gamechange{\fbox{$y \gets \HH(\bk, \psk')$}}
+	\item 
+	\item if $\ell \in \{\labelFinished, \labelk, \labeliv \}$
+	\item \quad $(\ell, \hs, \hash_2) \gets T_4[i]$
+	\item \quad \gamechange{$(\ell', \hs', \hash'_2) \gets T'_4[i]$}
+	\item \quad $(\des, \dhe) \gets T_2[\hs]$
+	\item \quad \gamechange{$(\des', \dhe') \gets T'_2[\hs']$}
+	\item \quad $\psk \gets T_0[T_3[(\labelDerived, \des)]]$
+	\item \quad \gamechange{$\psk' \gets T'_0[T'_3[(\labelDerived, \des')]]$}
+	\item \quad if $\psk \neq \bot$ and $\mathcal{L}(\ell, d) \neq \bot$ 
+	\item \quad \quad $y \gets \HH(\mathcal{L} (\ell, d), (\psk, \dhe,\hash_2))$
+	\item \quad \gamechange{else if $\psk' \neq \bot$ and $\mathcal{L}(\ell', d) \neq \bot$}
+	\item \quad \quad \gamechange{$\bad_O \gets \true$}
+	\item \quad \quad \gamechange{\fbox{$y \gets \HH(\mathcal{L} (\ell', d), (\psk', \dhe',\hash_2))$}}
+	\item if $y \in L$ then $\bad_C \gets \true$
+	\item if $\exists t \in L$ such that $y \in t$
+	\item \quad $\bad_C \gets \true$
+	\item $ L \gets L \cup \{y, \Y\}$
+	\item return $y$
+\end{oracle}
+\end{minipage}
+\label{fig:gm56-ks-indiff}
+\caption{ Games $\Gm_5$ and $\Gm_6$ in the proof of Lemma~\ref{th-ks-indiff}.}
+\end{figure}
+\begin{figure}[tp]
+	\begin{minipage}[t]{0.48\textwidth}
+		\NewExperiment[Game $\Gm_7$]
+		
+		\begin{algorithm}{$\PubO(i,\Y)$}
+		\item $(z, \state) \gets \simulator[\HH] (i,\Y, (T, M, L, T'))$
+		\item $\state' \gets (T', M', L)$
+		\item $(z', state') \gets\simulator[\HH](i, \Y, \state')$
+		\item return $z$
+	\end{algorithm}
+\end{minipage}
+	\begin{minipage}[t]{0.49\textwidth}
+		\ExptSepSpace
+		\begin{oracle}{$\simulator_{\HKDFExpnd}[\HH](\Y, T, L, \gamechange{T'})$}
+			\item $y \gets \hh(\HKDFExpnd\concat\Y)$
+			\item $(i, d, \ell) \gets \Y$
+			\item if $\ell \in \{\labelExtBinder, \labelDerived\}$ and $d = \hash(\emptymessage)$
+			\item \quad then $T_{3}[(\ell,y)] \gets i$
+			\item if $\ell \in \{\labelClientHTS, \labelServerHTS\}$
+			\item \quad then $T_{4}[y] \gets (\ell, i, d)$
+			\item	
+			\item if $\ell \in \{\labelETS, \labelEEMS\}$ and \gamechange{$T'_{0}[i] \neq \bot$}
+			\item \quad $y \gets \HH(\mathcal{L}(\ell,\emptystring),(T'_{0}[i], d))$
+			\item \quad \gamechange{if $T_{0}[i] = \bot$}
+			\item \quad \quad \gamechange{$\bad_O \gets \true$}
+			\item
+			\item if $\ell \in \{ \labelClientATS, \labelServerATS,\labelEMS, \labelRMS \}$
+			\item \quad $(\dhe, \des) \gets T_2[T_3[(\labelDerived, T_1[i])]]$
+			\item \quad $(\dhe', \des') \gets T'_2[T'_3[(\labelDerived, T'_1[i])]]$
+			\item \quad $\psk \gets T_0[T_3[(\labelExtBinder, \des)]]$
+			\item \quad $\psk' \gets T'_0[T_3[(\labelExtBinder, \des')]]$
+			\item \quad \gamechange{if $\psk' \neq \bot$}
+			\item \quad \quad $y \gets \HH(\mathcal{L} (\ell,\emptystring),(\psk', \dhe', d))$ 
+			\item \quad \quad \gamechange{if $\psk = \bot$}
+			\item \quad \quad \quad \gamechange{$\bad_O \gets \true$}
+			\item
+			\item if $\ell = \labelFinished$ and $d = \emptymessage$ 
+			\item \quad $\psk \gets T_0[T_3[(\labelExtBinder, i)]]$
+			\item \quad $\psk' \gets T'_0[T'_3[(\labelExtBinder, i)]]$
+			\item \quad if $\psk' \neq \bot$ 
+			\item \quad \quad $y \gets \HH(\bk, \psk')$
+			\item \quad \quad \gamechange{if $\psk' =\bot$}
+			\item \quad \quad \quad \gamechange{$\bad_O \gets \true$}
+			\item 
+			\item if $\ell \in \{\labelFinished, \labelk, \labeliv \}$
+			\item \quad $(\ell, \hs, \hash_2) \gets T_4[i]$
+			\item \quad $(\ell', \hs', \hash'_2) \gets T'_4[i]$
+			\item \quad $(\des, \dhe) \gets T_2[\hs]$
+			\item \quad $(\des', \dhe') \gets T'_2[\hs']$
+			\item \quad $\psk \gets T_0[T_3[(\labelDerived, \des)]]$
+			\item \quad $\psk' \gets T'_0[T'_3[(\labelDerived, \des')]]$
+			\item \quad if $\psk' \neq \bot$ and $\mathcal{L}(\ell', d) \neq \bot$ 
+			\item \quad \quad $y \gets \HH(\mathcal{L} (\ell', d), (\psk', \dhe',\hash'_2))$
+			\item \quad \quad \gamechange{if $\psk = \bot$ or $\mathcal{L}(\ell, d) =\bot$}
+			\item \quad \quad \quad \gamechange{$\bad_O \gets \true$}
+			\item if $y \in L$ then $\bad_C \gets \true$
+			\item if $\exists t \in L$ such that $y \in t$
+			\item \quad $\bad_C \gets \true$
+			\item $ L \gets L \cup \{y, \Y\}$
+			\item return $y$
+		\end{oracle}
+	\end{minipage}
+	\label{fig:gm7-ks-indiff}
+	\caption{ Game $\Gm_7$ in the proof of Lemma~\ref{th-ks-indiff}.}
+\end{figure}
+\begin{figure}[tp]
+	\begin{minipage}[t]{0.48\textwidth}
+		\NewExperiment[Game $\Gm_7$]
+		
+		\begin{algorithm}{$\Initialize()$}
+			\item $b \gets 0$
+			\item $\HH \getsr \ESp$
+			\item $\state, state' \getsr \emptystring$
+		\end{algorithm}
+		\ExptSepSpace
+		\begin{oracle}{$\simulator_{\HKDFExtr}(\Y, T, \gamechange{L})$}
+			\item \gamechange{$y \getsr \KEkeyspace$}
+			\item if $y \in L$ then $\bad_C \gets \true$
+			\item if $\exists t \in L$ such that $y \in t$
+			\item \quad $\bad_C \gets \true$
+			\item $ L \gets L \cup \{y, \Y\}$
+			\item $(i, d) \gets \Y$
+			\item if $i = 0$ then 
+			\item \quad $T_{0}[y] \gets d$
+			\item else if $d = 0$ then 
+			\item \quad $T_{1}[y] \gets i$
+			\item $T_{2}[y] \gets (i,d)$
+			\item return $y$
+		\end{oracle}
+	\end{minipage}
+	\begin{minipage}[t]{0.49\textwidth}
+		\ExptSepSpace
+		\begin{oracle}{$\simulator_{\HKDFExpnd}[\HH](\Y, T, L, T')$}
+			\item \gamechange{$y \getsr \KEkeyspace$}
+			\item $(i, d, \ell) \gets \Y$
+			\item if $\ell \in \{\labelExtBinder, \labelDerived\}$ and $d = \hash(\emptymessage)$
+			\item \quad then $T_{3}[(\ell,y)] \gets i$
+			\item if $\ell \in \{\labelClientHTS, \labelServerHTS\}$
+			\item \quad then $T_{4}[y] \gets (\ell, i, d)$
+			\item	
+			\item if $\ell \in \{\labelETS, \labelEEMS\}$ and $T'_{0}[i] \neq \bot$
+			\item \quad $y \gets \HH(\mathcal{L}(\ell,\emptystring),(T'_{0}[i], d))$
+			\item \quad if $T_{0}[i] = \bot$
+			\item \quad \quad $\bad_O \gets \true$
+			\item
+			\item if $\ell \in \{ \labelClientATS, \labelServerATS,\labelEMS, \labelRMS \}$
+			\item \quad $(\dhe, \des) \gets T_2[T_3[(\labelDerived, T_1[i])]]$
+			\item \quad $(\dhe', \des') \gets T'_2[T'_3[(\labelDerived, T'_1[i])]]$
+			\item \quad $\psk \gets T_0[T_3[(\labelExtBinder, \des)]]$
+			\item \quad $\psk' \gets T'_0[T_3[(\labelExtBinder, \des')]]$
+			\item \quad if $\psk' \neq \bot$
+			\item \quad \quad $y \gets \HH(\mathcal{L} (\ell,\emptystring),(\psk', \dhe', d))$ 
+			\item \quad \quad if $\psk = \bot$
+			\item \quad \quad \quad $\bad_O \gets \true$
+			\item
+			\item if $\ell = \labelFinished$ and $d = \emptymessage$ 
+			\item \quad $\psk \gets T_0[T_3[(\labelExtBinder, i)]]$
+			\item \quad $\psk' \gets T'_0[T'_3[(\labelExtBinder, i)]]$
+			\item \quad if $\psk' \neq \bot$ 
+			\item \quad \quad $y \gets \HH(\bk, \psk')$
+			\item \quad \quad if $\psk' =\bot$
+			\item \quad \quad \quad $\bad_O \gets \true$
+			\item 
+			\item if $\ell \in \{\labelFinished, \labelk, \labeliv \}$
+			\item \quad $(\ell, \hs, \hash_2) \gets T_4[i]$
+			\item \quad $(\ell', \hs', \hash'_2) \gets T'_4[i]$
+			\item \quad $(\des, \dhe) \gets T_2[\hs]$
+			\item \quad $(\des', \dhe') \gets T'_2[\hs']$
+			\item \quad $\psk \gets T_0[T_3[(\labelDerived, \des)]]$
+			\item \quad $\psk' \gets T'_0[T'_3[(\labelDerived, \des')]]$
+			\item \quad if $\psk' \neq \bot$ and $\mathcal{L}(\ell', d) \neq \bot$ 
+			\item \quad \quad $y \gets \HH(\mathcal{L} (\ell', d), (\psk', \dhe',\hash'_2))$
+			\item \quad \quad if $\psk = \bot$ or $\mathcal{L}(\ell, d) =\bot$
+			\item \quad \quad \quad $\bad_O \gets \true$
+			\item if $y \in L$ then $\bad_C \gets \true$
+			\item if $\exists t \in L$ such that $y \in t$
+			\item \quad $\bad_C \gets \true$
+			\item $ L \gets L \cup \{y, \Y\}$
+			\item return $y$
+		\end{oracle}
+	\end{minipage}
+	\label{fig:gm8-ks-indiff}
+	\caption{ Game $\Gm_8$ in the proof of Lemma~\ref{th-ks-indiff}.}
+\end{figure}
+\begin{figure}[tp]
+	\begin{minipage}[t]{0.48\textwidth}
+		\NewExperiment[Game $\Gm_9$, $\Gm_{10}$, $\Gm_{11}$]
+		
+		\begin{algorithm}{$\PrivO(i,\X)$}
+			\item $\state' \gets (T', M', L)$
+			\item $(x, \state') \gets \construct{C}[\simulator[\HH](\cdot, \cdot, \state')](i, \X)$
+			\item \gamechange{return $x$}
+		\end{algorithm}	
+		\ExptSepSpace
+		\begin{oracle}{$\Finalize(b')$ \comment{$\Gm_{11}$ only}}
+			\item return $b'$
+		\end{oracle}
+	\end{minipage}
+	
+	\begin{minipage}[t]{0.49\textwidth}
+	\ExptSepSpace
+	\begin{oracle}{$\simulator_{\HKDFExpnd}(\Y, T, L, T')$}
+	\item $y \getsr \KEkeyspace$
+	\item $(i, d, \ell) \gets \Y$
+	\item if $\ell \in \{\labelExtBinder, \labelDerived\}$ and $d = \hash(\emptymessage)$
+	\item \quad then $T_{3}[(\ell,y)] \gets i$
+	\item if $\ell \in \{\labelClientHTS, \labelServerHTS\}$
+	\item \quad then $T_{4}[y] \gets (\ell, i, d)$
+	\item	
+	\item if $\ell \in \{\labelETS, \labelEEMS\}$ and $T'_{0}[i] \neq \bot$
+	\item \quad \gamechange{ and $T_{0}[i] = \bot$}
+	\item \quad \quad $\bad_O \gets \true$
+	\item
+	\item if $\ell \in \{ \labelClientATS, \labelServerATS,\labelEMS, \labelRMS \}$
+	\item \quad $(\dhe, \des) \gets T_2[T_3[(\labelDerived, T_1[i])]]$
+	\item \quad $(\dhe', \des') \gets T'_2[T'_3[(\labelDerived, T'_1[i])]]$
+	\item \quad $\psk \gets T_0[T_3[(\labelExtBinder, \des)]]$
+	\item \quad $\psk' \gets T'_0[T_3[(\labelExtBinder, \des')]]$
+	\item \quad if $\psk' \neq \bot$ \gamechange{ and $\psk = \bot$}
+	\item \quad \quad \quad $\bad_O \gets \true$
+	\item
+	\item if $\ell = \labelFinished$ and $d = \emptymessage$ 
+	\item \quad $\psk \gets T_0[T_3[(\labelExtBinder, i)]]$
+	\item \quad $\psk' \gets T'_0[T'_3[(\labelExtBinder, i)]]$
+	\item \quad if $\psk' \neq \bot$ \gamechange{ and $\psk' =\bot$}
+	\item \quad \quad \quad $\bad_O \gets \true$
+	\item 
+	\item if $\ell \in \{\labelFinished, \labelk, \labeliv \}$
+	\item \quad $(\ell, \hs, \hash_2) \gets T_4[i]$
+	\item \quad $(\ell', \hs', \hash'_2) \gets T'_4[i]$
+	\item \quad $(\des, \dhe) \gets T_2[\hs]$
+	\item \quad $(\des', \dhe') \gets T'_2[\hs']$
+	\item \quad $\psk \gets T_0[T_3[(\labelDerived, \des)]]$
+	\item \quad $\psk' \gets T'_0[T'_3[(\labelDerived, \des')]]$
+	\item \quad if $\psk' \neq \bot$ and $\mathcal{L}(\ell', d) \neq \bot$
+	\item \quad \quad if $\psk = \bot$ or $\mathcal{L}(\ell, d) =\bot$
+	\item \quad \quad \quad $\bad_O \gets \true$
+	\item if $y \in L$ then $\bad_C \gets \true$
+	\item if $\exists t \in L$ such that $y \in t$
+	\item \quad $\bad_C \gets \true$
+	\item $ L \gets L \cup \{y, \Y\}$
+	\item return $y$
+	\end{oracle}
+	\end{minipage}
+	\label{fig:gm910-ks-indiff}
+	\caption{ Games $\Gm_9$, $\Gm_{10}$, and $\Gm_{11}$ in the proof of Lemma~\ref{th-ks-indiff}.}
+\end{figure}
+\begin{figure}[tp]
+	\begin{minipage}[t]{0.48\textwidth}
+		\NewExperiment[Game $\Gm_{12}$]
+		
+		\ExptSepSpace
+			\begin{oracle}{$\simulator_{\HKDFExtr}(\Y)$}
+			\item $y \getsr \KEkeyspace$
+			\item return $y$
+		\end{oracle}
+	\end{minipage}
+	
+	\begin{minipage}[t]{0.49\textwidth}
+		\ExptSepSpace
+		\begin{oracle}{$\simulator_{\HKDFExpnd}(\Y, T, L, T')$}
+			\item $y \getsr \KEkeyspace$
+			\item return $y$
+		\end{oracle}
+\end{minipage}
+\label{fig:gm12-ks-indiff}
+\caption{Game $\Gm_{12}$ in the proof of Lemma~\ref{th-ks-indiff}.}
+\end{figure}

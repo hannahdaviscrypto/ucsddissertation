@@ -1,0 +1,144 @@
+\section{Key-Schedule Indifferentiability}\label{sec:ks-indiff}
+
+In this section we will argue that the key schedule of TLS~1.3 PSK modes, where the underlying cryptographic hash function is modeled as a random oracle (i.e., the left-hand side of Figure~\ref{fig:tls-handshake} with the underlying hash function modeled as a random oracle), is \emph{indifferentiable}~\cite{TCC:MauRenHol04} from a key schedule that uses \emph{independent} random oracles for each step of the key derivation (i.e., the right-hand side of Figure~\ref{fig:tls-handshake} with all $\TLSKDF_x$ functions modeled as independent random oracles).
+%Previous analyses of TLS~1.3 \cite{ACNS:DavGun21,JC:DieJag21} simply assumed that one can view the individual steps of the key derivation as 
+%
+We stress that this step not only makes our main security proof in Section~\ref{sec:ke-proof} significantly simpler and cleaner, but also it puts the entire protocol security analysis on a firmer theoretical ground than previous works.
+For some background on the indifferentiability framework, see
+	Section~\ref{app:indiff-background}.
+
+In their proof of tight security, Diemert and Jager~\cite{JC:DieJag21} previously modeled the TLS~1.3 key schedule as four independent random oracles.
+Davis and Günther~\cite{ACNS:DavGun21} concurrently modeled the functions $\HKDFExtr$ and $\HKDFExpnd$ used by the key schedule as two independent random oracles. 
+Neither work provided formal justification for their modeling. 
+Most importantly, both neglected potential dependencies between the use of the hash function in multiple contexts in the key schedule and elsewhere in the protocol. 
+In particular, no construction of $\HKDFExtr$ and $\HKDFExpnd$ as independent ROs from one hash function could be indifferentiable, because $\HKDFExtr$ and $\HKDFExpnd$ both call $\HMAC$ directly on their inputs, with $\HKDFExpnd$ only adding a counter byte. 
+Hence, the two functions are inextricably correlated by definition. 
+We do not claim that the analyses of \cite{JC:DieJag21,ACNS:DavGun21} are incorrect or invalid, but merely point out that their modeling of independent random oracles is currently not justified and might not be formally reachable if one only wants to treat the hash function itself as a random oracle.
+%
+This is undesirable because the gap between an instantiated protocol and its abstraction in the random oracle model can camouflage serious attacks, as Bellare et al.~\cite{EC:BelDavGun20} found for the NIST PQC KEMs. 
+Their attacks exploited dependencies between functions that were also modeled as independent random oracles but instantiated with a single hash function.
+
+In contrast, in this section we will show that our modeling of the TLS~1.3 key schedule is indifferentiable from the key schedule when the underlying cryptographic hash function is modeled as a random oracle. 
+To this end, we will require that inputs to the hash function do not appear in multiple contexts. 
+For instance, a protocol transcript might collide with a Diffie--Hellman group element or an internal key (i.e., both might be represented by exactly the same bit string, but in different contexts). 
+For most parameter settings, we can rule out such collisions by exploiting serendipitous formatting, but for one choice of parameters (the PSK-only handshake using \SHA{384} as hash function), an adversary could conceivably force this type of collision to occur; see 
+	Appendix~\ref{app:domsep}
+for a detailed discussion.
+While this does not lead to any known attack on the handshake, it precludes our indifferentiability approach for that case.
+
+\paragraph{Insights for the design of cryptographic protocols.}
+One interesting insight for protocol designers that results from our attempt of closing this gap with a careful indifferentiability-based analysis is that proper domain separation might enable a cleaner and simpler analysis, whereas a lack of domain separation leads to uncertainty in the security analysis. 
+No domain separation means stronger assumptions in the best case, and an insecure protocol in the worst case, due to the potential for overlooked attack vectors in the hash functions. 
+A simple prefix can avoid this with hardly any performance loss.
+
+\paragraph{Indifferentiability of the TLS~1.3 key schedule.}
+Via the indifferentiability framework, we replace the complex key schedule of TLS~1.3 with $12$ independent random oracles: one for each first-class key and $\MAC$ tag, and one more for computing transcript hashes. 
+In short, we relate the security of TLS~1.3 as described in the left-hand side of Figure~\ref{fig:tls-handshake} to that of the simplified protocol on the right side of Figure~\ref{fig:tls-handshake} with the key derivation and $\MAC$ functions $\TLSKDF_x$ and modeled as independent random oracles.
+We prove the following theorem, which formally justifies our abstraction of the key exchange protocol by reducing its security to that of the original key exchange game.
+
+\begin{theorem}
+	\label{thm:full-ks-indiff}
+	Let $\ROhash \colon \bits^{*} \to \bits^{\hashlen}$ be a random oracle.
+	%
+	Let $\KE$ be the TLS~1.3 PSK-only or PSK-(EC)DHE handshake protocol described on the left hand side of Figure~\ref{fig:tls-handshake} with $\abstractHash := \ROhash$
+	and $\abstractMAC$, $\abstractExtract$, and $\abstractExpand$ defined from~$\abstractHash$ as in Section~\ref{sec:tls13-psk-protocol}. 
+%\fg{That definition is currently missing in Sec.2, \TODO{check}.}
+	%
+	Let $\KE'$ be the corresponding (PSK-only or PSK-(EC)DHE) handshake protocol on the right hand side of Figure~\ref{fig:tls-handshake}, with $\abstractHash := \ROthash$ and  $\TLSKDF_x := \RO_{x}$, where $\ROthash$, $\RObinder$, \dots, $\ROrms$ are random oracles with the appropriate signatures
+		(cf.~\iffull Section~\else Appendix~\fi\ref{sec:many-ros}
+	for the signature details).
+%
+%For any adversary $\advA$ attacking the $\KESEC$ security of $\KE$, 
+%Llet $t_\advA$ denote the runtime of $\advA$, and let $\qRO$ and $\qSend$ capture the number of queries $\advA$ makes to the $\RO$ and $\Send$ oracles respectively. 
+	Then, %for $t \approx t'$,
+%there exists an adversary $\advB$ against the security of $\KE'$ such that 
+	\begin{align*}
+		\Adv^{\KESEC}_{\KE}(t, \qNewSecret, \qSend, \qRevSessionKey, \qRevLongTermKey, \qTest, \qRO)
+		\leq
+			\Adv^{\KESEC}_{\KE'}(t, \qNewSecret, \qSend, \qRevSessionKey, \qRevLongTermKey, \qTest, \qRO) \\
+			+ \frac{2(12\qSend+\qRO)^2}{2^{\hashlen}}
+			+ \frac{2\qRO^2}{2^{\hashlen}}
+			+ \frac{8(\qRO+36\qSend)^2}{2^{\hashlen}}.
+ 	\end{align*}
+%	Adversary $\advB$ has runtime approximately equal to $t_{\advA}$ and makes the same number of queries to each of its oracles in the $\KESEC$ game.
+\end{theorem}
+
+We establish this result via three modular steps in the indifferentiability framework introduced by Maurer, Renner, and Holenstein~\cite{TCC:MauRenHol04}.
+More specifically we will leverage a recent generalization proposed by Bellare, Davis, and Günther (BDG)~\cite{EC:BelDavGun20}, which in particular formalizes indifferentiability for constructions of \emph{multiple} random oracles.
+
+%We can also make a similar claim for read-only indifferentiability. The proof needs only two small adjustments: first, we require that the $\KE-SEC$ game restricts all of its queries to be within the working domain $\workDom$, and second, we have $\advB$ initialize the simulator's state before running $\advA$. 
+% Since the simulated game of $\advD$ restricts all its queries to be within $\workDom$, the restriction of the $\PrivO$ oracle does not affect the honesty of the simulation, and the same bound can be shown. 
+
+\subsection{Indifferentiability for the TLS~1.3 Key Schedule in Three Steps}
+We move from the left of Figure~\ref{fig:tls-handshake} to the right via three steps.
+Each step introduces a new variant of the TLS~1.3 protocol with a different set of random oracles by changing how we implement $\abstractHash$, $\abstractMAC$, $\abstractExpand$, $\abstractExtract$, and eventually the whole key schedule.
+Then we view the prior implementations of these functions as constructions of new, independent random oracles.
+We prove security for each intermediate protocol in two parts: first, we bound the indifferentiability advantage against that step's construction; then we apply the indifferentiability composition theorem based on~\cite{TCC:MauRenHol04}
+	(cf.\ \iffull Section~\else Appendix~\fi\ref{app:indiff-background}, Theorem~\ref{thm:indiff-comp})
+to bound the multi-stage key exchange ($\KESEC$) security of the new protocol.
+
+We give a brief description of each step; all details and formal theorem statements and proofs can be found in 
+	\iffull Sections~\else Appendices~\fi \ref{sec:domsep}, \ref{sec:hmac}, and \ref{sec:many-ros}, respectively.
+
+\begin{description}
+	\setlength{\itemsep}{0.5em}
+	
+	\item[From one random oracle to two.]
+	TLS~1.3 calls its hash function~$\abstractHash$, which we initially model as random oracle~$\ROhash$, for two purposes:
+	to hash protocol transcripts, and as a component of $\abstractMAC$, $\abstractExtract$, and $\abstractExpand$ which are implemented using $\HMAC[\abstractHash]$.
+	Our eventual key exchange proof needs to make full use of the random oracle model for the latter category of hashes, but we require only collision resistance for transcript hashes. 
+	
+	Our first intermediate handshake variant, $\KE_1$, replaces $\abstractHash$ with two new functions: $\Thash$ for hashing transcripts, and $\Chash$ for use within $\abstractMAC$, $\abstractExtract$, or $\abstractExpand$.
+	While $\KE$ uses the same random oracle $\ROhash$ to implement $\Thash$ and $\Chash$, the $\KE_1$ protocol instead uses two independent random oracles $\ROthash$ and $\ROhmac$.
+	To accomplish this without loss in $\KESEC$ security, we exploit some possibly unintentional domain separation in how inputs to these functions are formatted in TLS~1.3 to define a so-called \emph{cloning functor}, following BDG~\cite{EC:BelDavGun20}.
+	%
+	Effectively, we partition the domain~$\bits^*$ of~$\ROhash$ into two sets $\Dom_{\Thash}$ and $\Dom_{\Chash}$ such that $\Dom_{\Thash}$ contains all valid transcripts and $\Dom_{\Chash}$ contains all possible inputs to $\abstractHash$ from $\HMAC$. 
+	We then leverage Theorem~1 of~\cite{EC:BelDavGun20} that guarantees composition for any scheme that only queries $\ROchash$ within the set $\Dom_{\Chash}$ and $\ROthash$ within the set $\Dom_{\Thash}$.
+	
+	We defer details on the exact domain separation to 
+		Appendix~\ref{app:domsep},
+	but highlight that the PSK-only handshake with hash function \SHA{384} \emph{fails} to achieve this domain separation
+	and consequently this proof step cannot be applied and leaves a gap for that configuration of TLS~1.3. 
+	
+	
+	\item[From SHA to HMAC.]
+
+	Our second variant protocol, $\KE_2$, rewrites the $\abstractMAC$ function. Instead of computing $\HMAC[\ROchash]$, $\abstractMAC$ now directly queries a new random oracle $\ROhmac \colon\allowbreak \bits^{\hashlen} \times \bits^* \to \bits^{\hashlen}$.
+	Since $\ROchash$ was only called by $\abstractMAC$, we drop it from the protocol, but we do continue to use $\ROthash$,
+	i.e., $\KE_2$ uses two random oracles: $\ROthash$ and $\ROhmac$.
+	The security of this replacement follows directly from Theorem~4.3 of Dodis et al.~\cite{C:DRST12}, which proves the indifferentiability of $\HMAC$ with fixed-length keys.%
+	\footnote{This requires PSKs to be elements of $\bits^{\hashlen}$, which is true of resumption keys but possibly not for out-of-band PSKs.}
+
+	\item[From two random oracles to 12.]
+	Finally, we apply a ``big'' indifferentiability step which yields $12$ independent random oracles and moves us to the right-hand side of Figure~\ref{fig:tls-handshake}.
+	The $12$ ROs include
+	the transcript-hash oracle~$\ROthash$ and 11 oracles that handle each key(-like) output in TLS~1.3's key derivation, named
+		$\RObinder$,
+		$\ROets$,
+		$\ROeems$,
+		$\ROchtk$,
+		$\ROcfin$,
+		$\ROshtk$,
+		$\ROsfin$,
+		$\ROcats$,
+		$\ROsats$,
+		$\ROems$, and
+		$\ROrms$.
+	(The signatures for these oracles are given in 
+		Appendix~\ref{sec:many-ros}.)
+	For this step, we view $\TLSKDF$ as a construction of $11$ random oracles from a single underlying oracle ($\ROhmac$).
+	We then give our a simulator in pseudocode and prove the indifferentiability of $\TLSKDF$ with respect to this simulator.
+	Our simulator uses look-up tables to efficiently identify intermediate values in the key schedule and consistently program the final keys and $\MAC$ tags.
+\end{description}
+
+Combining these three steps yields the result in Theorem~\ref{thm:full-ks-indiff}.
+In the remainder of the paper, we can therefore now work with the right-hand side of Figure~\ref{fig:tls-handshake}, modeling $\abstractHash$ and the $\TLSKDF$ functions as $12$ independent random oracles.
+
+\iffull
+	\input{tls-thesis/indiff-tls-ks-full-proof}
+\fi
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

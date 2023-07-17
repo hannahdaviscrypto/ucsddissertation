@@ -1,0 +1,71 @@
+\section{Notes}
+
+Notes from meeting 9/10/2020: 
+\begin{itemize}
+\item tight PSK/resumption mode  [here the PSK would be the long-term secret]
+\begin{itemize}
+\item does some kind of mu-PRF security with Corrupts work?
+\item can we achieve tightness when modeling HKDF.Extract/Expand as RO,
+implicitly programming the RO when we give out a PSK upon Corrupt query?
+\end{itemize}
+\item tight PSK + EC-DHE mixed
+
+\item tight 0-RTT mode  (somewhat part of the PSK modes above)
+\begin{itemize}
+\item needs multi-user session resumption?
+
+\end{itemize}
+\item Backwards compatibility/downgrade resilience vs. tightness
+\begin{itemize}
+	\item prior TLS~1.3 results rely on hash CR + signatures; is there
+anything to gain in terms of tightness?
+\end{itemize}
+
+\item Can we generalize our results/techniques? What's the type of key
+exchange amenable to this?
+\begin{itemize}
+	\item  if all we know is SIGMA or HMQV-like, there's only little gain?
+\end{itemize}
+
+\item Is there a more modular appraoch via, e.g., a multi-user strong-DH
+assumption?
+
+\item Memory tightness
+\begin{itemize}
+	\item currently, we're linear in \#sessions/RO-queries?
+\item DD/TJ ongoing work; best to wait for these
+results first and see how they could be applied
+\end{itemize} 
+\item Tight signatures are a remaining bottelneck
+\begin{itemize}
+	\item  ongoing work with Eike Kilitz
+\end{itemize}
+
+\item Signal initial key exchange (X3DH)
+
+\begin{itemize}
+	\item can this be shown tightly BR-secure using our technique?
+(of course, Signal actually wants eCK security, but might still be
+interesting)
+\end{itemize}
+\item Tight eCK security
+\begin{itemize}
+\item possible/impossible? ... that's a tough one :-)
+\end{itemize}
+\item LWE-based key exchange / NewHope
+\begin{itemize}
+\item NewHope NIST submission is a KEM, can be used for ephemeral KEM +
+SIGMA-style authentication (cf. https://ia.cr/2017/1252)
+\item can we use some self-reducibility of LWE?
+\end{itemize}
+\end{itemize}
+
+Additional notes from meeting 9/24/2020
+\begin{itemize}
+	\item Best approach to start with PSK \& 0-RTT modes, then extend further.
+	\item cut down PSK MSKE model, add RO modeling and explicit authentication
+	\item FG+HD RO modeling should be compatible with MSKE model, assuming only final-stage keys (SFK, CFK, tkshs,tkchs, ATS) are modeled as intermediate keys. 
+	\item Keep a close eye on symmetric numbers: in ACNS draft, a loose bound on collisions dominated when using large curves. Might be a problem for PSK w/no curves. 
+	\item LWE-based key exchange is likely not suited to this kind of approach because the gap-LWE problem is not hard.
+	\item Look at KEM-based AKE protocols such as https://eprint.iacr.org/2020/1088.pdf
+\end{itemize}

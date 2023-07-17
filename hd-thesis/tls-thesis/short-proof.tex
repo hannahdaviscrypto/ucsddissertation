@@ -1,0 +1,420 @@
+\section{Tight Security of the TLS~1.3 PSK Modes}
+\label{sec:ke-proof}
+
+In this section, we apply the insights gained in Sections~\ref{sec:ks-indiff} and~\ref{sec:modularizing} to obtain tight security bounds for both the PSK-only and the PSK-(EC)DHE mode of TLS~1.3.
+To that end, we first present the protocol-specific properties of the TLS~1.3 PSK-only and PSK-(EC)DHE modes such that they can be viewed as multi-stage key exchange (MSKE) protocols as defined in Section~\ref{sec:ake-model}.
+Then, we prove tight security bounds in the MSKE model in Theorem~\ref{thm:full-psk-ecdhe-ke} for the TLS~1.3 PSK-(EC)DHE mode and 
+	in Theorem~\ref{thm:psk-ke} 
+for the TLS~1.3 PSK-only mode%
+	.
+
+\subsection{TLS~1.3 PSK-only/PSK-(EC)DHE as a MSKE Protocol}
+\label{sec:tls-formal-def}
+
+We begin by capturing the TLS~1.3 PSK-only and PSK-(EC)DHE modes, specified in \autoref{fig:tls-handshake}, formally as MSKE protocols.
+To this end, we must explicitly define the variables discussed in Section~\ref{sec:ake-model}.
+In particular, we have to define the stages themselves, which stages are internal and which replayable, the session and contributive identifiers, when stages receive explicit authentication, and when stages become forward secret.
+
+\paragraph{Stages.}
+The TLS~1.3 PSK-only/PSK-(EC)DHE handshake protocol has eight stages (i.e., $\STAGES = 8$), corresponding to the keys $\ets$, $\eems$, $\shtk$, $\chtk$, $\cats$, $\sats$, $\ems$, and $\rms$ in that order.
+The set $\INT$ of internal keys contains $\chtk$ and $\shtk$, the handshake traffic encryption keys. 
+Stages $\ets$ and $\eems$ are replayable: $\REPLAY[s]$ is true for $s \in \{1,2\}$ and false for all others.
+
+\paragraph{Session and contributive identifiers.}
+The session and contributive identifiers for stage$s$ are tuples $(\mathit{label}_s, \mathit{ctxt})$, where $\mathit{label}_s$ is a unique label identifying stage~$s$, and $\mathit{ctxt}$ is the transcript that enters key's derivation.
+The session identifiers $(\sid[s])_{s \in \{1, \dotsc, 8\}}$ are defined as follows:%
+\footnote{Components marked with ${}^\dagger$ are only part of the TLS~1.3 PSK-(EC)DHE handshake.}
+%
+{\allowdisplaybreaks
+\begin{align*}
+	\iffull
+	\sid[1] &= \left(``\ets", (\mathlist{\CH, \CKS^\dagger, \CPSKtls}) \right), \\
+	\sid[2] &= \left( ``\eems", (\mathlist{\CH, \CKS^\dagger, \CPSKtls}) \right), \\
+	\else
+	\sid[1] / \sid[2] &= \left(``\ets" / ``\eems", (\mathlist{\CH, \CKS^\dagger, \CPSKtls}) \right), \\
+	\fi
+	\iffull
+	\sid[3] &= \left( ``\chtk", (\mathlist{\CH, \CKS^\dagger, \CPSKtls, \SH, \SKS^\dagger, \SPSKtls}) \right), \\
+	\sid[4] &= \left( ``\shtk", (\mathlist{\CH, \CKS^\dagger, \CPSKtls, \SH, \SKS^\dagger, \SPSKtls}) \right), \\
+	\else
+	\sid[3] / \sid[4] &= \left( ``\chtk" / ``\shtk", (\mathlist{\CH, \CKS^\dagger, \CPSKtls, \SH, \SKS^\dagger, \SPSKtls}) \right), \\
+	\fi
+	\iffull
+	\sid[5] &= \left( ``\cats", (\mathlist{\CH, \CKS^\dagger, \CPSKtls, \SH, \SKS^\dagger, \SPSKtls, \EE, \SF}) \right), \\
+	\sid[6] &= \left( ``\sats", (\mathlist{\CH, \CKS^\dagger, \CPSKtls, \SH, \SKS^\dagger, \SPSKtls, \EE, \SF}) \right), \\
+	\sid[7] &= \left( ``\ems", (\mathlist{\CH, \CKS^\dagger, \CPSKtls, \SH, \SKS^\dagger, \SPSKtls, \EE, \SF}) \right), \text{ and} \\
+	\else
+	\sid[5] / \sid[6] / \sid[7] &= \left( ``\cats" / ``\sats" / ``\ems", (\mathlist{\CH, \dots, \SPSKtls, \EE, \SF}) \right), \text{ and} \\
+	\fi
+	\sid[8] &= \left( ``\rms", (\mathlist{\CH, \CKS^\dagger, \CPSKtls, \SH, \SKS^\dagger, \SPSKtls, \EE, \SF, \CF}) \right).
+\end{align*}}%
+%
+To make sure that a server that received $\ClientHello$, $\ClientKeyShare^\dagger$, and $\ClientPreSharedKey$ untampered can be tested in stages~$3$ and~$4$,
+even if the sending client did not receive the server's answer,
+we set the contributive identifiers of stages~$3$ and~$4$ such that~$\rolecid$ reflects the messages that a session in role~$\role$ must have honestly received for testing to be allowed.
+Namely, we let clients (resp. servers) upon sending (resp. receving) the messages $(\CH, \CKS^\dagger, \CPSKtls)$ set
+\iffull
+\begin{align*}
+	\respcid[3] &= \left( ``\chtk", (\mathlist{\CH, \CKS^\dagger, \CPSKtls}) \right) \text{ and}\\
+	\respcid[4] &= \left( ``\shtk", (\mathlist{\CH, \CKS^\dagger, \CPSKtls}) \right).
+\end{align*}
+\else
+$\respcid[3] = (``\chtk", (\mathlist{\CH, \CKS^\dagger, \CPSKtls}))$ and $\respcid[4] = (``\shtk", (\mathlist{\CH, \CKS^\dagger, \CPSKtls}))$.
+\fi
+Further, when the client receives (resp. the server sends) the message $(\mathlist{\SH, \SKS^\dagger, \SPSKtls})$, they set
+\iffull
+\[
+	\initcid[3] = \sid[3] \quad\text{and}\quad \initcid[4] = \sid[4].
+\]
+\else
+$\initcid[3] = \sid[3]$ and $\initcid[4] = \sid[4]$.
+\fi
+For all other stages $s \in \{\mathlist{1,2,5,6,7,8}\}$, $\initcid[s] = \respcid[s] = \sid[s]$ is set upon acceptance of the respective stage (i.e., when $\sid[s]$ is set as well).
+
+
+\paragraph{Explicit authentication.}
+For initiator sessions, all stages achieve explicit authentication when the $\ServerFinished$ message is verified successfully.
+This happens right before stage~$5$ (i.e., $\cats$) is accepted.
+That is, upon accepting stage~$5$ all previous stages receive explicit authentication retroactively and all following stages are explicitly authenticated upon acceptance.
+Formally, we set $\EAUTH[\initiator, s] = 5$ for all stages $s\in \{1,\dotsc,8\}$.
+
+\iffull
+For responder session, all stages receive explicit authentication upon (successful) verification of the $\ClientFinished$ message. 
+This occurs right before the acceptance of stage~$8$ (i.e., $\rms$).
+Similar to initiators, responders receive explicit authentication for all stages upon acceptance of stage~$8$ since this is the last stage of the protocol.
+Accordingly, we set $\EAUTH[\responder, s] = 8$ for all stages $s \in \{1,\dotsc,8\}$.
+\else
+Analogously, responder sessions receive explicit authentication right before accepting stage~$8$ via the $\ClientFinished$ message;
+i.e., $\EAUTH[\responder, s] = 8$ for all stages $s \in \{1,\dotsc,8\}$.
+\fi
+
+\paragraph{Forward secrecy.}
+Only keys dependent on a Diffie--Hellman secret achieve forward secrecy, so all stages~$s$ of the PSK-only handshake have $\FS[r, s, \fs] = \FS[r, s, \wfstwo] = \infty$ for both roles~$r \in \{\initiator, \responder\}$.
+In the PSK-(EC)DHE handshake, full forward secrecy is achieved at the same stage as explicit authentication for all keys except $\ets$ and $\eems$, which are never forward secret.
+That is, for both roles~$r$ and stages $s \in \{3,\dotsc,8\}$ we have $\FS[r, s, \fs] = \EAUTH[r, s]$.
+All keys except $\ets$ and $\eems$ possess weak forward secrecy $2$ upon acceptance, so we set $\FS[r, s, \wfstwo] = s$ for stages~$s \in \{3,\dotsc,8\}$.
+Finally, as stages~$1$ and~$2$ (i.e., $\ets$ and $\eems$) never achieve forward secrecy we set $\FS[r, s, \fs] = \FS[r, s, \wfstwo] = \infty$ for both roles~$r$ and stages $s \in \{1,2\}$.
+
+% paragraph is in the intro now
+%\paragraph{\replace{View on the TLS~1.3 handshake protocol}{Scope of our analysis}.}
+%Like many previous cryptographic analyses~\cite{C:JKSS12,C:KraPatWee13,CCS:DFGS15,EuroSP:FisGue17,JC:DFGS21,JC:DieJag21,ACNS:DavGun21} of the TLS handshake protocol, we focus only on the ``cryptographic core'' of the PSK modes of the TLS~1.3 handshake protocol.
+%In particular, our analysis given in Section~\ref{sec:psk-ecdhe-ke-proof} (resp.\ Section~\ref{sec:psk-only-ke-proof}) focuses solely on the TLS~1.3 PSK-(EC)DHE (resp.\ TLS~1.3 PSK-only) handshake protocol (with optional $0$-RTT) for a fixed Diffie--Hellman group and for a fixed cipher suite (i.e., AEAD algorithm and hash algorithm).
+%This means we neither consider the negotiation of other versions of TLS than version 1.3 nor consider the negotiation of the DH group for the PSK-(EC)DHE mode and the cipher suite for both PSK-only and PSK-(EC)DHE mode,
+%as done, e.g., in~\cite{ACISP:DowSte15,SP:BBFGKZ16}.
+%Since we only consider TLS~1.3 ``in isolation'' we also do not consider backward compatibility.
+%\dd{This was a big question by one reviewer on our JoC submission.}
+%Moreover, our view does not include the TLS record layer
+%and we we do not consider the composition of the handshake protocol with the record layer encryption as, e.g., done in \cite{CCS:DFGS15,thesis:Guenther18,JC:DFGS21,JC:DieJag21}.
+%
+%\TODO{find a better caption.}
+%\dd{Pls check if anything important is missing (or if the record layer part seems misplaced.)}
+
+\subsection{Tight Security Analysis of TLS~1.3 PSK-(EC)DHE}
+\label{sec:psk-ecdhe-ke-proof-short}
+
+We now come to the tight MSKE security result for the TLS~1.3 PSK-(EC)DHE handshake.
+
+\begin{theorem}
+	\label{thm:full-psk-ecdhe-ke}
+	Let $\TLSPSKECDHE$ be the TLS~1.3 PSK-(EC)DHE handshake protocol (with optional 0-RTT) as specified on the right-hand side in \autoref{fig:tls-handshake} without handshake encryption.
+	Let $\G$ be the Diffie--Hellman group of order~$p$.
+	Let $\nl$ be the length in bits of the nonce, let $\hashlen$ be the output length in bits of $\abstractHash$, and let the pre-shared key space be $\KEpskeyspace = \bits^\hashlen$.
+	We model the functions $\abstractHash$ and $\TLSKDF_x$ for each $x \in \{\binder, \dotsc, \rms\}$ as $12$ independent random oracles $\mathlist{\RO_\Thash,\RO_{\binder},\dotsc, \RO_{\rms}}$.
+	%
+% 	Let $\advA$ be an adversary against the $\KESEC$ security of $\TLSPSKECDHE$ running in time $t$, and let $\advA$ make $\qNewSecret$, resp.\ $\qSend$ queries to its $\NewSecret$, resp.\ $\Send$ oracles.
+% 	Further, let $\qRO$ be the number of random oracle queries $\advA$ makes in total to its random oracles $\mathlist{\RO_\Thash,\RO_{\binder},\dotsc, \RO_{\rms}}$.
+	Then,
+	\begin{align*}
+		&\genAdv{\KESEC}{\TLSPSKECDHE}{t, \qNewSecret, \qSend, \qRevSessionKey, \qRevLongTermKey, \qTest, \qRO}
+		\leq \frac{2\qSend^2}{2^{\nl} \cdot p} \\
+		&+ \frac{(\qRO+\qSend)^2 + \qNewSecret^2 + (\qRO+6\qSend)^2 + \qRO \cdot \qNewSecret + \qSend}{2^{\hashlen}}
+		+  \frac{4(t + 4 \log(p) \cdot \qRO)^2}{p}.
+	\end{align*}
+\end{theorem}
+
+\begin{remark}
+	Our MSKE model from Section~\ref{sec:ake-model} assumes pre-shared keys to be uniformly random sampled from~$\KEpskeyspace$, where here $\KEpskeyspace = \bits^\hashlen$.
+	This matches how pre-shared keys are derived for session resumption, as well as our analysis of domain separation, which assumes pre-shared keys to be of length~$\hashlen$.
+\end{remark}
+
+\begin{remark}\label{rem:psk-distribution}
+	Our bound is easily adapted to any distribution on $\bits^{\hashlen}$ in order to accommodate out-of-band pre-shared keys that satisfy the length requirement but do not have full entropy.
+	%Since we need to avoid collisions for the pre-shared keys, we obtain lower bound on the distributions entropy for a desired security level.
+	Expectedly, lower-entropy PSK distributions result in weaker bounds, due to the increased chance for collisions between PSKs as well as the adversary guessing a PSK.
+\end{remark}
+
+\iffull
+	\begin{proof}
+	\input{tls-thesis/full-psk-dhe-proof}
+	\end{proof}
+\else
+\subsection{Proof overview}
+\label{sec:psk-ecdhe-ke-proof-overview}
+
+The proof proceeds via a sequence of games in three phases, corresponding to the three ways for an adversary to win the $\KESEC$ security game.
+We begin with $\Gm_0$, the original $\KESEC$ game for protocol $\TLSPSKECDHE$ described above. 
+In the first phase, we establish that the adversary cannot violate the $\Sound$ predicate.
+In the second phase, we establish the same for the $\ExplicitAuth$ predicate.
+In the third phase, we ensure that all $\Test$ queries return random keys regardless of the value of the challenge bit~$b$, so long as the $\Fresh$ predicate is not violated.
+After that, the adversary cannot win the game with probability better than guessing, rendering its advantage to be~$0$.
+We bound the advantage difference introduced by each game hop; collecting these intermediate bounds yields the overall bound.
+For space reasons, we only provide a summary of the proof in the following and refer to 
+	Appendix~\ref{app:full-psk-ecdhe-ke-proof} 
+for the full details.
+
+
+\subsection*{Phase~1: Ensuring $\Sound$}
+The $\Sound$ predicate 
+	(cf.\ Figure~\ref{fig:MSKE-preds}) 
+checks that no more than two sessions can be partnered in a non-replayable stage, and that any two partnered sessions must agree on the stage, pre-shared key identifier, the stage-$s$ key, and each others' identities and roles. 
+We defined our session identifiers so that the stage-$s$ session identifier contains (1) a label unique to that stage,  (2) a unique $\ClientHello$ and $\ServerHello$ message, (3) the $\binder$ message: a $\MAC$ tag authenticating the $\ClientHello$ and pre-shared key, and (4) sufficient information to fix the stage-$s$ key. 
+(This does not mean the key is computable from the $\sid$; it is not.)
+
+We then perform three incremental game hops that cause the $\Finalize$ oracle to return $0$ in the event of a collision between two $\Hello$ messages, $\binder$ tags, or pre-shared keys.
+We bound the difference in advantage in the first two game hops via a birthday bound over the number of potentially colliding values (i.e., pairs of nonces and $\KeyShares$ in $\G$ for $\Hello$ message collisions, and sampled $\psk$ keys for pre-shared key collisions),
+and the third hop by a reduction to the collision resistance of the $\RObinder$ random oracle whose advantage in turn is upper bounded by a birthday bound~$\genAdv{\CollRes}{\RObinder}{\qRO + \qSend} \leq \frac{(\qRO + \qSend)^2}{2^\hashlen}$%
+	; cf.\ Appendix~\ref{app:coll-res-ro}.
+The resulting bounds are, in this order:
+\shortlongeqn[.]{
+	\Pr[\Gm_0] - \Pr[\Gm_3] \leq \frac{2\qSend^2}{2^{\nl} \cdot p} + \frac{\qNewSecret^2}{2^{\hashlen}} + \frac{(\qRO + \qSend)^2}{2^\hashlen}
+}
+As long as no such collisions occur, each stage-$s$ session identifier uniquely determines one client session, one server session (for non-replayable stages), one pre-shared key (and therefore one peer and identifier owning that key), and one stage-$s$ session key.
+At this point, the $\Sound$ predicate will always be $\true$ unless $\Finalize$ would return $0$, so the adversary cannot win by violating $\Sound$.
+%\fg{This is a summary for what would be a combined proof for PSK-only and PSK-(EC)DHE; separate.}
+%\replace{In the PSK-(EC)DHE handshake, h}{H}
+
+\subsection*{Phase~2: Ensuring $\ExplicitAuth$}
+In the second phase of the proof, we change the key-derivation process to avoid sampling pre-shared keys wherever possible,
+instead replacing keys and $\MAC$ tags derived from those pre-shared key by uniformly random strings.
+We then make the adversary lose if it makes queries that would allow him to detect these changes and bound that probability;
+in particular we ensure that the adversary does not correctly guess a now-random $\ClientFinished$ or $\ServerFinished$ MAC tag.
+Sessions achieve explicit authentication just after verifying their received $\Finished$ message;
+eliminating possible forgeries hence ensures that the $\ExplicitAuth$ predicate cannot be $\false$ without $\Finalize$ returning $0$.
+All changes in this phase apply only to sessions whose pre-shared key has not been corrupted.
+
+\lightparagraph{Game~4}
+Our first of six game hops eliminates collisions in the ``transcript hash'' function $\ROthash$.
+We reduce to the collision resistance of $\ROthash$ and bound this advantage with a birthday bound:
+\shortlongeqn[.]{
+	\Pr[\Gm_3] - \Pr[\Gm_4] \leq \frac{\qRO+6\qSend}{2^{\hashlen}}
+}
+(The factor~$6$ comes from the up to~$6$ transcript hashes computed in any~$\Send$ query.)
+
+\lightparagraph{Game~5}
+Our next game forces $\Finalize$ to return $0$ if the adversary guesses any uncorrupted pre-shared key in any random oracle query.
+Since we assume pre-shared keys are uniformly random,
+\shortlongeqn[.]{
+	\Pr[\Gm_4] - \Pr[\Gm_5] \leq \frac{\qRO \cdot \qNewSecret}{2^{\hashlen}}
+}
+
+\lightparagraph{Games~6 and~7}
+In our third game hop, we ask log the stage~$s$ key computed in any session in a look-up table~$\skeyTable$ under its session identifier.
+Sessions whose partners have logged a key can then, in a fourth game hop, copy the key from $\skeyTable$ instead of deriving it.
+Partnered sessions will always derive the same key as guaranteed by the $\Sound$ predicate, so the adversary cannot detect the copying and its advantage does not change.
+In addition to logging and copying keys, we also log and copy the three $\MAC$ tags: $\binder$, $\sfin$, and $\cfin$ using another look-up table~$\macTable$. 
+Since $\MAC$ tags do not have associated session identifiers, they are logged under the inputs to~$\RObinder$, $\ROsfin$, resp.\ $\ROcfin$.
+This technique is inspired by the work of Cohn-Gordon et al.~\cite{C:CCGJJ19}. 
+
+\lightparagraph{Game~8}
+In preparation for the final step in this phase, our fifth game hop eliminates uncorrupted pre-shared keys altogether.
+We postpone the sampling of the pre-shared key to the $\RevLongTermKey$ oracle so that only corrupted sessions hold pre-shared keys.
+As a consequence of this change, we can no longer compute session keys and MAC tags using the random oracles.
+Sessions will instead sample these uniformly at random from their respective range. 
+In another look-up table, they log the $\RO$ queries they would have made so that these queries can be programmed later if the pre-shared key gets corrupted.
+Queries to~$\RO$ before corruption cannot contain the pre-shared key thanks to the previous game, so we do not have to worry about consistency with past queries. 
+%
+We also cannot  implement the previous games' check for guessed pre-shared keys in $\RO$ queries until these keys are sampled,
+so we sample new pre-shared keys for all uncorrupted identifiers at the end of the game in the $\Finalize$ oracle, then perform the check.
+The programming of the random oracles is perfectly consistent with their responses in earlier games, so the adversary cannot detect when pre-shared keys are chosen in the game and its advantage does not change.
+%We don't need to 
+
+\lightparagraph{Game~9}
+The final game in this phase ensures that either $\ExplicitAuth = \true$ or $\Finalize$ returns~$0$.
+In this game, we return $0$ from $\Finalize$ if any honest session would accept the first explicitly-authenticated stage (stage~$5$ ($\cats$) for initiators and stage~$8$ ($\rms$) for responders) with an uncorrupted pre-shared key and no honest partner.
+By the previous game, we established that sessions with uncorrupted pre-shared keys randomly sample their $\MAC$ tags,
+unless they copy a cached result in which case the same computation was made by another session.
+Thanks to the way we defined our session identifiers, no unpartnered session will copy their $\MAC$ tags:
+the computation of the $\ServerFinished$ $\MAC$ tag contains the hash of the stage-$5$ $\sid$ (excluding $\sfin$); likewise the $\ClientFinished$ tag contains the hash of the stage-$8$ $\sid$.
+Since we ruled out hash collisions in the first game of the phase, any two sessions computing the same $\ServerFinished$ message are stage-$5$ partners and any two sessions computing the same $\ClientFinished$ message are stage-$8$ partners.
+So any unpartnered session with an uncorrupted pre-shared key has a random $\MAC$ tag, and the odds of the adversary guessing such a tag is bounded by $\frac{\qSend}{2^{\hashlen}}$.
+With the prior two games not changing the adversary's advantange, we have
+\shortlongeqn[.]{
+	\Pr[\Gm_5] - \Pr[\Gm_9] \leq \frac{\qSend}{2^{\hashlen}}
+}
+
+We are now guaranteed that any session accepting the stage that achieves explicit authentication without a corrupted pre-shared key has a partner in that stage.
+The $\Sound$ predicate guarantees that the partner agrees on the peer and pre-shared key identities, which is sufficient to guarantee explicit authentication for all responder sessions.
+For initiator sessions, we must also note that a partner in stage $5$ will become, upon their acceptance, a partner in stages~$6$ ($\sats$) and~$7$ ($\ems$), whose $\sid$s are identical to that of stage $5$ apart from their labels.
+An initiator's stage-$5$ partner will only accept a $\ClientFinished$ message identical to the one sent by the initiator, at which point they will become a partner also in stage~$8$.
+This ensures that the $\ExplicitAuth$ predicate can never be false unless one of the flags introduced in this phase causes $\Finalize$ to return~$0$.
+
+
+\subsection*{Phase~3: Ensuring the Challenge Bit is Random and Independent}
+
+Our goal in the third and last phase is to ensure that all session keys targeted by a $\Test$ query are uniformly random and independent of the challenge bit $b$ whenever the $\Fresh$ predicate is true.
+Freshness ensures that no session key can be tested twice or tested and revealed in the same stage either by targeting the same session twice or two partnered sessions.
+It also handles our three levels of forward secrecy.
+
+We can already establish this for $\Test$ queries to sessions in non-forward secret stages~$1$ ($\ets$) and~$2$ ($\eems$).
+These queries violate $\Fresh$ unless the sessions' pre-shared keys are never corrupted. 
+Since $\Gm_8$, all sessions with uncorrupted pre-shared keys either randomly sample their session keys, or copy random keys from a partner session.
+If one of these session keys is tested, it cannot have been output by another $\Test$ or $\RevSessionKey$ query without violating $\Fresh$.
+Therefore the response to the $\Test$ query is a uniformly random string, independent of all other oracle responses and the challenge bit $b$.
+
+The remaining stages ($3$--$8$) have weak forward secrecy $2$ until explicit authentication is achieved, then they have full forward secrecy.
+These stages' keys may be tested even if the session's pre-shared key has been corrupted, so long as there is a contributive partner (or, in the case of full forward secrecy, that the corruption occurred after forward secrecy was achieved).
+We use one last game hop to ensure these keys are uniformly random when they are tested.
+
+\lightparagraph{Game~10}
+In $\Gm_{10}$, we cause the $\Finalize$ oracle to return $0$ if the adversary should ever make a random oracle query containing the Diffie--Hellman secret $\dhe$ of an honest partnered session whose pre-shared key was corrupted.
+Without such a query, all keys derived from a Diffie--Hellman secret sampled uniformly at random by the random oracles.
+
+We bound the probability of this event via a reduction $\advB_\dhe$ to the strong Diffie--Hellman problem in group $\G$.
+(Recall that $\G$ has order $p$ and generator~$g$.)
+In this problem, the adversary $\advB_\dhe$ gets as input a strong DH challenge $(A = g^a, B = g^b)$ as well as access to an oracle $\stDH_a$ for the decisional Diffie--Hellman (DDH) problem with the first argument fixed. 
+Given inputs $C \assign g^c$ and $W$ for any $c \in \Z_p$, $\stDH_a(C, W)$ returns $\true$ if and only if $W = g^{ac} = C^a$.
+The goal of~$\advB_\dhe$ is to submit $Z$ to its $\Finalize$ oracle such that $Z = g^{ab}$.
+
+The reduction $\advB_\dhe$ simulates $\Gm_{10}$ for the $\KESEC$ adversary $\advA$.
+At a high level, it uses rerandomization to embed its strong DH challenge $A$, resp. $B$, into the key shares of every initiator session, resp. every partnered responder session.
+To embed a challenge $A$ in its key share, a session samples a ``randomizer'' $\tau \sample \Z_p$, and sets its key share to $X \assign A \cdot g^{\tau}$. 
+If $\advA$ should make an $\RO$ query containing the Diffie--Hellman secret associated with two embedded key shares, the reduction can detect this query with its DDH oracle.
+It then extracts the solution to its strong DH challenge from the query's DH secret, calls the $\Finalize$ oracle, and wins its own game.
+
+There are a few subtleties to the reduction, which requires us to extend the technique of CCGJJ~\cite{C:CCGJJ19}.
+Unlike honest executions of the protocol, the reduction's simulated sessions with embedded key shares do not know their own secret Diffie--Hellman exponents.
+If their pre-shared keys are never corrupted, this does not matter because session keys and $\MAC$ tags are randomly sampled.
+Corrupted sessions, however, cannot use the random oracles to compute these values as they would in $\Gm_{10}$.
+%
+Instead, $\advB_\dhe$ samples session keys and $\MAC$ tags uniformly at random and uses several look-up tables to program random oracle queries and maintain consistency between sessions.
+
+\iffull
+Recall that since $\Gm_6$, partnered sessions store their random session keys in a table $\skeyTable$ under their session identifiers.
+Since session identifiers do not contain Diffie--Hellman secrets, simulated sessions with embedded key shares can also log and copy their keys using $\skeyTable$, even if their pre-shared key has been corrupted.
+Partnered sessions with embedded key shares need not maintain consistency with later random oracle queries, as such query will enable our reduction to call $\Finalize$ and immediately end the game before a response is required.
+
+Logging $\MAC$ tags in the table~$\macTable$ however does require the Diffie--Hellman secret, so partnered sessions with embedded key shares must use a separate table $\rndTable$ to achieve consistency.
+This table also logs the information used to compute a $\MAC$ tag, but instead of a Diffie--Hellman secret it stores the initiator and responder's randomizers.
+It also stores the full transcript instead of its hash, so that the reduction can efficiently recall the initiator and responders' key shares.
+\fi
+
+With this infrastructure in place, the reduction proceeds in the following way.
+Whenever a partnered session with embedded key share would need its Diffie--Hellman secret, it searches all past $\RO$ queries for this secret.
+It looks up the initiator's stored randomizer $\tau$ and the responder's randomizer $\tau'$.
+Then for each guess $\Z$ in a past $\RO$ query, the reduction queries the strong Diffie--Hellman oracle on the responder's key share $\SKS$ and $C \assign \Z \cdot g^{-\tau} $.
+This query will return $\true$ if the adversary correctly guessed the Diffie--Hellman secret; in this case the reduction calls $\Finalize(Z \cdot g^{-\tau} \cdot g^{-\tau'})$ and solves its strong DH challenge.
+Unpartnered sessions do the same thing, except that the responder has no randomizer; in response to the strong DH oracle answering $\true$ they hence merely program their session keys instead of calling $\Finalize$.
+We emphasize that for tightness, it is crucial to maintain efficiency during this process.
+We do so by only checking $\RO$ queries whose context matches the hashed protocol transcript; this ensures $\advB_\dhe$ makes at most $2$ $\stDH_a$ queries for each $\RO$ query.
+
+After a session chooses its session key or $\MAC$ tag, it stores the chosen value, its transcript, and all known randomizers in a table $\rndTable$.
+When the reduction answers future $\RO$ queries, it will use this table to check if a query contains the Diffie--Hellman secret of an accepted session using the strong DH oracle as above; if so, they program or call $\Finalize$ in the same way.
+
+This reduction solves the strong Diffie--Hellman problem whenever the adversary makes an $\RO$ query containing a partnered session's Diffie--Hellman secret,
+so for reduction $\advB_\dhe$ with runtime $t_{\advB_{\dhe}}$, we have
+\shortlongeqn[.]{
+	\Pr[\Gm_9] - \Pr[\Gm_{10}] \leq \genAdv{\stDH}{\G}{t_{\advB_\dhe}, 2\qRO}
+}
+Davis and G{\"u}nther gave a bound in the generic group model for the strong DH problem; applying their Theorem~3.3~\cite{ACNS:DavGun21} results in
+\shortlongeqn[.]{
+	\Pr[\Gm_9] - \Pr[\Gm_{10}] \leq \tfrac{t_{\advB_\dhe}^2}{p}
+}
+\smallskip
+
+
+At this point in the proof, the adversary $\advA$ cannot possibly make a $\RO$ query that outputs any tested session key of a forward secret (full or wfs2) stage~$s$.
+If the tested session's pre-shared key is uncorrupted, $\advA$ cannot make the query because of $\Gm_5$.
+If the session has a contributive partner in stage~$s$, then from $\Gm_{10}$, $\advA$ cannot make the query because it contains the Diffie--Hellman secret of a partnered session.
+If it has accepted with no contributive partner and a corrupted pre-shared key, then by the guarantees we established in Phase 2, the corruption must have occurred before forward secrecy and explicit authentication were achieved.
+
+As a result, the output of any $\Test$ query (that does not violate $\Fresh$) is a random string, sampled by either a session or the $\RO$ oracle independently of all other game variables including the challenge bit $b$.
+The adversary therefore has a probability no greater than $\frac{1}{2}$ of winning $\Gm_{10}$.
+Collecting this probability with the other bounds between games in our sequence gives the proof. %\qed
+
+\fi % end short proof overview
+
+\subsection{Full Security Bound for TLS~1.3 PSK-(EC)DHE and PSK-only}
+\label{sec:psk-ecdhe-ke-full-bound}
+
+We can finally combine the results of Sections~\ref{sec:ks-indiff}, \ref{sec:modularizing}, and our key exchange bound above to produce fully concrete bounds for the TLS~1.3 PSK-(EC)DHE and PSK-only handshake protocols as specified on the left-hand side of Figure~$1$.
+This bound applies to the protocol \emph{with handshake traffic encryption} and \emph{internal keys} when \emph{only modeling as random oracle}~$\ROhash$ the hash function~$\abstractHash$.
+
+First, we define three variants of the TLS~1.3 PSK handshake:
+\begin{itemize}
+	\item $\KE_{0}$, as defined in Theorem~\ref{thm:full-ks-indiff} with handshake traffic encryption and one random oracle $\ROhash$.
+		(This is the variant we want to obtain our overall result for.)	
+		
+	\item $\KE_{1}$, as defined in Theorem~\ref{thm:full-ks-indiff} with handshake traffic encryption and $12$ random oracles $\ROthash$, $\RObinder$, \dots, $\ROrms$.
+	\item $\KE_{2}$: as defined in Theorem~\ref{thm:TLS-transform}, with no handshake traffic encryption and $12$ random oracles $\ROthash$, $\RObinder$, \dots, $\ROrms$.
+\end{itemize}
+
+Theorem~\ref{thm:full-ks-indiff} grants that
+\shortlongalign[.]{
+	\Adv^{\KESEC}_{\KE_{0}}(t, \qNewSecret, \qSend, \qRevSessionKey, \qRevLongTermKey, \qTest, \qRO)
+	\leq
+	\fullonly{&~}
+	\Adv^{\KESEC}_{\KE_{1}}(t\cab \qNewSecret\cab \qSend\cab \qRevSessionKey\cab \qRevLongTermKey\cab \qTest\cab \qRO)
+	\fullonly{\\&}
+	+ \frac{2(12\qSend+\qRO)^2}{2^{\hashlen}}
+	+ \frac{2\qRO^2}{2^{\hashlen}}
+	+ \frac{8(\qRO+36\qSend)^2}{2^{\hashlen}}
+}
+
+Next, we apply Theorem~\ref{thm:TLS-transform}, yielding the bound 
+	\shortlongeqn[,]{
+	\Adv^{\KESEC}_{\KE_1}(t\cab \qNewSecret\cab \qSend\cab \qRevSessionKey\cab \qRevLongTermKey\cab \qTest\cab \qRO)
+	\leq
+	\Adv^{\KESEC}_{\KE_2}(t+ t_{\mathrm{AEAD}}\cdot \qSend\cab \qNewSecret\cab \qSend\cab \qRevSessionKey + \qSend\cab \qRevLongTermKey\cab \qTest\cab \qRO)
+}
+where $t_{\mathrm{AEAD}}$ is the maximum time required to execute AEAD encryption or decryption of TLS~1.3 messages. 
+
+Theorem~\ref{thm:full-psk-ecdhe-ke} then finally and entirely bounds the advantage against the $\KESEC$ security of $\KE_{2}$.
+\iffull
+Collecting these bounds gives 
+\begin{align*}
+	\Adv^{\KESEC}_{\KE_{0}}(t, \qNewSecret, \qSend, \qRevSessionKey, \qRevLongTermKey, \qTest, \qRO)
+	&\leq
+	\Adv^{\KESEC}_{\KE_{1}}(t, \qNewSecret, \qSend, \qRevSessionKey, \qRevLongTermKey, \qTest, \qRO)
+	\\&\quad
+	+ \frac{2(12\qSend+\qRO)^2}{2^{\hashlen}}
+	+ \frac{2\qRO^2}{2^{\hashlen}}
+	+ \frac{8(\qRO+36\qSend)^2}{2^{\hashlen}}\\
+	&\leq
+	\Adv^{\KESEC}_{\KE_2}(t+ t_{\mathrm{AEAD}}\cdot \qSend, \qNewSecret, \qSend, \qRevSessionKey + \qSend, \qRevLongTermKey, \qTest, \qRO)
+	\\&\quad
+	+\frac{2(12\qSend+\qRO)^2 + 2\qRO^2 + 8(\qRO+36\qSend)^2}{2^{\hashlen}} \\
+	&\leq \frac{2\qSend^2}{2^{\nl} \cdot p} + \frac{(\qRO+\qSend)^2 + \qNewSecret^2 + (\qRO+6\qSend)^2 + \qRO \cdot \qNewSecret + \qSend}{2^{\hashlen}} \\
+	&\quad + \frac{4(t + t_{\mathrm{AEAD}}\cdot \qSend + 4 \log(p) \cdot \qRO)^2}{p} \\
+	&\quad + \frac{2(12\qSend+\qRO)^2 + 2\qRO^2 + 8(\qRO+36\qSend)^2}{2^{\hashlen}}.
+\end{align*}
+
+This yields the following overall result for the $\KESEC$ security of the TLS~1.3 PSK-(EC)DHE handshake protocol.
+\else
+Collecting these bounds yields the following overall result for the $\KESEC$ security of the TLS~1.3 PSK-(EC)DHE handshake protocol.
+\fi
+
+\begin{corollary}\label{cor:full-psk-ecdhe-ke}
+	Let $\TLSPSKECDHE$ be the TLS~1.3 PSK-(EC)DHE handshake protocol as specified on the left-hand side in \autoref{fig:tls-handshake}.
+	Let $\G$ be the Diffie--Hellman group of order~$p$.
+	Let $\nl$ be the length in bits of the nonce, let $\hashlen$ be the output length in bits of $\abstractHash$, and let the pre-shared key space be $\KEpskeyspace = \bits^\hashlen$.
+	Let $\abstractHash$ be modeled as a random oracle $\RO_\hash$.
+	%
+% 	Let $\advA$ be an adversary against the $\KESEC$ security of $\TLSPSKECDHE$ running in time $t$, and let $\advA$ make $\qRO$, $\qNewSecret$, resp.\ $\qSend$ queries to its $\RO_\hash$, $\NewSecret$, resp.\ $\Send$ oracles.
+	Then,
+{\allowdisplaybreaks
+	\begin{align*}
+		&\genAdv{\KESEC}{\TLSPSKECDHE}{t, \qNewSecret, \qSend, \qRevSessionKey, \qRevLongTermKey, \qTest, \qRO} \\
+		&\qquad\leq \frac{2\qSend^2}{2^{\nl} \cdot p} + \frac{(\qRO+\qSend)^2 + \qNewSecret^2 + (\qRO+6\qSend)^2 + \qRO \cdot \qNewSecret + \qSend}{2^{\hashlen}} \\
+		&\qquad\qquad +  \frac{4(t + t_{\mathrm{AEAD}} \cdot \qSend + 4 \log(p) \cdot \qRO)^2}{p}\\
+		&\qquad\qquad + \frac{2(12\qSend+\qRO)^2 + 2\qRO^2 + 8(\qRO+36\qSend)^2}{2^{\hashlen}}.
+	\end{align*}
+}
+\end{corollary}
+
+	\input{tls-thesis/psk-only-pf}
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

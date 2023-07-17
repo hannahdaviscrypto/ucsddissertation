@@ -1,0 +1,532 @@
+\section{Proof of Theorem~\ref{th-md-indiff}}\label{apx-md-indiff}
+\subsection{Indistinguishability of the MD transform}
+As an intermediate step in proving the filtered indifferentiability of the MD transform, we must rely on the fact that $\MD[\hh]$ is \textit{indistinguishable} from a random oracle to a distinguisher which cannot access the compression function $\hh$.
+The indistinguishability of the MD construction has been previously studied in~\cite{FOCS:BelCanKra96}; we restate it in the following lemma:
+\begin{lemma}\label{th-md-indist}
+	Let $\construct{MD}$ be the functor defined in Section~\ref{sec-fi}, let $\hh$ be a random function drawn from $\AllFuncs{\bits^{4k}, \bits^{2k}}$, and let $\HH$ be a random function drawn from $\AllFuncs{\bits^{*}, \bits^{2k}}$. 
+	Let $q$ and $\ell$ be integers, and let $\mathcal{P}$ be any probabilistic algorithm which makes queries to an oracle $\HASH$ of maximum length $2k \cdot \ell$ bits and outputs a bit $b$. 
+	Then
+	\[ \Pr[\mathcal{P}[\HH] \Rightarrow 1] - \Pr[\mathcal{P}[\construct{MD}[\hh]] \Rightarrow 1] \leq \frac{(\ell \cdot \Queries{\mathcal{P}}{\HASH})^2 + \ell \cdot \Queries{\mathcal{P}}{\HASH}}{2^{2k}}.\]
+\end{lemma}
+\begin{proof}
+	As both $\HH$ and $\hh$ are random functions with range $\bits^{2k}$, their outputs are always uniformly distributed over $\bits^{2k}$ unless they are forced to be consistent with a prior query.
+	Thus $\advA$ can distinguish $\construct{MD}[\hh]$ only if it can cause two distinct queries to $\construct{MD}[\hh]$ to collide where queries to $\HH$ would not.
+	This can happen in only two ways: first, if two distinct queries to $\hh$ collide, queries which depend on the output of the colliding queries may then repeat. Second, if some query to $\hh$ outputs the $2k$-bit string $\IV$, the subsequent query may collide with some initial query made by $\construct{MD}$
+	Across all of $\advA$'s queries, $\construct{MD}$ queries its oracle at most $\ell \cdot q$ times; by a birthday bound,  a collision between two outputs occurs with probability at most $\frac{(\ell \cdot q)^2}{2^{2k}}$.
+	A union bound gives that $\IV$ will appear as the response to some query with probability no more than $\frac{(\ell \cdot q)}{2^{2k}}$. 
+	The lemma follows.
+\end{proof}
+\subsection{Proof of Lemma~\ref{th-flt-to-pub-indiff}}
+	We prove this lemma with a sequence of code-based games that transition gradually between the ``ideal'' filtered-indifferentiability game ($\Gfindiff_{\construct{MD}, \simulator, \Filter}$ with challenge bit $b=0$), to the ``real'' game (the same game with $b=1$).
+	Thus our first game $\Gm_0$ (c.f. Figure~\ref{fig-md-indiff-gm0123}, left) has oracles which behave identically in our distinguisher's view to $\Gfindiff_{\construct{MD}, \simulator, \Filter}$, and thus we claim
+	\[Pr[\Gm_0(\advD)] = \Pr[\Gfindiff_{\construct{MD},  \simulator, \Filter}(\advD)].\]
+	Internally, however, we make several administrative changes to the oracles that are undetectable to $\advD$.
+	We define an internal subroutine $\HASH_0$ which implements random function $\HH_0$ via lazy-sampling in a table $\T_\HH$.
+	
+	In a second table, $\T_{\HH}^{\prime}$, we lazily sample a second random function, named $\HH^{\prime}\in\FuncSp{ES}$.
+	Whenever the functiosn $\HH_0$ and $\HH^{\prime}$ are queried on the same string $X$, we set a $\bad$ flag and program the tables $\T_ {\HH}$ and $\T_{\HH}^{\prime}$ to contain the same value in $\bits^{2k}$.
+	Consequently, whenever $\HH_0$ and $\HH^{\prime}$ are called on the same input, they will return the same output, and we are in fact implementing only one random function, $\HH_0$, across both tables.
+	Furthermore, this function $\HH_0$ is a uniformly random element of $\FuncSp{ES} = \AllFuncs(\bits^*, \bits^{2k})$, because its outputs are always randomly sampled from $\bits^{2k}$.
+	We can therefore answer any call to $\HH_0$ with $\HH^{\prime}$, while maintaining the consistency of all oracles between $\Gm_0$ and $\Gfindiff_{\construct{MD}, \simulator, \Filter} | b= 0$.
+	Accordingly, the filter $\Filter$ answers queries with port numbers $i=1$ and $i=2$ with $\HH^{\prime}$ as its oracle.
+	
+	In Game $\Gm_1$, we stop programming the tables $\T_\HH$, and $\T_\HH^{\prime}$ for consistency after the $\bad$ flag is set.
+	The Fundamental Lemma of Game-Playing tells us that this changes the success probability of $\advD$ only after $\bad$ is set, and therefore that
+	\[ \Pr[\Gm_0(\advD)] \leq \Pr[\Gm_1] + \Pr[\Gm_1(\advD) \text{ sets } \bad]. \]
+	We analyze the probability that $\Gm_1$ sets the $\bad$ flag.
+	If the $\bad$ flag is set, then there exists some string $X$ that has been queried to both $\HH_0$ and $\HH^{\prime}$.
+	The function $\HH^{\prime}$ is called only by $\Filter$ with port numbers $1$ or $2$.
+	Thus $X$ must have one of two possible forms: 
+	\begin{enumerate}
+		\item[(1)] $X = \oseed$, called by $\Filter.\FilterEv$ when $i=1$ or $i = 2$
+		\item[(2)] $X = \HH^{\prime}(\oseed)[k+1 \ldots 2k] \concat x$ for some $x$, called by $\Filter.\FilterEv$ when $i=2$.
+	\end{enumerate}
+	First, we consider case (1). A query to $\HH_0$ can contain $\oseed$ either by random chance, or if the distinguisher (or simulator) can somehow learn $\oseed$. 
+	However, $\oseed$ is uniformly random, and it does not appear in the $\Filter$'s query transcripts $Q$ because it is used only with private port numbers. 
+	When $\Filter$ uses $\oseed$, it returns only values dependent on $\HH^{\prime}(\oseed)$, which do not reveal any information about $\oseed$ before $\bad$ is set. 
+	$\oseed$ is also not known to the simulator, so any query to $\HH_0$ will contain $\oseed$ with probability no more than $\frac{1}{2^{k}}$.
+	Then by a union bound over all the queries to $\HH_0$ made by $\advD$ and $\simulator$, the $\bad$ flag is set by a query $X$ in case (1) with probability at most $\frac{\Queries{\simulator}{\HH_0} + \Queries{\advD}{\PrivO}}{2^k}$.
+	
+	Next, we consider the possiblity that $\bad$ is first set by a query in case (2). 
+	We can assume that the query $\HH_0(\oseed)$ has not occurred, since this would have already set $\bad$ in case (1).
+	Thus $\HH^{\prime}(\oseed)$ has only been queried by $\Filter$ with private port numbers, so it does not appear in the transcript of queries.
+	Furthermore, $\Filter$ outputs only the first $k$ bits of $\HH^{\prime}(\oseed)$ and outputs of another (private) query to $\HH^{\prime}$, so $\HH^{\prime}(\oseed)[k+1 \ldots 2k]$ can be guessed with no better than a $\frac{1}{2k}$ chance before $\bad$ is set.
+	Then by another union bound, the probability that $\bad$ is set by a query in case (2) but not case (1) is at most $\frac{\Queries{\simulator}{\HH_0} + \Queries{\advD}{\PrivO}}{2^k}$. 
+	Combining the bounds gives
+	\[ \Pr[\Gm_0(\advD)] \leq \Pr[\Gm_1] + \Pr[\Gm_1(\advD) + \frac{2\Queries{\simulator}{\HH_0}+ 2\Queries{\advD}{\PrivO}}{2^k}.\]
+	
+	Starting in $\Gm_1$, the behavior of the oracles is independent of the value of the $\bad$ flag.
+	We can therefore remove the flag and the checks that set it.
+	Having done this, the responses of the $\PrivO$ oracle to queries with port numbers $1$ and $2$ do not depend on the random oracle $\HH_0$ or its table $\T_{\HH}$.
+	They depend on the filter seed $\oseed$, but this seed is no longer used to answer any other queries. 
+	Finally, since ports $1$ and $2$ are private, the filter will always return $Q = \emptyset$ for these ports, and the simulator's state $\simstate$ does not need to be updated.
+	Effectively, the distinguisher could sample its own filter seed, implement $\HH^{\prime}$ itself, and perfectly simulate the $\PrivO$ oracle for queries with $i=1$ and $i=2$ without having to interact with the game at all. 
+	
+	We therefore simultaneously introduce game $\Gm_2$ (Figure~\ref{fig-md-indiff-gm0123}, right) and a new distinguisher $\advD^{\prime}$ (Figure~\ref{fig-md-indiff-gm4}, left).
+	The new game does not sample a filter seed, and its $\PrivO$ oracle answers only those queries with port number $3$.
+	Accordingly, $\advD^{\prime}$ plays $\Gm_2$ by simulating $\Gm_1$ for $\advD$ in just the way we have described.
+	We also shift the filter operation for queries with port number $3$ form the game on to $\advD^{\prime}$; the $\PrivO$ oracle of $\Gm_2$ does not ask for a port number and does not run the filter at all; instead $\advD^{\prime}$ reduces all of its responses modulo $\Prime$ as the $\Filter$ would.
+	The removal of the port number means that $\PrivO$ in $\Gm_2$ will add all of its queries to the simulator's state; this is exactly what it should do for port number $3$, and queries by $\advD$ with port numbers $1$ and $2$ will be answered by $\advD^{\prime}$ and not the $\PrivO$ oracle. 
+	We claim that this simulation is perfect, and thus 
+	\[ \Pr[\Gm_2(\advD^{\prime})] = \Pr[\Gm_1(\advD)] .\]
+	
+	Notice, now, that $\Gm_2$ is identical to the ``ideal'' weak-public indifferentiability game $\Gwpindiff_{\construct{MD},  \simulator}$ with challenge bit $b = 0$. 
+	We can then reduce to the wp-indiff of the MD construct to transition to game $\Gm_3$, which is the ``real'' wp-indiff game.
+	The advantage definition for wp-indiff gives
+	\[|\Pr[\Gm_2(\advD^{\prime}) - \Pr[\Gm_3(\advD^{\prime})] |= \genAdv{\wpindiff}{\construct{MD},\simulator}{\advD^{\prime}}. \]
+	We can bound this quantity using Lemma~\ref{th-md-wp-indiff}.
+	
+	Now we reverse the transition from $\Gm_1$ to $\Gm_2$ and move the filter code from $\advD^{\prime}$ back into the game $\Gm_4$, which may be found in Figure~\ref{fig-md-indiff-gm4}.
+	As the distinguisher $\advD$ cannot tell whether particular code is being run by the game or by a wrapper distinguisher, we have that 
+	\[ \Pr[\Gm_4(\advD)] = \Pr[\Gm_3(\advD^{\prime})] .\] 
+	Notice that the $\PrivO$ oracle still answers queries with port numbers $i=1$ and $i=2$ with a lazily-sampled random function $\HH^{\prime}$ which is entirely inaccessible to the distinguisher.
+	We now replace this random function in $\Gm_5$ with an MD-style hash function built from a (lazily-sampled) random compression function $\hh^{\prime}$.
+	Because $\HH^{\prime}$ is not a public function, we don't need to rely on the indifferentiability of the $\construct{MD}$ transform to analyze the security of this substitution; instead we only need that it is \textit{indistinguishable} from a random oracle.
+	We apply Lemma~\ref{th-md-indist} with $\mathcal{P}:= \Gm_4(\advD)$ (setting the oracle $\HASH$ to be $\HH^{\prime}$), to get
+	\[ \Pr[\Gm_4(\advD)]  - \Pr[\Gm_5(\advD)] \leq \frac{(\ell \cdot \Queries{\advD}{\PrivO})^2 + \ell \cdot \Queries{\advD}{\PrivO}}{2^{2k}}.\]
+	In our final two games, $\Gm_6$ and $\Gm_7$ (c.f. Figure~\ref{fig-md-indiff-gm567}) we transition back to processing $\PrivO$ queries with port numbers $i=1$ and $i=2$ with the same random function as those with port number $i=3$; in contrast to games $\Gm_0$ and $\Gm_1$, the random function is now $\hh$ rather than $\HH_0$.
+	We start by lazily sampling $\hh$ in table $\T_{\hh}$.
+	Whenever the functions $\hh$ and $\hh^{\prime}$ are called on the same input $X$, we set a $\bad$ flag.
+	In $\Gm_6$, nothing happens when the $\bad$ flag is set; thus all oracles behave as they did in $\Gm_5$ and we have $\Pr[\Gm_6(\advD)] = \Pr[\Gm_5(\advD)]$. 
+	In $\Gm_7$, however, we program tables $\T_{\hh}$ and $\T_{\hh}^{\prime}$ so that they contain the same entry after $\bad$ is set. 
+	Then each input $X$ may be mapped to at most one output by the functions $\hh$ and $\hh^{\prime}$; they must be the same function.
+	This means that the $\PrivO$ oracle of $\Gm_7$ now answers all queries with $\Filter.\FilterEv[\construct{MD}[\hh]]$ regardless of their port number, and $\Gm_7$ is identical to the game $\Gfindiff_{\construct{MD}, \simulator, \Filter}$ with the challenge bit $b$ set to $1$.
+	Then 
+	\[\Pr[\Gm_7(\advD)] = \Pr[\Gfindiff_{\construct{MD}, \simulator, \Filter} | b =1].\]
+	The Fundamental Lemma of Game Playing grants us that 
+	\[ \Pr[\Gm_7(\advD)] \leq \Pr[\Gm_6(\advD)] + \Pr[\Gm_6 \text{ sets } \bad]. \]
+	We bound the probability that $\Gm_6$ sets $\bad$ by considering the set of queries that may be made to both $\hh$ and $\hh^{\prime}$.
+	Since $\hh^{\prime}$ is only called by the filter with port numbers $i=1$ and $i=2$, there are three types of queries that may be made to it:
+	\begin{enumerate}
+		\item[(1)] $\hh^{\prime}(\oseed \concat \padF(k) \concat \IV)$ made by $\Filter$ with port number $1$ or $2$.
+		\item[(2)] $\hh^{\prime}(\e_2 \concat x \concat \IV)$ where $x$ is any $k$-bit string and $e_2= \hh^{\prime}(\oseed \concat \padF(k))[k+1 \ldots 2k]$.
+		\item[(3)] $\hh^{\prime}(x \concat y)$ where $x$ is any $2k$-bit string and $y$ is the output of a query to $\hh^{\prime}$ of type (2), or (3).
+	\end{enumerate}
+	We argued earlier that in $\Gm_1$, that any query made by the adversary would begin with $\oseed$ or $e_2$ with probabilility no more than $\frac{1}{2^k}$ because these are secret $k$-bit strings which are not output by any oracle. 
+	The same argument holds as well for $\Gm_7$, and again we take a union bound over all queries to $\hh$.
+	The $\PrivO$ oracle may now make up to $\ell$ calls to $\hh$ each time it is queried, so the total probability that the adversary makes a query to $\hh$ of type either (1) or (2) is at most $\frac{2(\Queries{\advD}{\PubO} + \ell \cdot \Queries{\advD}{\PrivO})}{2^k}$.
+	The only remaining type of call is type (3). 
+	This call must return $y$, the output of a query of type (2) or (3). 
+	Filter $\Filter$ makes queries of this type only when the port number is $2$, and in this case it always reduces the output of the query modulo $\Prime$ before returning it.
+	Consequently, if the adversary queries $\hh$ on a value whose last $2k$ bits $y^{\prime}$ which is congruent to $y$ modulo $\Prime$, the probability that $y = y^{\prime}$ is no greater than $\frac{\Prime}{2^{2k}}$.
+	There are at most $\ell \cdot \Queries{\advD}{\PrivO}$ values of $y$ for the adversary to guess at.
+	Taking a union bound over all $y$ and all queries to $\hh$, the probability of making a type (3) query is no greater than $\frac{\Prime(\ell \cdot \Queries{\advD}{\PrivO})(\ell \cdot \Queries{\advD}{\PrivO} + \Queries{\advD}{\PubO})}{2^{2k}}.$
+	Then 
+	\[\Pr[\Gm_6 \text{ sets } \bad] \leq \frac{\Prime(\ell \cdot \Queries{\advD}{\PrivO})(\ell \cdot \Queries{\advD}{\PrivO} + \Queries{\advD}{\PubO})}{2^{2k}} + \frac{2(\Queries{\advD}{\PubO} + \ell \cdot \Queries{\advD}{\PrivO})}{2^k}.\]
+	Collecting all of the above bounds gives 
+	\begin{align*}
+		\findiffAdv{\construct{MD},  \simulator, \Filter}{\advD} =&\Pr[\Gfindiff_{\construct{MD},  \simulator, \Filter}(\advD) | b= 0] -\Pr[\Gfindiff_{\construct{MD},  \simulator, \Filter}(\advD) | b = 1]&\\
+		=& \Pr[\Gm_0(\advD)] - \Pr[\Gm_7(\advD)]& \\
+		\leq& \genAdv{\wpindiff}{\construct{MD},\simulator}{\advD^{\prime}} +\frac{2\Queries{\simulator}{\HH_0}+ 2\Queries{\advD}{\PrivO}}{2^k}& \text{\small /$\!\!$/\ } \Gm_0 \to \Gm_4\\
+		 &+ \frac{(\ell \cdot \Queries{\advD}{\PrivO})^2 + \ell \cdot \Queries{\advD}{\PrivO}}{2^{2k}}&\text{\small /$\!\!$/\ } \Gm_4 \to \Gm_6 \\
+		 &+ \frac{2(\Queries{\advD}{\PubO} + \ell \cdot \Queries{\advD}{\PrivO})}{2^k}&\text{\small /$\!\!$/\ }\Gm_6 \to \Gm_7,\\
+		 &&{\small \text{ type (1) or (2)}}\\
+		 &+ \frac{\Prime(\ell \cdot \Queries{\advD}{\PrivO})(\ell \cdot \Queries{\advD}{\PrivO} + \Queries{\advD}{\PubO})}{2^{2k}}. &\text{\small /$\!\!$/\ }\Gm_6 \to \Gm_7,\\
+		 &&{\small \text{ type (3)}}
+	\end{align*} 
+	This proves the theorem. \qed
+%\subsection{Proof of Lemma~\ref{th-chop-md-lemma}}
+%	
+%	First, we define a simulator algorithm $\simulator$, following the work of Mittelbach and Fischlin's proof of the indifferentiability of the chop-MD construction~\cite{hfrobook}, Figure 17.4.
+%	Intuitively, the simulator answers all queries with random $2k$-bit strings, unless it detects that the query is the last one needed to evaluate the $\construct{MD}$ transform on a string $X$. 
+%	In this case, it programs the output to be consistent with the output of its random oracle $\HH$ on input $X$. 
+%	To accomplish this detection, it maintains a graph of all the queries received by the simulator. 
+%	To compute $\construct{MD}[X]$, one must make one query containing each of the $2k$-bit blocks of $X \concat \padF(|X|)$; the first query will contain the initialization vector $\IV$ and each subsequent query will contain the output of the previous query in the chain. 
+%	In this way, a query needs to be programmed only if it is the end of a path through the graph starting at the $\IV$. 
+%	
+	\begin{figure}
+		\twoCols{0.45}{0.45}{
+			\ExperimentHeader{Games \fbox{$\Gm_0$}, $\Gm_1$}
+			
+			 \comment{ $\Gm_0$ resembles $\Gfindiff_{\construct{MD},\simulator,\Filter}$ with $b=0$}
+		
+		\begin{algorithm-initial}{$\Initialize()$}
+			\item $b \gets 0$
+			\item $\oseed \getsr \Filter.\Sg$ ; $\simstate \getsr \simulator.\Sg$
+			\item $\hh \getsr \FuncSp{SS}$; $\HH_1 \gets \construct{MD}[\hh]$
+		\end{algorithm-initial}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\HASH_0(X)$}
+			\item[]\comment{Not accessible to the distinguisher.}
+			\item if $\T_{\HH}^{\prime}[X] \neq \bot$ then $\bad \gets \true$
+			\item \quad \fbox{$\T_{\HH}[X] \gets \T_{\HH}^{\prime}[X]$}
+			\item if $\T_{\HH}[X] \neq \bot$ return $\T_{\HH}[X]$
+			\item $\T_{\HH}[X] \gets \bits^{2k}(X)$
+			\item return $\T_{\HH}[X]$
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\HASH^{\prime}(X)$}
+			\item[]\comment{The distinguisher may not query this oracle.}
+			\item if $\T_{\HH}[X] \neq \bot$ then $\bad \gets \true$
+			\item \quad \fbox{$\T_{\HH}^{\prime}[X] \gets \T_{\HH}[X]$}
+			\item if $\T_{\HH}^{\prime}[X] \neq \bot$ return $\T_{\HH}^{\prime}[X]$
+			\item $\T_{\HH}^{\prime}[X] \getsr \bits^{2k}$
+			\item return $\T_{\HH}[X]$
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\PrivO(X)$}
+			\item $(i, x) \gets X$
+			\item if $i =1$ or $i=2$ then 
+			\item \quad ($(Y;Q) \gets \Filter.\FilterEv[\HASH^{\prime}](\oseed,X)$
+			\item else $(Y;Q) \gets \Filter.\FilterEv[\HASH_0](\oseed,X)$
+			\item $\simstate\gets\simstate\|Q$  
+			\item Return $Y$
+		\end{algorithm-subsequent}	
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\PubO(\X)$}
+			\item If $b=1$ then  $Z\gets \hh(\X)$
+			\item Else $(\simstate,Z) \gets \simulator.\Eval[\HASH_0] (\simstate,\X)$
+			\item return $Z$
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\Finalize(b')$}
+			\item return $[[b = b']]$
+		\end{algorithm-subsequent}	
+		}{
+			\ExperimentHeader{Game $\Gm_2$, $\Gm_3$}
+		
+		\begin{algorithm-initial}{$\Initialize()$}
+			\item $b \gets 0$ \comment{$\Gm_2$ only}
+			\item $b \gets 1$ \comment{$\Gm_3$ only}
+			\item $\simstate \getsr \simulator.\Sg$
+			\item $\HH_0 \getsr \FuncSp{ES}$
+			\item $\hh \getsr \FuncSp{SS}$; $\HH_1 \gets \construct{MD}[\hh]$ 
+		\end{algorithm-initial}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\PrivO(X)$}
+			\item $Y \gets \HH_b(X)$
+			\item $\simstate\gets\simstate\| (X, Y)$  
+			\item Return $Y$
+		\end{algorithm-subsequent}	
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\PubO(\X)$}
+			\item If $b=1$ then  $Z\gets \hh(\X)$
+			\item Else $(\simstate,Z) \gets \simulator.\Eval[\HH_0] (\simstate,\X)$
+			\item return $Z$
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\Finalize(b')$}
+			\item return $[[b = b']]$
+		\end{algorithm-subsequent}	
+		}
+		\vspace{5pt}
+		\caption{The games $\Gm_0$, $\Gm_1$, $\Gm_2$, and $\Gm_3$ in the proof of indifferentiability for the $\construct{MD}$ functor.}
+		\label{fig-md-indiff-gm0123}
+	\end{figure}
+	
+	\begin{figure}
+		\twoCols{0.45}{0.45}{
+		\ExperimentHeader{Distinguisher $\advD^{\prime}$}
+		\ExptSepSpace
+		
+		\begin{algorithm-initial}{Main}
+			\item $\advD[\Initialize, \PrivO, \PubO, \Finalize]()$
+		\end{algorithm-initial}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\Initialize()$}
+			\item $\Initialize()$
+			\item $\oseed \getsr \Filter.\Sg$
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\HASH^{\prime}(X)$}
+			\item[]\comment{The distinguisher may not query this oracle.}
+			\item if $\T^{\prime}[X] \neq \bot$ return $\T^{\prime}[X]$
+			\item $\T^{\prime}[X] \getsr \bits^{2k}$
+			\item return $\T[X]$
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\PrivO(X)$}
+			\item $(i, x) \gets X$
+			\item if $i =1$ or $i=2$ then 
+			\item \quad ($(Y;Q) \gets \Filter.\FilterEv[\HASH^{\prime}](\oseed,X)$
+			\item else $y \gets \PrivO(x)$
+			\item $Y \gets y \mod \Prime$
+			\item Return $Y$
+		\end{algorithm-subsequent}	
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\PubO(\X)$}
+			\item return $\PubO(\X)$
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\Finalize(b')$}
+			\item $\Finalize(b')$
+		\end{algorithm-subsequent}	
+		}{
+		\ExperimentHeader{$\Gm_4$, $\Gm_5$}
+				
+		\begin{algorithm-initial}{$\Initialize()$}
+			\item $b \gets 1$
+			\item $\oseed \getsr \Filter.\Sg$ ; $\simstate \getsr \simulator.\Sg()$
+			\item $\HH_0 \getsr \FuncSp{ES}$
+			\item $\hh \getsr \FuncSp{SS}$; $\HH_1 \gets \construct{MD}[\hh]$ 
+		\end{algorithm-initial}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\HASH^{\prime}(X)$ \comment{$\Gm_4$ only}}
+			\item[]\comment{The distinguisher may not query this oracle.}
+			\item if $\T^{\prime}[X] \neq \bot$ return $\T^{\prime}[X]$
+			\item $\T^{\prime}[X] \getsr \bits^{2k}$
+			\item return $\T[X]$
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\hash^{\prime}(X)$ \comment{$\Gm_5$ only}}
+			\item[]\comment{Not accessible to the distinguisher.}
+			\item if $\T^{\prime}[X] \neq \bot$ return $\T^{\prime}[X]$
+			\item $\T^{\prime}[X] \getsr \bits^{2k}$
+			\item return $\T^{\prime}[X]$
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\PrivO(X)$}
+			\item $(i, x) \gets X$
+			\item if $i =1$ or $i=2$ then 
+			\item \quad ($(Y;Q) \gets \Filter.\FilterEv[\HASH^{\prime}](\oseed,X)$ \comment {$\Gm_4$}
+			\item \quad ($(Y;Q) \gets \Filter.\FilterEv[\construct{MD}[\hash^{\prime}]](\oseed, X)$\comment{$\Gm_5$}
+			\item else $(Y;Q) \gets \Filter.\FilterEv[\HH_b](\oseed,X)$
+			\item $\simstate\gets\simstate\|Q$  
+			\item Return $Y$
+		\end{algorithm-subsequent}	
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\PubO(\X)$}
+			\item If $b=1$ then  $Z\gets \hh(\X)$
+			\item Else $(\simstate,Z) \gets \simulator.\Eval[\HH_0] (\simstate,\X)$
+			\item return $Z$
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\Finalize(b')$}
+			\item return $[[b = b']]$
+		\end{algorithm-subsequent}
+		
+		}
+		\vspace{5pt}
+		\caption{Games $\Gm_4$, $\Gm_5$ and distinguisher $\advD^{\prime}$ targeting $\Gm_2$/$Gm_3$.}
+		\label{fig-md-indiff-gm4}
+	\end{figure}
+
+	\begin{figure}
+	\oneCol{0.8}{
+		\ExperimentHeader{$\Gm_6$, \fbox{$\Gm_7$}}
+		
+		\begin{algorithm-initial}{$\Initialize()$}
+			\item $b \gets 1$
+			\item $\oseed \getsr \Filter.\Sg$ ; $\simstate \getsr \simulator.\Sg()$
+			\item $\HH_0 \getsr \FuncSp{ES}$
+			\item $\hh \getsr \FuncSp{SS}$; $\HH_1 \gets \construct{MD}[\hh]$ 
+		\end{algorithm-initial}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\hash(X)$}
+			\item[]\comment{Not accessible to the distinguisher.}
+			\item \gamechange{if $\T^{\prime}[X] \neq \bot$ then $\bad \gets \true$}{}
+			\item \quad \fbox{\gamechange{$\T[X] \gets \T^{\prime}[X]$}{}}
+			\item if $\T[X] \neq \bot$ return $\T[X]$
+			\item $\T[X] \getsr \hh(X)$
+			\item return $\T[X]$
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\hash^{\prime}(X)$}
+			\item[]\comment{Not accessible to the distinguisher.}
+			\item \gamechange{if $\T[X] \neq \bot$ then $\bad \gets \true$}{}
+			\item \quad \fbox{\gamechange{$\T^{\prime}[X] \gets \T[X]$}{}}
+			\item if $\T^{\prime}[X] \neq \bot$ return $\T^{\prime}[X]$
+			\item $\T^{\prime}[X] \getsr \bits^{2k}$
+			\item return $\T^{\prime}[X]$
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\PrivO(X)$}
+			\item $(i, x) \gets X$
+			\item if $i =1$ or $i=2$ then 
+			\item \quad ($(Y;Q) \gets \Filter.\FilterEv[\construct{MD}[\hash^{\prime}]](\oseed,X)$
+			\item else $(Y;Q) \gets \Filter.\FilterEv[\HH_b](\oseed,X)$
+			\item $\simstate\gets\simstate\|Q$  
+			\item Return $Y$
+		\end{algorithm-subsequent}	
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\PubO(\X)$}
+			\item If $b=1$ then  $Z\gets \hh(\X)$
+			\item Else $(\simstate,Z) \gets \simulator.\Eval[\HASH_0] (\simstate,\X)$
+			\item return $Z$
+		\end{algorithm-subsequent}
+		\ExptSepSpace
+		\begin{algorithm-subsequent}{$\Finalize(b')$}
+			\item return $[[b = b']]$
+		\end{algorithm-subsequent}
+	}
+	\vspace{5pt}
+	\caption{Games $\Gm-6$ and $\Gm_7$ for the proof of Lemma~\ref{th-flt-to-pub-indiff}.}
+	\label{fig-md-indiff-gm567}
+\end{figure}
+
+	
+%	Our simulator, like theirs, maintains a graph $\graph$ whose nodes and edges are labeled by $2k$-bit strings. 
+%	Initially, the graph contains only one node with the label $\IV$
+%	An edge $(y, z, m)$ in $\graph$ is a connection from node $y$ to node $z$ with edge label $m$. 
+%	Every path $\ppath$ through this graph with root $\IV$ corresponds to the execution of the construction $\construct{MD}[\simulator]$ on the input $\msg :=\UnPadF(\ppath)$. 
+%	On this path, the node labels represent the intermediate states of the MD-transform, and the edge labels are the $2k-bit$ blocks of message $\msg$. 
+%	Our simulator uses $\Out$ and $\Sample$ where the simulator of~\cite{hfrobook} would use truncation and sampling a random suffix; in this way, Mittelbach and Fischlin's simulator can be seen as an instantiation of ours for appropriate choices of $\Out$ and $\Sample$.
+%	
+%	When computing $\construct{MD}[\simulator[\HH]][X]$, we break $X\concat \padF(|X|)$ into a sequence of $2k$-bit blocks $X_1, \ldots, X_\ell$. 
+%	Then we make $\ell$ queries to $\simulator$ with inputs $\IV\concat X_1$, $z_1\concat X_2$, ... $z_{\ell-1}\concat X_\ell$, where $z_i$ is the output of the $i^{\text{th}}$ query.
+%	The simulator responds to each of these queries with $\Sample(\HH(2,\UnPadF(X_1\concat \ldots X_i)))$, unless there already exists a cached response for the query.
+%	
+%	Now, we prove the theorem using a sequence of code-based games.
+%	We define our initial game $\Gm_0$ as $\Gindiff_{\construct{MD}, \simulator,\roSp_1, \roSp_2}$, but fix bit $b\gets 0$. 
+%	This is the `'ideal'' world, where $\PubO$ queries are answered by $\Simulator$ and $\PrivO$ queries by random oracle $\HH\getsr \roSp_2$. 
+%	As in the proof Lemma~\ref{th-flt-to-std-indiff}, we let $\Finalize$ return $[[b' =1]]$. 
+%	For convenience, we present pseudocode for this game with $\Simulator$ unrolled in Figure~\ref{fig-lemma-gm0}.
+%		Then \[\Pr[\Gm_0] = 1- \Pr[\Gindiff_{\construct{MD}, \simulator,\roSp_1, \roSp_2}\Rightarrow 1 | b = 0].\]
+%	
+%	In game $\Gm_1$, we ensure that the game evaluates the functor $\construct{MD}[\PubO]$ on each query to $\PrivO$. 
+%	However, it performs this evaluation in the $\Finalize$ oracle, after the game has finished.
+%	We log each of the $\PrivO$ queries and their inputs $\X$. 
+%	Then after the adversary submits its guess $\b'$ toward the challenge bit, we compute $\construct{MD}[\PubO](\X)$ for each logged query.
+%	The new computations take place after all interaction with the adversary, so they do not impact its view of the game, and they additionally do not change the probability that $\Finalize$ returns $1$.
+%	Clearly, 
+%	\[\Pr[\Gm_0] = \Pr[\Gm_1].\]
+%	We note for future games that the $\Finalize$ now makes up to $\ell$ queries to $\PubO$ for each $\PrivO$ query; the game now queries $\PubO$ up to $q_{\PubO}+q_{\PrivO} \cdot \ell$ times in total.		
+%		
+%	In game $\Gm_2$, we force the adversary to lose when $\simulator$ generates a response $z$ that collides with the label of a node in the graph $\graph$.
+%	Every query to $\PubO$ adds two nodes to $\graph$: one labeled by its second argument, and one labeled by its output. 
+%	The change means that $\advA$ will lose in $\Gm_2$ if 1) there is a collision in the simulated compression function, or 2) $\advA$ guesses any output of the simulator before that output is returned from a $\PubO$ query. 
+%	Both of these events are unlikely. 
+%	
+%	In the pseudocode, the simulator sets a Boolean flag, $\bad_C$, whenever it samples an output string which is already present in $\graph$. The $\Finalize$ oracle returns $0$ if the $\bad_C$ flag is set. 
+%	By the identical-until-bad lemma, $|\Pr[\Gm_1] - \Pr[\Gm_2]| \leq \Pr[\Gm_2 \text{ sets }\bad_C].$
+%	
+%	We can upper-bound the probability that $\bad_C$ is set by a single $\PubO$ query. 
+%	Since our game makes at most $q_{\PubO}+q_{\PrivO} \cdot \ell$ queries to $\PubO$, the graph $\graph$ contains at most $2(q_{\PubO}+q_{\PrivO} \cdot \ell)$ nodes.
+%	A given $\PubO$ query sets $\bad_C$ if and only if its response $z$ collides with one of the $2(q_{\PubO}+q_{\PrivO} \cdot \ell)$ labels of these nodes.
+%	Each response returned by $\simulator$ is sampled either uniformly from the set $\bits^{2k}$, or by the $\Sample$ algorithm.
+%	If $z$ is a uniformly random $2k$-bit string, then it will equal one of the node labels with probability at most $\frac{2(q_{\PubO}+q_{\PrivO} \cdot \ell)}{2^{2k}}$.
+%	If $z$ is generated by $\Sample$, the probability it matches any one node label is bounded above by $\varepsilon$ because $\Sample$ is the $\varepsilon$-randomized inverse of $\Out$. 
+%	A union bound over all labels and $\PubO$ queries then gives the equation
+%	\[ \Pr[\Gm_2 \text{ sets }\bad_C] \leq 2(q_{\PubO}+q_{\PrivO} \cdot \ell)^2(2^{-2k} + \varepsilon).\]
+%	Consequently,
+%	\[|\Pr[\Gm_1] - \Pr[\Gm_2]| \leq 2(q_{\PubO}+q_{\PrivO} \cdot \ell)^2(2^{-2k} + \varepsilon).\]
+%	
+%	At this point, our simulator's graph $\graph$ maintains two important properties except when $\bad_C$ is set:
+%	\begin{enumerate}
+%		\item The graph is a forest, so there is at most one path from $\IV$ to any node $y$.
+%		\item If $y$ is a node in $\graph$ and there is no path from $\IV$ to $y$, then there will never exist a path from $\IV$ to $y$ at any point in the game.
+%	\end{enumerate}
+%	These claims are easy to verify. 
+%	Each time an edge $(y, z)$ is added to $\graph$, the $\bad_C$ flag is set if $z$ is an existing node in $\graph$. 
+%	Therefore no edge can point to a preexisting node, and each node is pointed to by at most one edge.
+%	If there are two distinct paths from $\IV$ to $y$, then there must be two distinct edges pointing to the same node in $\graph$, in which case $\bad_C$ must be set.
+%	If the node $y$ exists in $\graph$ before a path from $\IV$ to $y$ is created, then some edge in this path must point to a preexisting node, and $\bad_C$ must be set.
+%		
+%	In game $\Gm_3$, we move the computation of $\construct{MD}[\PubO](\X)$ to the $\PrivO$ oracle, though the oracle still returns the value $\hash(\X)$.
+%	Although the $\PrivO$ oracle does not change in the view of the adversary, the game's $\PubO$ queries add nodes to $\graph$ which in $\Gm_2$ would not have been present until the end of the game.
+%	These new nodes change the behavior of the simulator in two ways:
+%	First, the simulator may set the $\bad_C$ flag in $\Gm_3$ when it would not have done so in $\Gm_2$, or vice versa.
+%	Second, the new nodes in $\Gm_3$ may form new paths from $\IV$ that will lead the simulator to answer queries differently in $\Gm_3$ than it would in $\Gm_2$. 
+%	
+%	We have already bounded the probability that the $\bad_C$ flag is set in a game making $q_{\PubO}+q_{\PrivO} \cdot \ell$ to the $\PubO$ oracle, and by a union bound over games $\Gm_2$ and $\Gm_3$ we know this occurs in either with probability no greater than $4(q_{\PubO}+q_{\PrivO} \cdot \ell)^2(2^{-2k} + \varepsilon)$.
+%	We claim that the second change also does not occur unless the $\bad_C$ flag would be set in either $\Gm_2$ or $\Gm_3$.
+%	Then
+%		\[|\Pr[\Gm_1] - \Pr[\Gm_2]| \leq 4(q_{\PubO}+q_{\PrivO} \cdot \ell)^2(2^{-2k} + \varepsilon).\]
+%
+%	First, we rely on the previously established properties in our graph to show that the new queries in $\PrivO$ are the same ones that would be made in $\Finalize$ in $\Gm_2$, with the same responses (except when $\bad_C$ is set).
+%	When $\PrivO$ or $\Finalize$ computes $\construct{F}[\PubO](\X)$, it makes a sequence of $\PubO$ queries $(m_1, y_1) \ldots (m_i, y_i)$ such that $m_1, \ldots m_i$ are $k$-bit blocks of $\padF(\X)$, $y_1 = \IV$, and the query $\PubO(m_j, y_j)$ returns $y_{j+1}$ for each $j \in [i-1]$.
+%	The $m$-arguments in this sequence are uniquely determined by $\X$, so they are identical in both games.
+%	Additionally, when each query $(m_j, y_j)$ in this sequence is made in order, there is always a path from $\IV$ to $y_j$, and its edges have labels $m_1, \ldots, m_{i-1}$.
+%	In both $\Gm_2$ and $\Gm_3$, the first query in the sequence is $\PubO(m_1, \IV)$. 
+%	If the sequences are not identical, there must be some first query $(m_j, y_j)$ which returns different responses in $\Gm_2$ and $\Gm_3$.
+%	The path to $y_j$ from $\IV$ is the same in both games, so the response can differ only if 
+%\begin{enumerate}
+%	\item there are two distinct paths from $\IV$ to $y_j$ in one of the games, or 
+%	\item the response to $\PubO(m_j, y_j)$ in $\Gm_2$ is cached, and the query was originally made by the adversary when no path to $y_j$ existed.
+%\end{enumerate}
+%	These cases violate our two properties of $\graph$, so neither is possible without setting $\bad_C$.
+%	Then if $\bad_C$ is not set, all queries made by $\PrivO$ in $\Gm_3$ will be made by $\Finalize$ in $\Gm_2$, and will output the same responses.
+%	
+%	Now consider the first adversarial query $\PubO(m, y)$ which is answered differently in $\Gm_3$ and $\Gm_2$.
+%	We assume that $\bad_C$ is not set in either game.
+%	Since $\PubO(m, y)$ is the first adversarial query to differ between $\Gm_2$ and $\Gm_3$, the graph in $\Gm_2$ at the point when this query occurs is a subgraph of the graph in $\Gm_3$ at the same point.
+%	If there is no path from $\IV$ to $y$ in $\Gm_3$, there can be no path from $\IV$ to $y$ in $\Gm_2$.
+%	Then $\PubO(m,y)$ would be answered by a random string in both games.
+%	Instead, assume there is a path $\ppath$ from $\IV$ to $y$ in $\Gm_3$. 
+%	Any edge in $\ppath$ which is not present in the graph of $\Gm_2$ must have been created by a $\PubO$ query in the $\PrivO$ oracle of $\Gm_3$.
+%	We have shown that all such queries will eventually be made by the $\Finalize$ oracle in $\Gm_2$. 
+%	Then by the end of $\Gm_2$, the path $\ppath$ from $\IV$ to $y$ will be present in the graph.
+%	According to the graph properties, this means that 1) $\ppath$ is the unique path from $\IV$ to $y$ in $\Gm_2$, and 2) that $\ppath$ existed in the graph when the node $y$ was created.
+%	Then the query $\PubO(m, y)$ will be answered the same way (with $\Sample$ if $\UnPadF(\ppath) \neq \bot$ or randomly otherwise) in both games.
+%	
+%	This concludes our proof that games $\Gm_2$ and $\Gm_3$ are identical in the view of the adversary unless one of them would set $\bad_C$.
+%	 
+%	In $\Gm_4$, the $\PrivO$ oracle will return the result of $\construct{F}[\PubO](M^*)$ instead of discarding it.
+%	It no longer directly queries $\hash$. 
+%	We claim that unless $\bad_C$ is set, $\hash(M^*) = \construct{F}[\PubO](M^*)$. 
+%	 
+%	 Recall that $\construct{F}(M^*)$ makes a chain of queries $(m_1, y_1) \ldots (m_i, y_i)$ with the $m_i$'s being $k$-bit blocks of $\padF(M^*)$.
+%	 Furthermore, the $\graph$ contains a unique path from $\IV$ to $y_i$, labeled by the string $m_1 \ldots m_{i-1}$.
+%	 By the graph properties established after $\Gm_3$, this path must exist when the query $\PubO(m_i, y_i)$ is first made unless $\bad_C$ is set. 
+%	 Therefore the response will be $z = \Sample(\hash(2, 0^k, \UnPadF(\padF(M^*))))$.
+%	 Because $\padF$ is invertible and $\Sample$ is the $\varepsilon$-sampleable inverse of $\Out$,
+%	 it will hold that $\Out(z) = \hash(M^*)$.
+%	 
+%	 Since all oracles' responses do not change, we have that
+%	 \[ \Pr[\Gm_4] = \Pr[\Gm_3].\]
+%	 
+%	 In $\Gm_5$, we replace the random oracle $\hash$ with uniform sampling, and we claim that this does not change the view of $\advA$, thus
+%	  \[\Pr[\Gm_5] = \Pr[\Gm_4]. \]
+%	 After the changes of $\Gm_4$, oracle $\hash$ is now queried only within the simulator.
+%	 We claim that the simulator queries $\hash$ only once per input $M$.
+%	 Two distinct nodes in $\graph$ may not have the same path label, because the simulator generates only one edge for each label and starting node.
+%	 Furthermore, we require that the padding function $\padF$ is unambiguous, so its inverse $\UnPadF$ is injective on its support.
+%	 Therefore $\hash$ does not need to cache its responses.
+%	 
+%	 In $\Gm_6$, we use the pseudorandomness of $\Sample$ (the second condition) to replace programmed responses with uniform $2k$-bit strings.
+%	 We require up to $q_{\PubO}+q_{\PrivO} \cdot \ell$ such strings (one for each $\PubO$ query), so by a reduction to condition $2$ of $\varepsilon$-sampleablility of $\Out$,
+%	 \[|\Pr[\Gm_6] - \Pr[\Gm_5] | \leq (q_{\PubO}+q_{\PrivO} \cdot \ell)^2 \varepsilon.\]
+%	 
+%	 In the last game, $\Gm_7$, we no longer define $\ppath$ or set the $\bad_C$ flag. 
+%	 After $\Gm_6$, the simulator returns a uniform string in response to all (new) queries so eliminating the programming condition does not change the oracle's behavior.
+%	 By the identical-until-bad lemma, and a birthday bound over the $q_{\PubO}+q_{\PrivO} \cdot \ell$ uniformly random $2k$-bit strings sampled by $\PubO$, we have that
+%	 \[|\Pr[\Gm_7] - \Pr[\Gm_6]|  \leq \Pr[\Gm_6 \text{ sets }\bad_C]  \leq 2(q_{\PubO}+q_{\PrivO} \cdot \ell)^2(2^{-2k}).\]
+%
+%	We have now arrived at a game which is identical to the ``real-world'' indifferentiability game for $\construct{F}$: the $\PubO$ oracle implements a lazily-sampled random oracle, and the $\PrivO$ oracle executes the $\construct{F}$ functor with access to this random oracle. 
+%	It follows that 
+%	\[\Pr[\Gm_7] =  \Pr[\Gindiff_{\construct{F}, \simulator,\roSp_1, \roSp_2}\Rightarrow 1 | b = 1],\]
+%	and collecting bounds proves the lemma. \qedsym
+%\begin{figure}
+%			
+%			\twoCols{0.44}{0.47}{
+%				\ExperimentHeader{Game $Gm_3$}
+%				
+%				\begin{algorithm}{$\Initialize()$}
+%					\item $b \gets 0$
+%					\item $\HH \getsr \roSp_2$
+%					\item $\graph \gets \emptyset$
+%				\end{algorithm}
+%				\ExptSepSpace
+%			\begin{algorithm}{$\Finalize(b')$}
+%				\item \gamechange{for $\X \in L$}
+%				\item \quad \gamechange{$\construct{F}[\PubO](\X)$}
+%				\item \gamechange{if $\bad_C$ then return $0$}
+%				\item return $[[b' = 0]]$
+%			\end{algorithm}
+%		\begin{algorithm}{$\PrivOExt(2, \X)$}
+%			\item $\L \gets \L \cup \{\X\}$
+%			\item return $\HH(2, 0^k, \X)$
+%		\end{algorithm}	
+%				
+%			}
+%			{	\ExptSepSpace
+%				\begin{algorithm}{$\PubO(2,\Y)$}
+%					\item $(m, y) \gets \Y$
+%					\item if $\exists z$ such that $(y, z, m) \in \graph.\edges$
+%					\item \quad return $z$
+%					\item $\ppath \gets \graph.\ppathO(\IV, y)$
+%					\item if $\ppath \neq \bot$ then
+%					\item \quad $\msg \gets \UnPadF(\ppath\concat m))$
+%					\item \quad if $\msg \neq \bot$ 
+%					\item \qquad $z \gets \Sample(\HH(2, 0^k, \msg))$
+%					\item else  $z \getsr \bits^{2k}$
+%					\item \gamechange{if $z \in \graph.\nodes$ then}
+%					\item \quad \gamechange{$\bad_C \gets \true$}
+%					\item add $(y, z, m)$ to $\graph.\edges$
+%					\item return $z$
+%				\end{algorithm}
+%			}
+%			\vspace{5pt}
+%			\caption{Game $\Gm_3$ in the proof of Lemma~\ref{th-md-indiff}, with changes from $\Gm_1$ and $\Gm_2$ highlighted.}
+%			\label{fig-lemma-gm3}
+%		\end{figure}

@@ -1,0 +1,603 @@
+%
+%% LNCS format modifiers
+%\makeatletter
+%\newcommand{\lncsonly}{\relax\iffull\expandafter\@gobble\else\expandafter\@firstofone\fi}
+%\newcommand{\lncselse}{\relax\iffull\expandafter\@secondoftwo\else\expandafter\@firstoftwo\fi}
+\newcommand{\fullonly}{\relax\iffull\expandafter\@firstofone\else\expandafter\@gobble\fi}
+\newcommand{\fullelse}{\relax\iffull\expandafter\@firstoftwo\else\expandafter\@secondoftwo\fi}
+%\newcommand{\nfullonly}{\relax\iffull\expandafter\@gobble\else\expandafter\@firstofone\fi}
+%\makeatother
+%\newcommand{\lncsbreak}{\lncsonly{\allowbreak}}
+%\newcommand{\lncsforcebreak}{\lncsonly{\linebreak}}
+%\newcommand{\lncsnewline}{\lncsonly{\newline}}
+%\newcommand{\lncsdot}{\lncsonly{.}}  % lncs-only ending dot for inline headings (e.g., \subsubsection)
+
+%
+% Formatting modifiers
+%
+\newcommand{\shortlongeqn}[2][]{\[ #2 #1 \]}
+\newcommand{\lightparagraph}[1]{\paragraph{#1}}
+
+
+%
+% Fonts
+%
+
+\DeclareMathAlphabet{\mathsc}{OT1}{cmr}{m}{sc}
+
+
+%
+% Colors
+%
+\definecolor{darkblue}{rgb}{0,0,0.5}
+\definecolor{darkgreen}{rgb}{0,0.5,0}
+\definecolor{darkred}{rgb}{0.5,0,0}
+
+\definecolor{tudred}{RGB}{230,0,26}
+\definecolor{tudgreen}{RGB}{153,192,0}
+\definecolor{tudorange}{RGB}{245,163,0}
+\definecolor{tudblue}{RGB}{0,104,157}
+\definecolor{tudpurple}{RGB}{149,17,105}
+\definecolor{tudbrown}{RGB}{169,73,19}
+
+%
+% Basics
+%
+\newcommand{\minus}{\text{\normalfont-}}
+
+\newcommand{\sample}{\xleftarrow{\smash{\raisebox{-1.75pt}{$\scriptscriptstyle\$$}}}}
+\newcommand{\tor}{\xrightarrow{\smash{\raisebox{-1.75pt}{$\scriptscriptstyle\$$}}}}
+
+\newcommand{\conc}{\|}
+
+%\newcommand{\comment}[1]{\textcolor{gray}{\scriptsize/\!\!/\,#1}}
+
+%
+% Word macros
+%
+
+% no word-break in n-RTT
+\newcommand{\ZRTT}{\mbox{0-RTT}\xspace}
+\newcommand{\OneRTT}{\mbox{1-RTT}\xspace}
+
+\newcommand{\SIGMA}{\mbox{SIGMA}\xspace}
+\newcommand{\SIGMAI}{\mbox{SIGMA-I}\xspace}
+
+% math-mode macros (in theorems)
+\newcommand{\mSIGMAI}{\mathrm{SIGMA{\minus}I}}
+\newcommand{\mTLS}{\mathrm{TLS\,1.3}}
+
+
+%
+% Redefine standard commands
+%
+
+% \paragraph, \subparagraph: automatically append a dot after paragraph titles
+\let\originalparagraph\paragraph
+\renewcommand{\paragraph}[1]{%
+  \ifthenelse{\endswith{#1}{.}}{%
+    \originalparagraph{#1}%
+  }{%
+    \originalparagraph[#1]{#1.}%
+  }%
+}
+
+\let\originalsubparagraph\subparagraph
+\renewcommand{\subparagraph}[1]{%
+  \ifthenelse{\endswith{#1}{.}}{%
+    \originalsubparagraph{#1}%
+  }{%
+    \originalsubparagraph[#1]{#1.}%
+  }%
+}
+
+
+%
+% Definitions, Theorems, etc.
+% (already present in LNCS)
+%
+%
+%\iffull
+%\theoremstyle{plain}
+%\newtheorem{theorem}{Theorem}[section]
+%\newtheorem{lemma}[theorem]{Lemma}
+%\newtheorem{proposition}[theorem]{Proposition}
+%\newtheorem{corollary}[theorem]{Corollary}
+%
+ \theoremstyle{definition}
+\newtheorem{definition}{Definition}
+%\newtheorem{construction}[theorem]{Construction}
+%
+%\theoremstyle{remark}
+%\newtheorem{remark}[theorem]{Remark}
+%\newtheorem{example}[theorem]{Example}
+%\fi
+
+
+
+\newcommand{\NN}{\mathds{N}}
+\newcommand{\ZZ}{\mathds{Z}}
+
+%\newcommand{\group}{\mathbb{G}}
+
+\newcommand{\gamefont}[1]{\mathrm{#1}}
+%\newcommand{\procfont}[1]{\textsc{#1}}
+\newcommand{\setfont}[1]{\mathcal{#1}}
+
+%\newcommand{\Adv}{\mathsf{Adv}}
+% \newcommand{\genAdv}[3]{\Adv^{\mathsf{#1}}_{#2}(#3)}
+%\newcommand{\genAdv}[3]{\Adv^{\mathsf{#1}}_{#2,#3}}
+\newcommand{\genAdvA}[2]{\genAdv{#1}{#2}{\advA}}
+%\newcommand{\bad}[1][]{\mathsf{bad}_{#1}}
+%\newcommand{\Gm}{\gamefont{G}}
+%\newcommand{\advA}{\mathcal{A}}
+%\newcommand{\advB}{\mathcal{B}}
+
+
+% ----- Colors -----
+\newcommand{\gray}[1]{{\color{gray}#1}}
+\newcommand{\grey}{\gray}
+
+% ----- Highlights, etc. -----
+
+
+%\definecolor{highlight-gray}{gray}{0.90}
+
+%\newcommand{\gamechange}[1][highlight-gray]{\setlength{\fboxsep}{0pt}\colorbox{#1}}
+
+%
+% Macro styles
+%
+
+\newcommand{\algostyle}[1]{\mathsf{#1}} % algorithm
+\newcommand{\predstyle}[1]{\mathsf{#1}} % predicate
+\newcommand{\notionstyle}[1]{\mathsf{#1}} % security notion
+\newcommand{\oraclestyle}[1]{\mathsc{#1}} % oracle
+
+\newcommand{\protvarstyle}[1]{#1} % protocol variable
+\newcommand{\protvalstyle}[1]{\mathsf{#1}} % protocol value
+\newcommand{\gamevarstyle}[1]{\mathsf{#1}} % game variable
+
+\newcommand{\querynum}[1]{q_{\oraclestyle{#1}}} % number of queries to oracle #1 (latter may be abbreviated)
+
+
+%
+% Components
+%
+
+\newcommand{\New}{\oraclestyle{New}} % multi-user new key query
+\newcommand{\qNew}{\querynum{Nw}}
+\newcommand{\Corrupt}{\oraclestyle{Corrupt}} % multi-user corrupt query
+\newcommand{\qCorrupt}{\querynum{C}}
+
+% PRFs
+\newcommand{\PRF}{\algostyle{PRF}}
+\newcommand{\muPRFSEC}{\notionstyle{mu{\minus}PRF}}
+\newcommand{\PRFfn}{\oraclestyle{Fn}} % PRF function oracle
+\newcommand{\qPRFfn}{\querynum{Fn}}
+\newcommand{\qPRFfnU}{\querynum{Fn/U}}
+%\newcommand{\FUNC}{\mathsf{FUNC}} % function space
+
+% input labels / constants to PRF etc.
+\newcommand{\inputlabel}[1][]{\mathtt{L}_{#1}}
+\newcommand{\constant}[1][]{\mathtt{C}_{#1}}
+
+% Hash
+\newcommand{\Hash}{\algostyle{H}} % the hash function
+\newcommand{\COLL}{\notionstyle{CR}} % collision resistance
+
+% Random oracle
+%\newcommand{\RO}{\algostyle{RO}}
+\newcommand{\qRO}{\querynum{RO}} % number of RO queries
+
+%Encryption
+\newcommand{\ENCScheme}{\algostyle{E}}
+\newcommand{\ENCEnc}{\algostyle{Enc}}
+\newcommand{\ENCDec}{\algostyle{Dec}}
+
+% Signatures
+\newcommand{\SIGScheme}{\algostyle{S}}
+\newcommand{\SIGKGen}{\algostyle{KGen}}
+\newcommand{\SIGSign}{\algostyle{Sign}}
+\newcommand{\SIGVerify}{\algostyle{Vrfy}}
+\newcommand{\OSign}{\oraclestyle{Sign}}
+\newcommand{\qSign}{\querynum{Sg}}
+\newcommand{\qSignU}{\querynum{Sg/U}}
+
+% MACs
+\newcommand{\MACScheme}{\algostyle{M}}
+\newcommand{\MACKGen}{\algostyle{KGen}}
+\newcommand{\MACTag}{\algostyle{Tag}}
+\newcommand{\MACVerify}{\algostyle{Vrfy}}
+\newcommand{\OTag}{\oraclestyle{Tag}}
+\newcommand{\qTag}{\querynum{Tg}}
+\newcommand{\qTagU}{\querynum{Tg/U}}
+\newcommand{\OVerify}{\oraclestyle{Vrfy}}
+\newcommand{\qVerify}{\querynum{V\!f}}
+\newcommand{\qVerifyU}{\querynum{V\!f/U}}
+\newcommand{\EUFCMA}{\notionstyle{EUF{\minus}CMA}}
+\newcommand{\muEUFCMA}{\notionstyle{mu{\minus}EUF{\minus}CMA}}
+
+% HKDF
+\newcommand{\HKDF}{\algostyle{HKDF}}
+\newcommand{\HMAC}{\algostyle{HMAC}}
+\newcommand{\Extract}{\algostyle{Extract}} % HKDF Extract function
+\newcommand{\Expand}{\algostyle{Expand}} % HKDF Expand function
+\newcommand{\sExtract}{\algostyle{Ext}} % short HKDF Extract function
+\newcommand{\sExpand}{\algostyle{Exp}} % short HKDF Expand function
+
+% Strong Diffie--Hellman
+\newcommand{\strongDH}{\notionstyle{stDH}} % strongDH assumption
+\newcommand{\DDH}{\algostyle{DDH}} % DDH oracle
+\newcommand{\qstDH}{\querynum{sDH}} % number of DDH/stDH oracle queries
+
+%
+% Key Exchange
+%
+
+\newcommand{\KE}{\algostyle{KE}}
+\newcommand{\KEKGen}{\algostyle{KGen}}
+\newcommand{\KEActivate}{\algostyle{Activate}}
+\newcommand{\KERun}{\algostyle{Run}}
+\newcommand{\KEkeyspace}{\KE.\algostyle{KS}}
+\newcommand{\TLS}{\algostyle{TLS}}
+
+% protocol variables
+\def\PROTOCOLVARIABLES{pk,sk,id,peerid,peerpk,role,st,sid,status,skey,state,X,Y,W,N,Recv,E,x,y,r,kl,mk}
+\foreach \protvar in \PROTOCOLVARIABLES {%
+	\expandafter\xdef\csname\protvar\endcsname{\noexpand\protvarstyle{\protvar}}
+}
+% some more, manually
+\newcommand{\nonce}{\protvarstyle{n}}
+\newcommand{\ol}{\protvarstyle{ol}}
+\newcommand{\nl}{\protvarstyle{nl}}
+
+% protocol values
+\def\PROTOCOLVALUES{running,accepted,rejected,initiator,responder}
+\foreach \protval in \PROTOCOLVALUES {%
+	\expandafter\xdef\csname\protval\endcsname{\noexpand\protvalstyle{\protval}}
+}
+
+\newcommand{\labelis}{\inputlabel[is]}
+\newcommand{\labelim}{\inputlabel[im]}
+\newcommand{\labelrs}{\inputlabel[rs]}
+\newcommand{\labelrm}{\inputlabel[rm]}
+\newcommand{\ks}{k_s}
+\newcommand{\kt}{k_t}
+\newcommand{\ke}{k_e}
+\newcommand{\Zz}{Z}
+\newcommand{\ciph}{c}
+\newcommand{\sidhash}{d}
+
+% StrongDH
+\newcommand{\stDH}{\mathsf{stDH}} % strongDH oracle
+
+%
+% SIGMA
+%
+\newcommand{\RunInitI}{\algostyle{RunInit1}}
+\newcommand{\RunInit}{\algostyle{RunInit2}}
+\newcommand{\RunRespI}{\algostyle{RunResp1}}
+\newcommand{\RunRespII}{\algostyle{RunResp2}}
+
+
+%
+% Key Exchange Model
+%
+
+\newcommand{\KESEC}{\notionstyle{KE{\minus}SEC}}
+
+% Oracles
+%\newcommand{\Initialize}{\oraclestyle{Initialize}}
+%\newcommand{\Finalize}{\oraclestyle{Finalize}}
+\newcommand{\Send}{\oraclestyle{Send}}
+\newcommand{\NewUser}{\oraclestyle{NewUser}}
+\newcommand{\RevSessionKey}{\oraclestyle{RevSessionKey}}
+\newcommand{\RevLongTermKey}{\oraclestyle{RevLongTermKey}}
+\newcommand{\Test}{\oraclestyle{Test}}
+
+% number of queries
+\newcommand{\qNewUser}{\querynum{N}}
+\newcommand{\qSend}{\querynum{S}}
+\newcommand{\qRevSessionKey}{\querynum{RS}}
+\newcommand{\qRevLongTermKey}{\querynum{RL}}
+\newcommand{\qTest}{\querynum{T}}
+\newcommand{\qRevState}{\querynum{RSt}}
+
+% Predicates
+\newcommand{\Sound}{\predstyle{Sound}}
+\newcommand{\ExplicitAuth}{\predstyle{ExplicitAuth}}
+\newcommand{\Fresh}{\predstyle{Fresh}}
+
+% game variables
+\def\GAMEVARIABLES{revealed,tested,revltk,time,users,S,Q,Sent}
+\foreach \gamevar in \GAMEVARIABLES {%
+	\expandafter\xdef\csname\gamevar\endcsname{\noexpand\gamevarstyle{\gamevar}}
+}
+% some more, manually
+\newcommand{\taccepted}{\gamevarstyle{t_{acc}}}
+
+
+%
+% Game hop proofs, environments, counters
+%
+
+% initiate a proof, giving it a (reference) name
+\newcommand{\startproof}[1]{%
+	\xdef\currentproof{#1}
+	\firstproofngame
+}
+\newcommand{\currentproof}{}
+
+\newcounter{proofngame} % counter for games in proofs without multiple cases
+
+\renewcommand*{\theHproofngame}{\currentproof.\theproofngame} % make proofngame counter references unique per proof (for hyperref)
+
+\newcommand{\curgame}{}  % label of current game
+\newcommand{\prevgame}{} % label of previous game
+
+\newcommand{\firstproofngame}[1][0]{\setcounter{proofngame}{-1+#1}} % reset counter to be 0 next time
+\newcommand{\proofngame}[1][]{%  %%% optional argument is used as \label
+	\refstepcounter{proofngame}%
+	\ifthenelse{\isempty{#1}}{}{%
+		\label{game:\currentproof:#1}%
+		\edef\prevgame{\curgame}%
+		\edef\curgame{game:\currentproof:#1}%
+	}%
+	\proofparagraph{Game \theproofngame}
+}
+\newcommand{\proofngames}[2][]{%  %%% (second) argument is number of game steps, optional argument is used as \label for the last gamd
+	\stepcounter{proofngame}
+	\xdef\oldproofngame{\theproofngame}
+	\addtocounter{proofngame}{#2} % add number of game steps
+	\addtocounter{proofngame}{-2} % -2 for step before and \ref*step* counter
+	\refstepcounter{proofngame}%
+	\ifthenelse{\isempty{#1}}{}{%
+		\label{game:\currentproof:#1}%
+		\edef\prevgame{\curgame}%
+		\edef\curgame{game:\currentproof:#1}%
+	}%
+	\proofparagraph{Games \oldproofngame--\theproofngame}
+}
+
+% spacing between proof paragraphs
+\newcommand{\proofsep}{\iffull\bigskip\else\medskip\fi}
+
+% proof paragraph style
+\makeatletter
+\newcommand\gobblepars{% removes \par after command, used to make \proofparagraph a run-in heading
+    \@ifnextchar\par%
+        {\expandafter\gobblepars\@gobble}%
+        {}}
+\newcommand{\proofparagraph}[1]{%
+% 	\iffullversion\bigskip\else\smallskip\fi
+% 	\noindent\textit{#1.}\hspace{1em}\@afterindentfalse\@afterheading\gobblepars} %% this seems to not indent the first paragraph following the paragraph start
+	
+	\proofsep
+	\noindent\textbf{#1.}\hspace{1em}\gobblepars}
+\makeatother
+
+% macros for the current, previous, or labeled games
+\makeatletter
+\newcommand{\curGm}{\@ifstar{\@curGmNL}{\@curGmL}}
+	\newcommand{\@curGmNL}{\Gm_{\ref*{\curgame}}} % without hyperlink
+	\newcommand{\@curGmL}{\Gm_{\ref{\curgame}}} % with hyperlink
+\newcommand{\prevGm}{\@ifstar{\@prevGmNL}{\@prevGmL}}
+	\newcommand{\@prevGmNL}{\Gm_{\ref*{\prevgame}}} % without hyperlink
+	\newcommand{\@prevGmL}{\Gm_{\ref{\prevgame}}} % with hyperlink
+\newcommand{\lblGm}{\@ifstar{\@lblGmNL}{\@lblGmL}}
+	\newcommand{\@lblGmNL}[1]{\Gm_{\ref*{game:\currentproof:#1}}} % without hyperlink
+	\newcommand{\@lblGmL}[1]{\Gm_{\ref{game:\currentproof:#1}}} % with hyperlink
+\makeatother
+
+% macros for current and new \advB reduction
+\newcommand{\curadvB}{\advB_{\arabic{advB-\currentproof}}} % current \advB_x (does not increment counter)
+\newcommand{\newadvB}{\stepcounter{advB-\currentproof}\curbdv} % new \advB_x (increments counter)
+
+
+
+%
+% Protocol Figures
+%
+
+% For any new figure, you to set X coordinates for client, server, and arrows; and initial Y coordinate, e.g.:
+% 	\edef\ClientX{0}
+% 	\edef\ArrowLeft{0}
+% 	\edef\ArrowRight{9}
+% 	\edef\ServerX{9}
+% 	\edef\Y{0}
+
+% ClientAction and ServerAction
+% Print a command executed by the client/server
+% 1st argument: the text
+\newcommand{\ClientAction}[2][]{
+	\node[right,#1] at (\ClientX, \Y) {#2};
+}
+\newcommand{\ServerAction}[2][]{
+	\node[left,#1] at (\ServerX, \Y) {#2};
+}
+\newcommand{\SharedAction}[2][]{
+	\node[#1] at ($1/2*(\ClientX, \Y)+1/2*(\ServerX, \Y)$) {#2};
+}
+
+% ClientToServer and ServerToClient
+% Draws a message flow from client-to-server or server-to-client, with text above and below
+% 1st argument (optional): line type, default ->
+% 2nd argument: text above
+% 3rd argument: text below
+% Example: \ClientToServer{$Y$}{}
+% Example: \ClientToServer[<->,double]{$Y$}{over an encrypted channel}
+\newcommand{\ClientToServer}[3][->]{
+	\NextLine[0.5]
+	\draw[>=latex, very thick, #1] (\ArrowLeft+1,\Y) -- node[above=-0.1] {#2} node[below] {#3} (\ArrowRight-1,\Y) ;
+	\NextLine[0.25]
+}
+\newcommand{\ServerToClient}[3][->]{
+	\NextLine[0.5]
+	\draw[>=latex, very thick, #1] (\ArrowRight-1,\Y) -- node[above=-0.1] {#2} node[below] {#3} (\ArrowLeft+1,\Y) ;
+	\NextLine[0.25]
+}
+
+% Spacing factor for NextLines
+\iffull
+\def\NextLineSpacing{0.55}
+\else
+\def\NextLineSpacing{0.45}
+\fi
+
+% NextLine
+% 1st argument (optional): amount of spacing to increment by, default 1.0
+% Example: \NextLine
+% Example: \NextLine[1.5]
+\newcommand{\NextLine}[1][1.0]{
+	\pgfmathparse{\Y-\NextLineSpacing*#1}
+	\edef\Y{\pgfmathresult}
+}
+
+%
+% stage separator line
+%
+\newcommand{\StageSeparator}[1]{
+	\draw[very thick,dotted,StageSeparatorColor] (\ArrowLeft,\Y-0.5*\NextLineSpacing) -- (\ArrowRight+0.15,\Y-0.5*\NextLineSpacing) node[right,anchor=west,font=\footnotesize] {stage~#1} ;
+}
+
+%
+% accept key and stage
+%
+\newcommand{\AcceptStage}[2]{
+	\SharedAction{{\color{StageSeparatorColor}\textbf{accept} #2}}
+	\StageSeparator{#1}
+}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% TLS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%
+% TLS messages
+%
+
+% long versions
+\newcommand{\CHELO}{\mathtt{ClientHello}}
+\newcommand{\SHELO}{\mathtt{ServerHello}}
+\newcommand{\CKEYS}{\mathtt{ClientKeyShare}}
+\newcommand{\SKEYS}{\mathtt{ServerKeyShare}}
+%\newcommand{\CPSK}{\mathtt{ClientPreSharedKey}}
+%\newcommand{\SPSK}{\mathtt{ServerPreSharedKey}}
+\newcommand{\ENCEX}{\mathtt{EncryptedExtensions}}
+\newcommand{\CERTR}{\mathtt{CertificateRequest}}
+\newcommand{\SCERT}{\mathtt{ServerCertificate}}
+\newcommand{\SCERTV}{\mathtt{ServerCertificateVerify}}
+\newcommand{\CCERT}{\mathtt{ClientCertificate}}
+\newcommand{\CCERTV}{\mathtt{ClientCertificateVerify}}
+\newcommand{\SFIN}{\mathtt{ServerFinished}}
+\newcommand{\CFIN}{\mathtt{ClientFinished}}
+
+% common names
+\newcommand{\HELO}{\mathtt{Hello}}
+\newcommand{\KEYS}{\mathtt{KeyShare}}
+\newcommand{\PSKS}{\mathtt{PreSharedKey}}
+\newcommand{\CERT}{\mathtt{Certificate}}
+\newcommand{\CERTV}{\mathtt{CertificateVerify}}
+\newcommand{\FIN}{\mathtt{Finished}}
+
+% middle versions
+\newcommand{\mCERTR}{\mathtt{CertRequest}}
+\newcommand{\mSCERT}{\mathtt{ServerCert}}
+\newcommand{\mSCERTV}{\mathtt{ServerCertVfy}}
+\newcommand{\mCCERT}{\mathtt{ClientCert}}
+\newcommand{\mCCERTV}{\mathtt{ClientCertVfy}}
+\newcommand{\mSFIN}{\mathtt{ServerFin}}
+\newcommand{\mCFIN}{\mathtt{ClientFin}}
+
+% short versions
+\newcommand{\sCHELO}{\mathtt{CH}}
+\newcommand{\sSHELO}{\mathtt{SH}}
+\newcommand{\sCKEYS}{\mathtt{CKS}}
+\newcommand{\sSKEYS}{\mathtt{SKS}}
+\newcommand{\sCPSK}{\mathtt{CPSK}}
+\newcommand{\sSPSK}{\mathtt{SPSK}}
+\newcommand{\sENCEX}{\mathtt{EE}}
+\newcommand{\sCERTR}{\mathtt{CR}}
+\newcommand{\sSCERT}{\mathtt{SCRT}}
+\newcommand{\sSCERTV}{\mathtt{SCV}}
+\newcommand{\sCCERT}{\mathtt{CCRT}}
+\newcommand{\sCCERTV}{\mathtt{CCV}}
+\newcommand{\sSFIN}{\mathtt{SF}}
+\newcommand{\sCFIN}{\mathtt{CF}}
+
+
+%
+% TLS keys and computed values
+%
+
+\newcommand{\DHE}{\mathrm{DHE}} % Diffie--Hellman shared value
+\newcommand{\PSK}{\mathrm{PSK}} % pre-shared key
+
+\newcommand{\ES}{\mathrm{ES}}   % early secret
+\newcommand{\dES}{\mathrm{dES}} % "derived" early secret
+\newcommand{\HS}{\mathrm{HS}}   % handshake secret
+\newcommand{\dHS}{\mathrm{dHS}} % "derived" handshake secret
+\newcommand{\MS}{\mathrm{MS}}   % master secret
+
+\newcommand{\BK}{\mathrm{BK}}     % binder key
+\newcommand{\ETS}{\mathrm{ETS}}   % early traffic secret
+\newcommand{\EEMS}{\mathrm{EEMS}} % early exporter master secret
+
+\newcommand{\HTS}{\mathrm{HTS}}   % handshake traffic secret
+\newcommand{\CHTS}{\mathrm{CHTS}} % client handshake traffic secret
+\newcommand{\SHTS}{\mathrm{SHTS}} % server handshake traffic secret
+\newcommand{\CFK}{\mathrm{fk}_C}  % client finished key
+\newcommand{\SFK}{\mathrm{fk}_S}  % server finished key
+
+\newcommand{\CATS}{\mathrm{CATS}} % client application traffic secret
+\newcommand{\SATS}{\mathrm{SATS}} % server application traffic secret
+\newcommand{\EMS}{\mathrm{EMS}}   % exporter master secret
+\newcommand{\RMS}{\mathrm{RMS}}   % resumption master secret
+\newcommand{\ATS}{\mathrm{ATS}}   % generalized application traffic secret (combining client+server)
+
+\newcommand{\tkead}{\mathrm{tk}_{\text{eapp}}}    % early application data traffic key
+\newcommand{\tkchs}{\mathrm{tk}_{\text{chs}}}     % client handshake traffic key
+\newcommand{\tkshs}{\mathrm{tk}_{\text{shs}}}     % server handshake traffic key
+\newcommand{\tkcapp}{\mathrm{tk}_{\text{capp}}}   % client application traffic key
+\newcommand{\tksapp}{\mathrm{tk}_{\text{sapp}}}   % server application traffic key
+
+
+%
+% TLS figure commands
+%
+\newcommand{\TLSmsg}[1]{{\color{TLSmsgcolor}#1}}
+\newcommand{\PSKECDHEonly}[2][0]{{\color{PSKECDHEonlycolor}[#2]$^{\dagger}$}}
+\newcommand{\PSKonly}[2][0]{{\color{PSKonlycolor}[#2]$^{\diamond}$}}
+
+%
+% TLS colors
+%
+\definecolor{TLSmsgcolor}{named}{OliveGreen}
+\definecolor{StageSeparatorColor}{named}{MidnightBlue}
+\definecolor{PSKonlycolor}{named}{BurntOrange}
+\definecolor{PSKECDHEonlycolor}{named}{BrickRed}
+
+\definecolor{inputsecretcolor}{named}{tudorange}
+\definecolor{internalcolor}{named}{tudred}
+\definecolor{stagekeycolor}{named}{tudblue}
+\definecolor{hkdfcolor}{named}{tudgreen}
+
+%
+% GGM 
+% 
+
+\newcommand{\OP}{\oraclestyle{OP}}
+\newcommand{\Bijections}{\mathrm{Bijections}}
+\newcommand{\sgn}{\text{ sgn }}
+\newcommand{\GL}{GL}
+\newcommand{\generator}{g}
+\newcommand{\one}{\mathds{1}}
+\newcommand{\VE}{\oraclestyle{VE}}
+\newcommand{\TV}{TV}
+\newcommand{\TI}{TI}
+
+\DeclareMathVersion{normal2}
